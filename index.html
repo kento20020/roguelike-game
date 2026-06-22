@@ -1,0 +1,798 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>地下カジノ・探索と戦闘 — Floor 02</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<style>
+@import url("https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Noto+Serif+JP:wght@400;500;600;700&family=Geist:wght@300;400;500;600;700&family=Noto+Sans+JP:wght@300;400;500;700&family=JetBrains+Mono:wght@400;500;700&display=swap");
+:root{
+  --paper:#15120E; --paper2:#1F1B15; --paper3:#2A241B; --felt:#171814;
+  --ink:#F1ECE0; --ink2:rgba(241,236,224,0.60); --ink3:rgba(241,236,224,0.33); --ink4:rgba(241,236,224,0.14);
+  --rule:rgba(241,236,224,0.13); --rule2:rgba(241,236,224,0.24);
+  --accent:#C85A2A; --accent2:#9A3A14; --accentSoft:rgba(200,90,42,0.14); --accentRing:rgba(200,90,42,0.55);
+  --brass:#C9A24B; --brassSoft:rgba(201,162,75,0.12); --danger:#C7402A; --moss:#5E8A66;
+  --serif:"Instrument Serif","Noto Serif JP",serif;
+  --sans:"Geist","Noto Sans JP",system-ui,sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,monospace;
+  --ease:cubic-bezier(0.2,0.0,0.0,1.0);
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+@keyframes availGlow{0%,100%{box-shadow:0 0 0 1px var(--accentRing),0 8px 22px rgba(0,0,0,0.45);}50%{box-shadow:0 0 0 1px var(--accent),0 8px 30px rgba(200,90,42,0.28);}}
+@keyframes gateGlow{0%,100%{box-shadow:0 0 0 1px rgba(201,162,75,0.5),0 10px 26px rgba(0,0,0,0.5);}50%{box-shadow:0 0 0 1px var(--brass),0 10px 34px rgba(201,162,75,0.26);}}
+@keyframes fadeUp{from{transform:translateY(7px);opacity:0;}to{transform:none;opacity:1;}}
+@keyframes overlayIn{from{opacity:0;}to{opacity:1;}}
+@keyframes pulseDot{0%,100%{opacity:.4;}50%{opacity:1;}}
+@keyframes emberRise{0%{transform:translateY(0);opacity:0;}12%{opacity:1;}86%{opacity:1;}100%{transform:translateY(-280px);opacity:0;}}
+@keyframes hazeDrift{0%{transform:translate(0,0);}50%{transform:translate(46px,-26px);}100%{transform:translate(0,0);}}
+
+.stage{
+  position:relative; width:100%; min-height:100vh;
+  background-color:var(--paper);
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='g'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.93 0 0 0 0 0.91 0 0 0 0 0.86 0 0 0 0.02 0'/></filter><rect width='100%25' height='100%25' filter='url(%23g)'/></svg>");
+  background-size:180px 180px;
+  font-family:var(--sans); color:var(--ink); overflow:hidden; -webkit-font-smoothing:antialiased;
+}
+
+/* interactive states (replace the prototype's style-hover / style-active) */
+.node-btn{ font:inherit; cursor:default; background:var(--paper2); border:none; }
+.node-btn.avail{ cursor:pointer; }
+.node-btn.avail:hover{ transform:translateY(-2px); }
+.node-btn.avail:active{ transform:scale(0.985); }
+.attack-btn{ transition:transform .08s var(--ease),background .12s var(--ease); }
+.attack-btn:hover{ background:var(--accent2); }
+.attack-btn:active{ transform:scale(0.985); }
+.mod-toggle{ transition:border-color .12s var(--ease); }
+.mod-toggle:hover{ border-color:var(--rule2); }
+.sink-btn{ transition:border-color .12s var(--ease); }
+.sink-btn:not(:disabled):hover{ border-color:var(--rule2); }
+.modal-primary{ transition:transform .08s var(--ease),opacity .12s var(--ease); }
+.modal-primary:hover{ opacity:.92; }
+.modal-primary:active{ transform:scale(0.985); }
+.modal-secondary{ transition:opacity .12s var(--ease); }
+.modal-secondary:not(:disabled):hover{ opacity:.72; }
+.end-btn{ transition:transform .08s var(--ease),background .12s var(--ease); }
+.end-btn:hover{ background:var(--accent2); }
+.end-btn:active{ transform:scale(0.985); }
+
+/* scrollbar polish for the combat log */
+.combat-log::-webkit-scrollbar{ width:8px; }
+.combat-log::-webkit-scrollbar-thumb{ background:var(--rule2); border-radius:999px; }
+.combat-log::-webkit-scrollbar-track{ background:transparent; }
+</style>
+</head>
+<body>
+<div class="stage">
+  <!-- ambient back layer (generated once so it never restarts on re-render) -->
+  <div style="position:fixed; inset:0; pointer-events:none; z-index:0; overflow:hidden;">
+    <div style="position:absolute; width:540px; height:540px; left:3%; top:32%; border-radius:50%; background:radial-gradient(circle, rgba(200,90,42,0.06), rgba(0,0,0,0) 70%); filter:blur(26px); animation:hazeDrift 52s ease-in-out infinite;"></div>
+    <div style="position:absolute; width:480px; height:480px; right:1%; top:6%; border-radius:50%; background:radial-gradient(circle, rgba(201,162,75,0.05), rgba(0,0,0,0) 70%); filter:blur(28px); animation:hazeDrift 64s ease-in-out infinite reverse;"></div>
+    <div id="embers-back"></div>
+  </div>
+  <div style="position:fixed; inset:0; pointer-events:none; z-index:1; background:radial-gradient(ellipse at 50% 40%, rgba(0,0,0,0) 44%, rgba(0,0,0,0.5) 100%);"></div>
+
+  <!-- dynamic app root -->
+  <div id="app"></div>
+
+  <!-- ambient front layer -->
+  <div style="position:fixed; inset:0; pointer-events:none; z-index:5; overflow:hidden;">
+    <div id="embers-front"></div>
+  </div>
+</div>
+
+<script>
+"use strict";
+(function(){
+
+// ────────────────────────────────────────────────────────────────────────
+//  地下カジノ・探索と戦闘 — Floor 02 vertical slice
+//  Faithful port of the Claude Design prototype (.dc.html) to plain JS.
+//  All game logic, data and the casino-noir visual language are preserved.
+// ────────────────────────────────────────────────────────────────────────
+
+var esc = function(s){ return String(s).replace(/[&<>"]/g, function(c){
+  return ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' })[c];
+}); };
+
+var Game = {
+
+  C: {
+    paper:'#15120E', paper2:'#1F1B15', paper3:'#2A241B', felt:'#171814',
+    ink:'#F1ECE0', ink2:'rgba(241,236,224,0.60)', ink3:'rgba(241,236,224,0.33)', ink4:'rgba(241,236,224,0.14)',
+    rule:'rgba(241,236,224,0.13)', rule2:'rgba(241,236,224,0.24)',
+    accent:'#C85A2A', accent2:'#9A3A14', accentRing:'rgba(200,90,42,0.55)',
+    brass:'#C9A24B', danger:'#C7402A', moss:'#5E8A66',
+  },
+
+  state: {
+    phase:'exploring',
+    player:{ hp:100, maxHp:100, attack:15, chips:45, mods:['反射','見切り'] },
+    resolved:{},
+    battle:null,
+    modal:null,
+    end:null,
+    modPanelOpen:false,
+  },
+
+  // ── Floor 02 node tree (形A [3,4]) ──
+  TREE: [
+    { id:'L', kind:'enemy', cx:170, cy:350, parents:[], e:{ jp:'カジノの用心棒', en:'Attrition · 削り合い', exp:'grind', maxHp:45, attack:10, heavy:1.5, gold:14, flavor:'じりじりと体力を削ってくる。長期戦は分が悪い、早めに片を付けたい相手だ。', beh:[['counter',70],['none',30]] } },
+    { id:'M', kind:'enemy', cx:450, cy:350, parents:[], e:{ jp:'いかさま博打狂', en:'Wager · 賭け', exp:'gamble', maxHp:40, attack:14, heavy:1.7, gold:16, flavor:'大振りの一発に賭ける男。当たれば痛いが、空振りも多い。分散の大きさに振り回される。', beh:[['heavy_blow',40],['none',60]] } },
+    { id:'R', kind:'enemy', cx:730, cy:350, parents:[], e:{ jp:'時計仕掛けのディーラー', en:'Ramp · レース', exp:'race', maxHp:38, attack:8, gold:18, ramp:{init:2,inc:2}, flavor:'手間取るほど手札を切る速度が上がる。放置するほど一撃が重くなる、時間との競争だ。', beh:[['ramp_hit',60],['counter',40]] } },
+    { id:'A', kind:'treasure', cx:96, cy:205, parents:['L'] },
+    { id:'B', kind:'enemy', cx:340, cy:205, parents:['L','M'], e:{ jp:'用心棒長', en:'Attrition · 削り合い', exp:'grind', maxHp:55, attack:11, heavy:1.5, gold:22, flavor:'関門へ続く道を塞ぐ手練れ。堅実なカウンターで削り切ってくる。', beh:[['counter',60],['heavy_blow',10],['none',30]] } },
+    { id:'C', kind:'enemy', cx:566, cy:205, parents:['M','R'], e:{ jp:'追跡式ディーラー', en:'Ramp · レース', exp:'race', maxHp:48, attack:9, gold:22, ramp:{init:3,inc:3}, flavor:'時を刻むほど刃が鋭くなる。長引かせれば確実に飲み込まれる。', beh:[['ramp_hit',70],['counter',30]] } },
+    { id:'D', kind:'heal', cx:806, cy:205, parents:['R'] },
+    { id:'GATE', kind:'gate', cx:450, cy:60, parents:['B','C'] },
+  ],
+
+  // 体験タイプ = チップカラー + 行動の「傾向」。数値（確率）は伏せたまま、質感だけ伝える。
+  EXP: {
+    grind:{ jp:'削り合い', en:'Attrition', color:'#6E93B8', tend:'じわじわ削る・堅実' },
+    gamble:{ jp:'賭け', en:'Wager', color:'#C2493B', tend:'大当たりか空振り' },
+    race:{ jp:'レース', en:'Ramp', color:'#C9A24B', tend:'長引くほど重い' },
+    evade:{ jp:'ずれ', en:'Slip', color:'#5E9A78', tend:'攻撃を空振りさせる' },
+    chaos:{ jp:'カオス', en:'Chaos', color:'#9C79BC', tend:'予測不能' },
+  },
+
+  // 技（mod）= アイコン + 効果説明。
+  MOD: {
+    '反射':   { icon:'reflect', effect:'counter を受けた時、敵に追加ダメージを返す' },
+    '見切り': { icon:'evade',   effect:'相手の回避（evade）の発生を半減する' },
+    '重装甲': { icon:'shield',  effect:'counter・強打の被ダメを固定値ぶん軽減' },
+    '好機':   { icon:'star',    effect:'強打を受けた直後、相手に追撃を1回' },
+    '先読み': { icon:'eye',     effect:'各戦闘の1ターン目、相手の行動を公開' },
+    '加速止め': { icon:'cap',   effect:'レースの蓄積（ramp）の増加を半減する' },
+  },
+
+  byId: {},
+
+  // ── icon factory (1.6px stroke, 24-grid, returns an SVG string) ──
+  icon: function(type, size){
+    var sz = size || 22;
+    var S = function(kids){ return '<svg width="'+sz+'" height="'+sz+'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">'+kids+'</svg>'; };
+    var P = function(d){ return '<path d="'+d+'"/>'; };
+    var R = function(x,y,w,h,r){ return '<rect x="'+x+'" y="'+y+'" width="'+w+'" height="'+h+'" rx="'+r+'"/>'; };
+    var Ci = function(cx,cy,r){ return '<circle cx="'+cx+'" cy="'+cy+'" r="'+r+'"/>'; };
+    switch(type){
+      case 'grind':    return S(P('M3 7 H8 V12 H13 V17 H21'));
+      case 'gamble':   return S(R(4,4,16,16,3)+Ci(9.2,9.2,0.7)+Ci(14.8,14.8,0.7)+Ci(14.8,9.2,0.7));
+      case 'race':     return S(P('M6 13 L12 7 L18 13')+P('M6 18 L12 12 L18 18'));
+      case 'evade':    return S(P('M3 8 H14 a2.6 2.6 0 1 0 -2.6 2.6')+P('M3 13 H10 a2.2 2.2 0 1 1 -2.2 2.2')+P('M3 18 H8'));
+      case 'chaos':    return S(P('M12 4 V20')+P('M4 12 H20')+P('M6.5 6.5 L17.5 17.5')+P('M17.5 6.5 L6.5 17.5'));
+      case 'treasure': return S(R(4,9,16,11,1.5)+P('M4 13 H20')+P('M9.2 9 V7.2 a2.8 2.8 0 0 1 5.6 0 V9')+Ci(12,14.6,0.8));
+      case 'heal':     return S(P('M7 5 H17')+P('M8 5 L9 16.5 a3 3 0 0 0 6 0 L16 5')+P('M9.6 10.5 H14.4'));
+      case 'gate':     return S(P('M5 20 V9 a7 7 0 0 1 14 0 V20')+P('M4 20 H20')+P('M12 12.5 V20'));
+      case 'lock':     return S(R(5.5,11,13,8.5,1.5)+P('M8 11 V8.2 a4 4 0 0 1 8 0 V11'));
+      case 'check':    return S(P('M4 12.5 L9.5 18 L20 6.5'));
+      case 'arrow':    return S(P('M5 12 H18')+P('M13 7 L18 12 L13 17'));
+      case 'sword':    return S(P('M4.5 19.5 L15 9')+P('M15 9 L19 5')+P('M12.5 6.5 L17.5 11.5')+P('M4.5 19.5 L3 21')+P('M7 17 L9 19'));
+      case 'eye':      return S(P('M2 12 C5 6.5 19 6.5 22 12 C19 17.5 5 17.5 2 12 Z')+Ci(12,12,2.4));
+      case 'plus':     return S(P('M12 5.5 V18.5')+P('M5.5 12 H18.5'));
+      case 'shield':   return S(P('M12 3 L19 6 V11 C19 16.2 12 21 12 21 C12 21 5 16.2 5 11 V6 Z'));
+      case 'reflect':  return S(P('M4 8 H15 L11.5 4.5')+P('M20 16 H9 L12.5 19.5'));
+      case 'star':     return S(P('M12 3.5 L14.1 9.5 L20.5 9.7 L15.4 13.6 L17.2 19.8 L12 16 L6.8 19.8 L8.6 13.6 L3.5 9.7 L9.9 9.5 Z'));
+      case 'cap':      return S(P('M6 15.5 L12 9.5 L18 15.5')+P('M5 19.5 H19'));
+      default:         return S(Ci(12,12,7));
+    }
+  },
+
+  rgba: function(hex, a){ var n = parseInt(hex.slice(1),16); return 'rgba('+((n>>16)&255)+','+((n>>8)&255)+','+(n&255)+','+a+')'; },
+
+  // ── behavior motif (qualitative shape — reads at a glance, no numbers) ──
+  motif: function(type){
+    var S = function(kids,dash){ return '<svg width="42" height="14" viewBox="0 0 42 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"'+(dash?' stroke-dasharray="'+dash+'"':'')+'>'+kids+'</svg>'; };
+    var P = function(d){ return '<path d="'+d+'"/>'; };
+    var Ci = function(cx,cy){ return '<circle cx="'+cx+'" cy="'+cy+'" r="1.3" fill="currentColor" stroke="none"/>'; };
+    switch(type){
+      case 'grind':  return S(P('M1 9 L7 5 L13 9 L19 5 L25 9 L31 5 L37 9 L41 7'));
+      case 'gamble': return S(P('M1 11 L15 11 L20 2 L25 11 L41 11'));
+      case 'race':   return S(P('M1 12 L9 12 L9 9 L17 9 L17 6 L25 6 L25 3 L41 3'));
+      case 'evade':  return S(P('M1 7 H41'),'3 4');
+      case 'chaos':  return S(Ci(5,5)+Ci(13,10)+Ci(21,4)+Ci(29,11)+Ci(37,6));
+      default:       return S(P('M1 7 H41'));
+    }
+  },
+
+  iconTypeFor: function(node){ return node.kind==='enemy' ? node.e.exp : node.kind; },
+
+  nodeState: function(node){
+    if(this.state.resolved[node.id]) return 'resolved';
+    if(node.parents.length===0) return 'available';
+    return node.parents.some(function(p){ return this.state.resolved[p]; }, this) ? 'available' : 'locked';
+  },
+
+  // ── ambient particles (computed once so they don't jump on re-render) ──
+  makeEmbers: function(n, front){
+    var palette = front ? ['241,236,224','201,162,75'] : ['200,90,42','201,162,75','241,236,224'];
+    var out = [];
+    for(var i=0;i<n;i++){
+      var left = Math.round(Math.random()*100);
+      var size = (front?1.4:2) + Math.random()*(front?1.8:3);
+      var dur = (front?15:9) + Math.random()*8;
+      var delay = Math.random()*dur;
+      var op = (front?0.16:0.4) + Math.random()*0.22;
+      var col = 'rgba('+palette[Math.floor(Math.random()*palette.length)]+','+op.toFixed(2)+')';
+      out.push('position:absolute; bottom:-12px; left:'+left+'%; width:'+size.toFixed(1)+'px; height:'+size.toFixed(1)+'px; border-radius:999px; background:'+col+'; box-shadow:0 0 6px '+col+'; animation:emberRise '+dur.toFixed(1)+'s linear '+(-delay).toFixed(1)+'s infinite;');
+    }
+    return out;
+  },
+
+  // ── state plumbing ──
+  setState: function(patch){
+    var p = (typeof patch==='function') ? patch(this.state) : patch;
+    for(var k in p){ if(Object.prototype.hasOwnProperty.call(p,k)) this.state[k] = p[k]; }
+    this.render();
+  },
+
+  toggleMods: function(){ this.setState(function(s){ return { modPanelOpen:!s.modPanelOpen }; }); },
+
+  // ── actions ──
+  selectNode: function(node){
+    var st = this.nodeState(node);
+    if(st!=='available') return;
+    if(node.kind==='enemy') this.openPreview(node);
+    else if(node.kind==='treasure') this.resolveTreasure(node);
+    else if(node.kind==='heal') this.resolveHeal(node);
+    else if(node.kind==='gate') this.openGate(node);
+  },
+
+  openPreview: function(node){
+    var e = node.e; var ex = this.EXP[e.exp];
+    this.setState({ modal:{ type:'preview', node:node, en:'Scout · 偵察', jp:e.jp, flavor:e.flavor, iconType:e.exp, typeColor:ex.color,
+      lines:[['傾向　'+ex.jp+' · '+ex.tend, ex.color],['最大 HP　'+e.maxHp, this.C.ink]] } });
+  },
+
+  startBattle: function(node){
+    var e = node.e;
+    this.setState({ phase:'battle', modal:null, battle:{
+      nodeId:node.id, jp:e.jp, en:e.en, exp:e.exp, flavor:e.flavor,
+      ehp:e.maxHp, emaxhp:e.maxHp, attack:e.attack, heavy:e.heavy||1.5,
+      gold:e.gold, beh:e.beh, ramp:e.ramp?e.ramp.init:null, rampInc:e.ramp?e.ramp.inc:0,
+      scout:null, turns:0, log:[{ t:e.jp+' が席についた。', c:this.C.ink2 }],
+    }});
+  },
+
+  rollBehavior: function(b){
+    var mods = this.state.player.mods;
+    var weights = b.beh.map(function(pair){
+      var type = pair[0], w = pair[1];
+      if(type==='evade' && mods.indexOf('見切り')>=0) w = w*0.5;
+      return [type, w];
+    });
+    var total = weights.reduce(function(a,pair){ return a+pair[1]; },0);
+    var r = Math.random()*total;
+    for(var i=0;i<weights.length;i++){ if(r<weights[i][1]) return weights[i][0]; r-=weights[i][1]; }
+    return weights[weights.length-1][0];
+  },
+
+  doAttack: function(){
+    var C = this.C;
+    var b = Object.assign({}, this.state.battle); b.log = this.state.battle.log.slice();
+    var p = Object.assign({}, this.state.player);
+    if(b.ramp!=null) b.ramp = b.turns===0 ? b.ramp : b.ramp + b.rampInc;
+    // player strike
+    var dealt = p.attack;
+    b.ehp -= dealt;
+    b.log.push({ t:b.jp+' に '+dealt+' ダメージ', c:C.ink });
+    var enemyDead = b.ehp<=0;
+    // enemy reaction
+    var res = this.rollBehavior(b);
+    var incoming = 0;
+    if(res==='none'){
+      b.log.push({ t:'相手は動かなかった（被ダメ 0）', c:C.ink2 });
+    } else if(res==='counter'){
+      incoming = Math.round(b.attack*1.0);
+      if(p.mods.indexOf('反射')>=0 && !enemyDead){ b.ehp -= 4; b.log.push({ t:'反射 — '+b.jp+' に 4 の追加ダメージ', c:C.accent }); enemyDead = b.ehp<=0; }
+      b.log.push({ t:'反撃 — '+incoming+' ダメージを受けた', c:C.danger });
+    } else if(res==='heavy_blow'){
+      incoming = Math.round(b.attack*b.heavy);
+      b.log.push({ t:'強打 — '+incoming+' ダメージを受けた', c:C.danger });
+    } else if(res==='ramp_hit'){
+      incoming = b.ramp||0;
+      b.log.push({ t:'時を刻む一撃 — '+incoming+' ダメージ（蓄積）', c:C.danger });
+    } else if(res==='evade'){
+      b.ehp += dealt; enemyDead = false;
+      b.log.push({ t:'見切られた — 攻撃が空を切った', c:C.ink2 });
+    }
+    p.hp -= incoming;
+    b.scout = null;
+    b.turns += 1;
+    if(p.hp<=0){
+      p.hp = 0;
+      this.setState({ player:p, battle:null, phase:'exploring', end:{
+        type:'dead', en:'Game Over', big:'敗北', flavor:'「全てを賭けた一勝負」は、まだ遠い。',
+        stats:[['到達','2F'],['総ターン', String(b.turns)],['取得した技', p.mods.join(' · ')]],
+      }});
+      return;
+    }
+    if(enemyDead){ b.ehp = 0; this.victory(b,p); return; }
+    this.setState({ player:p, battle:b });
+  },
+
+  victory: function(b,p){
+    var np = Object.assign({}, p, { chips:p.chips + b.gold });
+    var resolved = Object.assign({}, this.state.resolved); resolved[b.nodeId] = true;
+    this.setState({ player:np, battle:null, phase:'exploring', resolved:resolved, modal:{
+      type:'victory', en:'Cleared · 撃破', jp:b.jp, iconType:b.exp,
+      flavor:'卓を制した。先のノードがアンロックされた。',
+      lines:[['獲得チップ　+'+b.gold, this.C.brass],['経過ターン　'+b.turns, this.C.ink2]],
+    }});
+  },
+
+  resolveTreasure: function(node){
+    var pool = ['重装甲','好機','先読み','加速止め'];
+    var effects = {
+      '重装甲':'counter・強打の被ダメを固定値ぶん軽減する。',
+      '好機':'強打を受けた直後、相手へ追撃を1回叩き込む。',
+      '先読み':'各戦闘の1ターン目、相手の行動を事前に公開する。',
+      '加速止め':'レース系の蓄積（ramp）の増加を半減させる。',
+    };
+    var mod = pool[Math.floor(Math.random()*pool.length)];
+    var p = Object.assign({}, this.state.player, { mods:this.state.player.mods.concat([mod]) });
+    var resolved = Object.assign({}, this.state.resolved); resolved[node.id] = true;
+    this.setState({ player:p, resolved:resolved, modal:{
+      type:'treasure', en:'Cache · 隠し道具', jp:mod, iconType:'treasure',
+      flavor:effects[mod], lines:[['持ち技に追加　'+mod, this.C.accent]],
+    }});
+  },
+
+  resolveHeal: function(node){
+    var big = Math.random()<0.45;
+    var amt = Math.round(this.state.player.maxHp * (big?0.30:0.15));
+    var hp = Math.min(this.state.player.maxHp, this.state.player.hp + amt);
+    var p = Object.assign({}, this.state.player, { hp:hp });
+    var resolved = Object.assign({}, this.state.resolved); resolved[node.id] = true;
+    this.setState({ player:p, resolved:resolved, modal:{
+      type:'heal', en:'Rest · 控え室', jp: big?'大休憩':'小休憩', iconType:'heal',
+      flavor:'バーカウンターで一息つく。'+(big?'大きく':'わずかに')+'回復した。',
+      lines:[['HP 回復　+'+amt, this.C.moss],['現在 HP　'+hp+' / '+this.state.player.maxHp, this.C.ink2]],
+    }});
+  },
+
+  openGate: function(node){
+    this.setState({ modal:{ type:'gate', en:'The Gate · 胴元の関門', jp:'胴元の関門', iconType:'gate',
+      flavor:'下の階層への扉。胴元の取り分（ハウスルール）は確率で決まる。チップを積めば、大ダメ以上を小ダメに抑えられる。',
+      dist:[
+        ['無傷', 25, '被ダメ 0', this.C.moss],
+        ['小ダメ', 45, 'max HP −10%', this.C.brass],
+        ['大ダメ', 25, 'max HP −25%', this.C.danger],
+        ['特殊', 5, '次フロア強化', '#9C79BC'],
+      ],
+    }});
+  },
+
+  resolveGate: function(guaranteed){
+    var table = guaranteed
+      ? [['無傷',25],['小ダメ',75]]
+      : [['無傷',25],['小ダメ',45],['大ダメ',25],['特殊',5]];
+    var total = table.reduce(function(a,pair){ return a+pair[1]; },0);
+    var r = Math.random()*total, outcome='小ダメ';
+    for(var i=0;i<table.length;i++){ if(r<table[i][1]){ outcome=table[i][0]; break; } r-=table[i][1]; }
+    var p = Object.assign({}, this.state.player);
+    var dmg = 0;
+    if(outcome==='小ダメ') dmg = Math.round(p.maxHp*0.10);
+    else if(outcome==='大ダメ') dmg = Math.round(p.maxHp*0.25);
+    p.hp = Math.max(0, p.hp - dmg);
+    if(p.hp<=0){
+      this.setState({ player:p, modal:null, end:{ type:'dead', en:'Game Over', big:'敗北', flavor:'関門の前に力尽きた。',
+        stats:[['到達','2F · 関門'],['取得した技', p.mods.join(' · ')]] }});
+      return;
+    }
+    this.setState({ player:p, modal:null, end:{ type:'cleared', en:'Gate Cleared · 関門突破', big:'突破',
+      flavor: outcome==='無傷' ? '胴元の関門を無傷で抜けた。' : (guaranteed?'チップを積み、被害を最小に抑えて抜けた。':'関門を'+outcome+'で通過した。'),
+      stats:[['ゲート判定', outcome],['被ダメ', dmg+''],['現在 HP', p.hp+' / '+p.maxHp]] }});
+  },
+
+  useSink: function(key){
+    var p = Object.assign({}, this.state.player);
+    if(key==='scout'){
+      if(this.state.phase!=='battle' || p.chips<15) return;
+      p.chips -= 15;
+      var b = Object.assign({}, this.state.battle);
+      var top = b.beh.slice().sort(function(a,c){ return c[1]-a[1]; })[0][0];
+      var hint = ({ counter:'反撃の構え。受けに回っている。', heavy_blow:'大振りの予兆。重い一撃が来やすい。', none:'隙が大きい。空振りが多そうだ。', ramp_hit:'刻む手が速い。蓄積に注意。', evade:'身をかわす気配。' })[top] || '気配を読めない。';
+      b.scout = hint;
+      this.setState({ player:p, battle:b });
+    } else if(key==='heal_s'){
+      if(p.chips<20 || p.hp>=p.maxHp) return;
+      p.chips -= 20; p.hp = Math.min(p.maxHp, p.hp + Math.round(p.maxHp*0.15));
+      this.setState({ player:p });
+    } else if(key==='heal_l'){
+      if(p.chips<40 || p.hp>=p.maxHp) return;
+      p.chips -= 40; p.hp = Math.min(p.maxHp, p.hp + Math.round(p.maxHp*0.30));
+      this.setState({ player:p });
+    }
+  },
+
+  // ── modal button dispatch (preserves the prototype's onPrimary/onSecondary) ──
+  modalPrimary: function(){
+    var m = this.state.modal; if(!m) return;
+    if(m.type==='preview') this.startBattle(m.node);
+    else if(m.type==='gate') this.resolveGate(false);
+    else this.setState({ modal:null });
+  },
+  modalSecondary: function(){
+    var m = this.state.modal; if(!m) return;
+    if(m.type==='preview'){ this.setState({ modal:null }); }
+    else if(m.type==='gate'){
+      if(this.state.player.chips>=50){
+        this.setState(function(st){ return { player:Object.assign({}, st.player, { chips:st.player.chips-50 }) }; });
+        this.resolveGate(true);
+      }
+    }
+  },
+
+  reset: function(){
+    this.setState({ phase:'exploring', player:{ hp:100, maxHp:100, attack:15, chips:45, mods:['反射','見切り'] }, resolved:{}, battle:null, modal:null, end:null, modPanelOpen:false });
+  },
+
+  // ── derived render value ──
+  hpFillFor: function(hp,max){
+    var pct = Math.max(0, Math.round((hp/max)*100));
+    var col = pct>45 ? this.C.moss : (pct>20 ? this.C.brass : this.C.danger);
+    return 'width:'+pct+'%; background:'+col+';';
+  },
+
+  // ── wrap an icon string in a colored span ──
+  iconSpan: function(type, size, color, extra){
+    return '<span style="display:flex; flex:none; color:'+color+';'+(extra||'')+'">'+this.icon(type,size)+'</span>';
+  },
+
+  // ════════════════════════════════ RENDER ════════════════════════════════
+  render: function(){
+    var C = this.C, s = this.state, self = this;
+    var phase = s.phase;
+    var isExploring = phase==='exploring' && !s.end;
+    var isBattle = phase==='battle' && !s.end;
+
+    var floor = { tag:'2F', en:'Floor 02 · Descent', jp:'地下二階・賭博の間' };
+    var player = { hp:s.player.hp, maxHp:s.player.maxHp, chips:s.player.chips, attack:s.player.attack, hpFill:this.hpFillFor(s.player.hp, s.player.maxHp) };
+
+    var html = '';
+
+    // ───────────── HEADER ─────────────
+    html += '<header style="position:relative; z-index:6; display:flex; align-items:center; gap:15px; height:66px; padding:0 24px; border-bottom:1px solid var(--rule); background:rgba(21,18,14,0.66); backdrop-filter:blur(12px);">';
+    html += '<div style="flex:none; display:flex; align-items:center; gap:12px;">';
+    html +=   '<div style="width:42px; height:42px; border-radius:999px; border:1px solid var(--rule2); display:flex; align-items:center; justify-content:center; font-family:var(--mono); font-size:14px; font-weight:500; color:var(--accent); font-variant-numeric:tabular-nums;">'+floor.tag+'</div>';
+    html +=   '<div style="flex:none; display:flex; flex-direction:column; gap:3px;">';
+    html +=     '<span style="font-family:var(--sans); font-size:10px; letter-spacing:0.16em; text-transform:uppercase; color:var(--ink2); white-space:nowrap;">'+floor.en+'</span>';
+    html +=     '<span style="font-family:var(--serif); font-size:20px; line-height:1; color:var(--ink); white-space:nowrap;">'+floor.jp+'</span>';
+    html +=   '</div></div>';
+    html += '<div style="flex:1;"></div>';
+    // HP
+    html += '<div style="display:flex; align-items:center; gap:10px;">';
+    html +=   '<span style="font-family:var(--sans); font-size:10px; letter-spacing:0.12em; color:var(--ink2);">HP</span>';
+    html +=   '<div style="position:relative; width:130px; height:8px; border-radius:999px; background:var(--paper3); border:1px solid var(--rule); overflow:hidden;"><div style="position:absolute; top:0; bottom:0; left:0; border-radius:999px; transition:width .28s var(--ease),background .28s var(--ease); '+player.hpFill+'"></div></div>';
+    html +=   '<span style="font-family:var(--mono); font-size:13px; font-variant-numeric:tabular-nums; color:var(--ink);">'+player.hp+'<span style="color:var(--ink3);"> / '+player.maxHp+'</span></span>';
+    html += '</div>';
+    html += '<div style="width:1px; height:26px; background:var(--rule);"></div>';
+    // ATK
+    html += '<div style="display:flex; align-items:center; gap:7px;">'+this.iconSpan('sword',14,'var(--ink2)')+'<span style="font-family:var(--sans); font-size:10px; letter-spacing:0.12em; text-transform:uppercase; color:var(--ink2);">攻</span><span style="font-family:var(--mono); font-size:14px; font-weight:500; font-variant-numeric:tabular-nums; color:var(--ink);">'+player.attack+'</span></div>';
+    html += '<div style="width:1px; height:26px; background:var(--rule);"></div>';
+    // Chips
+    html += '<div style="display:flex; align-items:center; gap:8px;"><span style="width:13px; height:13px; border-radius:999px; border:1.5px solid var(--brass); display:inline-block;"></span><span style="font-family:var(--sans); font-size:10px; letter-spacing:0.12em; text-transform:uppercase; color:var(--ink2);">Chips</span><span style="font-family:var(--mono); font-size:14px; font-weight:500; font-variant-numeric:tabular-nums; color:var(--brass);">'+player.chips+'</span></div>';
+    html += '<div style="width:1px; height:26px; background:var(--rule);"></div>';
+    // Mods toggle + panel
+    html += '<div style="position:relative; flex:none;">';
+    html +=   '<button class="mod-toggle" data-act="toggleMods" style="display:flex; align-items:center; gap:7px; background:transparent; border:1px solid var(--rule); border-radius:999px; padding:4px 9px 4px 11px; cursor:pointer;">';
+    html +=     '<span style="font-family:var(--sans); font-size:10px; letter-spacing:0.12em; text-transform:uppercase; color:var(--ink2);">技</span>';
+    html +=     s.player.mods.map(function(name){ return '<span style="display:inline-flex; align-items:center; height:22px; padding:0 9px; border-radius:999px; border:1px solid var(--rule2); font-family:var(--sans); font-size:11.5px; color:var(--ink); background:var(--paper2); white-space:nowrap;">'+esc(name)+'</span>'; }).join('');
+    html +=     '<span style="font-family:var(--sans); font-size:9px; color:var(--ink3);">▾</span>';
+    html +=   '</button>';
+    if(s.modPanelOpen){
+      html += '<div style="position:absolute; top:44px; right:0; width:288px; background:var(--paper2); border:1px solid var(--rule2); border-radius:8px; box-shadow:0 18px 50px rgba(0,0,0,0.5); padding:6px 16px 10px; z-index:30;">';
+      html +=   '<div style="display:flex; align-items:center; justify-content:space-between; padding:9px 0 5px;"><span style="font-family:var(--sans); font-size:10px; letter-spacing:0.16em; text-transform:uppercase; color:var(--ink3);">技 · Mods</span><span style="font-family:var(--sans); font-size:10px; color:var(--ink3);">効果</span></div>';
+      html +=   s.player.mods.map(function(name){
+        var def = self.MOD[name] || {};
+        return '<div style="display:flex; align-items:flex-start; gap:11px; padding:10px 0; border-top:1px solid var(--rule);">'+self.iconSpan(def.icon||'star',18,'var(--accent)','margin-top:1px;')+'<div style="display:flex; flex-direction:column; gap:3px;"><span style="font-family:var(--sans); font-size:13px; font-weight:500; color:var(--ink);">'+esc(name)+'</span><span style="font-family:var(--sans); font-size:11.5px; line-height:1.45; color:var(--ink2);">'+esc(def.effect||'')+'</span></div></div>';
+      }).join('');
+      html += '</div>';
+    }
+    html += '</div></header>';
+
+    // ───────────── EXPLORING ─────────────
+    if(isExploring){
+      html += this.renderExploring();
+    }
+
+    // ───────────── BATTLE ─────────────
+    if(isBattle){
+      html += this.renderBattle(player);
+    }
+
+    // ───────────── SINK TOOLBAR ─────────────
+    var showSinks = (isExploring || isBattle) && !s.modal && !s.end;
+    if(showSinks){
+      html += this.renderSinks(isBattle);
+    }
+
+    // ───────────── MODAL ─────────────
+    if(s.modal){
+      html += this.renderModal();
+    }
+
+    // ───────────── END OVERLAY ─────────────
+    if(s.end){
+      html += this.renderEnd();
+    }
+
+    document.getElementById('app').innerHTML = html;
+
+    // keep the combat log pinned to the newest line
+    var logEl = document.getElementById('combat-log');
+    if(logEl) logEl.scrollTop = logEl.scrollHeight;
+  },
+
+  renderExploring: function(){
+    var C = this.C, s = this.state, self = this;
+    var byId = this.byId;
+    var KIND = { treasure:'#C9A24B', heal:'#5E9A78', gate:C.accent };
+    var colorOf = function(node){ return node.kind==='enemy' ? self.EXP[node.e.exp].color : KIND[node.kind]; };
+
+    var h = '<section style="position:relative; z-index:2; padding:26px 24px 14px; overflow:auto;">';
+    h += '<div style="max-width:948px; margin:0 auto; background:var(--felt); border:1px solid var(--rule2); border-radius:16px; box-shadow:inset 0 1px 0 rgba(241,236,224,0.04), 0 18px 50px rgba(0,0,0,0.42); padding:20px 24px 24px;">';
+    // headings
+    h += '<div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:4px;">';
+    h +=   '<div style="font-family:var(--sans); font-size:10px; letter-spacing:0.2em; text-transform:uppercase; color:var(--ink3);">Pick from the bottom · 下の卓から選び、上の関門へ</div>';
+    h +=   '<div style="display:flex; align-items:center; gap:7px; font-family:var(--sans); font-size:9.5px; letter-spacing:0.16em; text-transform:uppercase; color:var(--ink3);"><span style="width:7px; height:7px; border-radius:999px; border:1.5px solid var(--ink2); display:inline-block;"></span>枠が光る卓 = 今選べる</div>';
+    h += '</div>';
+    // legend
+    h += '<div style="display:flex; align-items:center; gap:14px; flex-wrap:wrap; margin:9px 0 15px; padding-top:10px; border-top:1px solid var(--rule);">';
+    h +=   '<span style="font-family:var(--sans); font-size:9px; letter-spacing:0.18em; text-transform:uppercase; color:var(--ink3);">相手の傾向</span>';
+    ['grind','gamble','race','evade','chaos'].forEach(function(k){
+      var g = self.EXP[k];
+      h += '<span style="flex:none; display:inline-flex; align-items:center; gap:6px; white-space:nowrap;">'+self.iconSpan(k,15,g.color)+'<span style="font-family:var(--sans); font-size:11.5px; color:var(--ink2);">'+g.jp+'</span></span>';
+    });
+    h += '</div>';
+    // canvas
+    h += '<div style="position:relative; width:900px; height:412px; margin:0 auto;">';
+    h += '<div style="position:absolute; top:-6px; left:50%; transform:translateX(-50%); width:340px; height:150px; border-radius:50%; background:radial-gradient(ellipse, rgba(200,90,42,0.12), rgba(0,0,0,0) 70%); filter:blur(8px); pointer-events:none;"></div>';
+
+    // edges
+    var edges = '';
+    this.TREE.forEach(function(node){
+      node.parents.forEach(function(pid){
+        var par = byId[pid];
+        var active = !!s.resolved[pid];
+        edges += '<line x1="'+par.cx+'" y1="'+(par.cy-42)+'" x2="'+node.cx+'" y2="'+(node.cy+42)+'" stroke="'+(active?colorOf(par):C.rule)+'" stroke-width="'+(active?1.6:1)+'" stroke-dasharray="'+(active?'':'3 5')+'" stroke-linecap="round"></line>';
+      });
+    });
+    h += '<svg style="position:absolute; inset:0; width:900px; height:412px; pointer-events:none; overflow:visible;">'+edges+'</svg>';
+
+    // nodes
+    this.TREE.forEach(function(node){
+      var st = self.nodeState(node);
+      var isEnemy = node.kind==='enemy';
+      var tColor = colorOf(node);
+      var jp;
+      if(isEnemy){ jp = (st==='locked') ? '？？？' : node.e.jp; }
+      else if(node.kind==='treasure'){ jp = st==='locked'?'？？？':(st==='resolved'?'回収済':'隠し道具'); }
+      else if(node.kind==='heal'){ jp = st==='locked'?'？？？':(st==='resolved'?'休息済':'控え室'); }
+      else { jp = st==='locked'?'？？？':'胴元の関門'; }
+
+      var cardStyle = 'position:relative; overflow:hidden; width:100%; text-align:left; border-radius:8px; padding:11px 12px 10px; ';
+      var iconColor, motifColor, barColor, rightColor, rightEl;
+      if(st==='available'){
+        cardStyle += 'border:1.5px solid '+tColor+'; box-shadow:0 0 0 1px '+self.rgba(tColor,0.22)+', 0 8px 26px '+self.rgba(tColor,0.18)+'; color:var(--ink); cursor:pointer;';
+        iconColor=tColor; motifColor=tColor; barColor=tColor; rightColor=tColor; rightEl=self.icon('arrow',15);
+      } else if(st==='resolved'){
+        cardStyle += 'border:1px solid var(--rule); color:var(--ink3); cursor:default;';
+        iconColor=self.rgba(tColor,0.42); motifColor=self.rgba(tColor,0.42); barColor=self.rgba(tColor,0.38); rightColor=C.ink3; rightEl=self.icon('check',14);
+      } else {
+        cardStyle += 'border:1px solid var(--rule); color:var(--ink3); cursor:default;';
+        iconColor=self.rgba(tColor,0.55); motifColor=self.rgba(tColor,0.5); barColor=self.rgba(tColor,0.5); rightColor=C.ink3; rightEl=self.icon('lock',13);
+      }
+      var motifEl;
+      if(isEnemy) motifEl = self.motif(node.e.exp);
+      else motifEl = '<span style="font-family:var(--sans); font-size:9px; letter-spacing:0.13em; text-transform:uppercase;">'+({ treasure:'Cache', heal:'Rest', gate:'Gate' })[node.kind]+'</span>';
+
+      var pos = 'left:'+(node.cx-79)+'px; top:'+(node.cy-42)+'px;';
+      h += '<div style="position:absolute; width:158px; '+pos+'">';
+      h +=   '<button class="node-btn '+st+'" data-act="node" data-id="'+node.id+'" style="'+cardStyle+'">';
+      h +=     '<span style="position:absolute; left:0; top:0; bottom:0; width:3px; background:'+barColor+';"></span>';
+      h +=     '<div style="display:flex; align-items:center; gap:9px; padding-left:5px;">'+self.iconSpan(self.iconTypeFor(node),22,iconColor)+'<span style="flex:1; min-width:0; font-family:var(--serif); font-size:15.5px; line-height:1.1; color:inherit; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">'+esc(jp)+'</span></div>';
+      h +=     '<div style="margin-top:9px; padding-left:5px; display:flex; align-items:center; justify-content:space-between; gap:6px; min-height:14px;"><span style="display:flex; align-items:center; color:'+motifColor+';">'+motifEl+'</span><span style="display:flex; flex:none; color:'+rightColor+';">'+rightEl+'</span></div>';
+      h +=   '</button>';
+      h += '</div>';
+    });
+
+    h += '</div></div></section>';
+    return h;
+  },
+
+  renderBattle: function(player){
+    var C = this.C, s = this.state, b = s.battle, self = this;
+    var ex = this.EXP[b.exp];
+    var rampVal = b.ramp||0;
+    var h = '<section style="position:relative; z-index:2; max-width:780px; margin:0 auto; padding:30px 24px 20px; display:flex; flex-direction:column; align-items:center; animation:fadeUp .32s var(--ease);">';
+    h += '<span style="font-family:var(--sans); font-size:10px; letter-spacing:0.22em; text-transform:uppercase; color:var(--ink3);">'+b.en+'</span>';
+    h += '<div style="display:flex; align-items:center; gap:13px; margin-top:9px;">'+this.iconSpan(b.exp,26,ex.color)+'<h2 style="margin:0; font-family:var(--serif); font-size:35px; line-height:1; color:var(--ink); letter-spacing:0.01em;">'+esc(b.jp)+'</h2></div>';
+    h += '<div style="margin-top:13px; display:inline-flex; align-items:center; gap:11px; padding:7px 15px; border-radius:999px; border:1px solid '+ex.color+'; background:'+this.rgba(ex.color,0.13)+'; white-space:nowrap;">'+this.iconSpan(b.exp,22,ex.color)+'<span style="font-family:var(--sans); font-size:12.5px; color:var(--ink); white-space:nowrap;"><span style="color:'+ex.color+'; font-weight:600;">'+ex.jp+'</span> · '+ex.tend+'</span></div>';
+    h += '<p style="margin:13px 0 0; max-width:440px; text-align:center; font-family:var(--sans); font-size:13px; line-height:1.6; color:var(--ink2);">'+esc(b.flavor)+'</p>';
+
+    // enemy HP
+    var ehpFill = 'width:'+Math.max(0,Math.round((b.ehp/b.emaxhp)*100))+'%; background:'+ex.color+';';
+    h += '<div style="display:flex; align-items:center; gap:11px; margin-top:22px;"><span style="font-family:var(--sans); font-size:10px; letter-spacing:0.12em; color:var(--ink2);">HP</span><div style="position:relative; width:340px; height:9px; border-radius:999px; background:var(--paper3); border:1px solid var(--rule); overflow:hidden;"><div style="position:absolute; top:0; bottom:0; left:0; border-radius:999px; transition:width .3s var(--ease); '+ehpFill+'"></div></div><span style="font-family:var(--mono); font-size:13px; font-variant-numeric:tabular-nums; color:var(--ink);">'+b.ehp+'<span style="color:var(--ink3);"> / '+b.emaxhp+'</span></span></div>';
+
+    // ramp indicator
+    if(b.ramp!=null){
+      var rampBorder = rampVal>=8 ? 'var(--danger)' : 'var(--rule2)';
+      var rampDot = rampVal>=8 ? C.danger : C.brass;
+      h += '<div style="margin-top:12px; display:inline-flex; align-items:center; gap:8px; padding:5px 12px; border-radius:999px; border:1px solid '+rampBorder+'; background:var(--paper2);"><span style="width:6px; height:6px; border-radius:999px; background:'+rampDot+'; animation:pulseDot 1.1s ease-in-out infinite;"></span><span style="font-family:var(--sans); font-size:11px; color:var(--ink2);">蓄積ダメージ</span><span style="font-family:var(--mono); font-size:13px; font-weight:500; font-variant-numeric:tabular-nums; color:'+rampDot+';">'+rampVal+'</span></div>';
+    }
+
+    // scout hint
+    if(b.scout){
+      h += '<div style="margin-top:12px; display:inline-flex; align-items:center; gap:8px; padding:6px 13px; border-radius:6px; border:1px dashed var(--accentRing); background:var(--accentSoft);"><span style="font-family:var(--sans); font-size:11px; letter-spacing:0.1em; text-transform:uppercase; color:var(--accent);">Scout</span><span style="font-family:var(--sans); font-size:12.5px; color:var(--ink);">'+esc(b.scout)+'</span></div>';
+    }
+
+    // combat log
+    h += '<div id="combat-log" class="combat-log" style="margin-top:22px; width:100%; max-width:560px; height:170px; overflow-y:auto; overflow-x:hidden; padding:13px 16px; border-radius:8px; border:1px solid var(--rule); background:var(--felt);">';
+    h += b.log.map(function(l){ return '<div style="font-family:var(--mono); font-size:12.5px; line-height:1.7; font-variant-numeric:tabular-nums; color:'+l.c+';"><span style="color:var(--ink4);">› </span>'+esc(l.t)+'</div>'; }).join('');
+    h += '</div>';
+
+    // player row
+    h += '<div style="margin-top:22px; width:100%; max-width:560px; display:flex; align-items:center; gap:16px; padding:12px 18px; border-radius:8px; border:1px solid var(--rule2); background:var(--paper2);">';
+    h +=   '<span style="font-family:var(--sans); font-size:10px; letter-spacing:0.14em; text-transform:uppercase; color:var(--ink3); white-space:nowrap;">You · あなた</span>';
+    h +=   '<div style="flex:1; display:flex; align-items:center; gap:10px;"><span style="font-family:var(--sans); font-size:10px; color:var(--ink2);">HP</span><div style="position:relative; flex:1; height:9px; border-radius:999px; background:var(--paper3); border:1px solid var(--rule); overflow:hidden;"><div style="position:absolute; top:0; bottom:0; left:0; border-radius:999px; transition:width .28s var(--ease); '+player.hpFill+'"></div></div><span style="font-family:var(--mono); font-size:13px; font-variant-numeric:tabular-nums; color:var(--ink); white-space:nowrap;">'+player.hp+'<span style="color:var(--ink3);"> / '+player.maxHp+'</span></span></div>';
+    h +=   '<div style="display:flex; align-items:center; gap:8px; padding-left:16px; border-left:1px solid var(--rule); white-space:nowrap;">'+this.iconSpan('sword',14,'var(--accent)')+'<span style="font-family:var(--sans); font-size:10px; letter-spacing:0.1em; text-transform:uppercase; color:var(--ink2);">攻撃力</span><span style="font-family:var(--mono); font-size:16px; font-weight:600; font-variant-numeric:tabular-nums; color:var(--accent);">'+player.attack+'</span></div>';
+    h += '</div>';
+
+    h += '<button class="attack-btn" data-act="attack" style="margin-top:18px; min-width:240px; height:50px; border:none; border-radius:6px; background:var(--accent); color:#1B130D; font-family:var(--sans); font-size:15px; font-weight:600; letter-spacing:0.02em; cursor:pointer; box-shadow:inset 0 0 0 1px rgba(0,0,0,0.12);">攻撃する — '+player.attack+' ダメージ</button>';
+    h += '<div style="margin-top:9px; font-family:var(--sans); font-size:11px; color:var(--ink3);">攻撃するたび、相手が確率で反応する</div>';
+    h += '</section>';
+    return h;
+  },
+
+  renderSinks: function(inBattle){
+    var s = this.state, self = this;
+    var full = s.player.hp>=s.player.maxHp;
+    var sinkDef = [
+      { key:'scout', label:'スカウト', effect:'次の手を読む', icon:'eye', cost:15, disabled: !inBattle || s.player.chips<15, battleOnly:true },
+      { key:'heal_s', label:'小回復', effect:'HP +15%', icon:'plus', cost:20, disabled: s.player.chips<20 || full },
+      { key:'heal_l', label:'大回復', effect:'HP +30%', icon:'plus', cost:40, disabled: s.player.chips<40 || full },
+    ];
+    var h = '<div style="width:max-content; max-width:94vw; margin:4px auto 44px; position:relative; z-index:8; display:flex; align-items:center; gap:8px; padding:8px 10px; border-radius:999px; border:1px solid var(--rule2); background:rgba(31,27,21,0.86); box-shadow:0 10px 30px rgba(0,0,0,0.4);">';
+    h += '<span style="font-family:var(--sans); font-size:9.5px; letter-spacing:0.16em; text-transform:uppercase; color:var(--ink3); padding-left:6px; white-space:nowrap;">Chips Sink · 残り <span style="font-family:var(--mono); font-size:12px; color:var(--brass);">'+s.player.chips+'</span></span>';
+    sinkDef.forEach(function(d){
+      var effect = (d.battleOnly && !inBattle) ? '戦闘中のみ' : d.effect;
+      var style = 'flex:none; white-space:nowrap; display:inline-flex; align-items:center; gap:9px; height:44px; padding:0 15px; border-radius:999px; background:var(--paper3); border:1px solid var(--rule); color:var(--ink); cursor:'+(d.disabled?'default':'pointer')+'; opacity:'+(d.disabled?'0.4':'1')+';';
+      h += '<button class="sink-btn" data-act="sink" data-key="'+d.key+'"'+(d.disabled?' disabled':'')+' style="'+style+'">'+self.iconSpan(d.icon,16,'var(--ink2)')+'<span style="display:flex; flex-direction:column; line-height:1.18; white-space:nowrap;"><span style="font-family:var(--sans); font-size:12.5px; color:var(--ink);">'+d.label+'</span><span style="font-family:var(--sans); font-size:9.5px; color:var(--ink3);">'+effect+'</span></span><span style="display:inline-flex; align-items:center; gap:3px; font-family:var(--mono); font-size:11px; font-variant-numeric:tabular-nums; color:var(--brass);"><span style="width:8px; height:8px; border-radius:999px; border:1.5px solid var(--brass); display:inline-block;"></span>'+d.cost+'</span></button>';
+    });
+    h += '</div>';
+    return h;
+  },
+
+  renderModal: function(){
+    var C = this.C, s = this.state, m = s.modal, self = this;
+    var iconColor = (m.type==='preview') ? (m.typeColor||C.ink2) : (m.type==='gate') ? C.accent : (m.type==='victory') ? C.accent : (m.type==='treasure') ? '#C9A24B' : C.ink2;
+
+    var h = '<div style="position:fixed; inset:0; z-index:40; display:flex; align-items:center; justify-content:center; padding:24px; background:rgba(8,7,5,0.62); backdrop-filter:blur(12px); animation:overlayIn .2s var(--ease);">';
+    h += '<div style="width:452px; max-width:94vw; background:var(--paper2); border:1px solid var(--rule2); border-radius:8px; box-shadow:0 26px 70px rgba(0,0,0,0.55); padding:34px; animation:fadeUp .26s var(--ease);">';
+    h += '<span style="font-family:var(--sans); font-size:10px; letter-spacing:0.22em; text-transform:uppercase; color:var(--accent);">'+m.en+'</span>';
+    h += '<div style="display:flex; align-items:center; gap:12px; margin-top:11px;">'+(m.iconType?this.iconSpan(m.iconType,26,iconColor):'')+'<h3 style="margin:0; font-family:var(--serif); font-size:29px; line-height:1.04; color:var(--ink);">'+esc(m.jp)+'</h3></div>';
+    h += '<p style="margin:13px 0 0; font-family:var(--sans); font-size:13.5px; line-height:1.65; color:var(--ink2);">'+esc(m.flavor)+'</p>';
+
+    // distribution (gate)
+    if(m.dist && m.dist.length){
+      h += '<div style="margin-top:18px;">';
+      h +=   '<div style="display:flex; height:16px; border-radius:999px; overflow:hidden; border:1px solid var(--rule);">';
+      m.dist.forEach(function(d){ h += '<div style="height:100%; flex:0 0 '+d[1]+'%; background:'+d[3]+';"></div>'; });
+      h +=   '</div><div style="margin-top:12px;">';
+      m.dist.forEach(function(d){
+        h += '<div style="display:flex; align-items:center; gap:10px; padding:7px 2px; border-bottom:1px solid var(--rule);"><span style="width:9px; height:9px; border-radius:2px; flex:none; background:'+d[3]+';"></span><span style="flex:1; font-family:var(--sans); font-size:12.5px; color:var(--ink);">'+d[0]+'</span><span style="font-family:var(--sans); font-size:11px; color:var(--ink2);">'+d[2]+'</span><span style="font-family:var(--mono); font-size:13.5px; font-weight:500; font-variant-numeric:tabular-nums; color:var(--ink); min-width:44px; text-align:right;">'+d[1]+'%</span></div>';
+      });
+      h += '</div></div>';
+    }
+
+    // lines
+    if(m.lines && m.lines.length){
+      h += '<div style="margin-top:16px; padding:12px 15px; border-radius:6px; border:1px solid var(--rule); background:var(--felt);">';
+      m.lines.forEach(function(l){ h += '<div style="font-family:var(--mono); font-size:12px; line-height:1.7; font-variant-numeric:tabular-nums; color:'+l[1]+';">'+esc(l[0])+'</div>'; });
+      h += '</div>';
+    }
+
+    // gate chips display
+    if(m.type==='gate'){
+      h += '<div style="margin-top:16px; display:flex; align-items:center; justify-content:space-between; padding:11px 14px; border-radius:6px; border:1px solid var(--rule); background:var(--felt);"><span style="display:flex; align-items:center; gap:8px; font-family:var(--sans); font-size:12px; color:var(--ink2);"><span style="width:11px; height:11px; border-radius:999px; border:1.5px solid var(--brass); display:inline-block;"></span>所持チップ<span style="color:var(--ink3);"> · 保証に 50</span></span><span style="font-family:var(--mono); font-size:15px; font-weight:500; font-variant-numeric:tabular-nums; color:var(--brass);">'+s.player.chips+'</span></div>';
+    }
+
+    // buttons
+    var primaryStyle = 'flex:1.4; height:46px; border:none; border-radius:6px; background:var(--accent); color:#1B130D; font-family:var(--sans); font-size:14px; font-weight:600; cursor:pointer;';
+    var secondaryStyleBase = 'flex:1; height:46px; border:1px solid var(--rule2); border-radius:6px; background:transparent; color:var(--ink); font-family:var(--sans); font-size:14px; cursor:pointer;';
+
+    var primaryLabel, hasSecondary=false, secondaryLabel='', secondaryStyle=secondaryStyleBase, secondaryDisabled=false;
+    if(m.type==='preview'){
+      hasSecondary=true; secondaryLabel='やめる'; primaryLabel='この卓で戦う';
+    } else if(m.type==='gate'){
+      var canG = s.player.chips>=50;
+      hasSecondary=true;
+      secondaryLabel = canG ? 'ゲート保証 (50)' : 'チップ不足 (50)';
+      secondaryDisabled = !canG;
+      secondaryStyle = secondaryStyleBase + (canG ? '' : 'opacity:0.4; cursor:default;');
+      primaryLabel='通過する';
+    } else {
+      primaryLabel='確認';
+    }
+
+    h += '<div style="display:flex; gap:10px; margin-top:20px;">';
+    if(hasSecondary){
+      h += '<button class="modal-secondary" data-act="modalSecondary"'+(secondaryDisabled?' disabled':'')+' style="'+secondaryStyle+'">'+secondaryLabel+'</button>';
+    }
+    h += '<button class="modal-primary" data-act="modalPrimary" style="'+primaryStyle+'">'+primaryLabel+'</button>';
+    h += '</div>';
+
+    h += '</div></div>';
+    return h;
+  },
+
+  renderEnd: function(){
+    var C = this.C, e = this.state.end;
+    var dead = e.type==='dead';
+    var tagColor = dead ? C.danger : C.brass;
+    var bigColor = dead ? C.ink : C.accent;
+    var primaryLabel = dead ? 'もう一度' : '次のランへ';
+
+    var h = '<div style="position:fixed; inset:0; z-index:50; display:flex; align-items:center; justify-content:center; padding:24px; background:rgba(8,7,5,0.86); backdrop-filter:blur(14px); animation:overlayIn .26s var(--ease);">';
+    h += '<div style="width:520px; max-width:94vw; text-align:center; animation:fadeUp .34s var(--ease);">';
+    h += '<div style="font-family:var(--sans); font-size:11px; letter-spacing:0.34em; text-transform:uppercase; color:'+tagColor+';">'+e.en+'</div>';
+    h += '<h1 style="margin:14px 0 0; font-family:var(--serif); font-size:64px; line-height:1; color:'+bigColor+';">'+esc(e.big)+'</h1>';
+    h += '<p style="margin:16px auto 0; max-width:380px; font-family:var(--serif); font-size:19px; line-height:1.5; color:var(--ink2);">'+esc(e.flavor)+'</p>';
+    h += '<div style="margin:30px auto 0; max-width:360px; display:flex; flex-direction:column; gap:0; border-top:1px solid var(--rule);">';
+    (e.stats||[]).forEach(function(st){
+      h += '<div style="display:flex; align-items:center; justify-content:space-between; padding:12px 4px; border-bottom:1px solid var(--rule);"><span style="font-family:var(--sans); font-size:13px; color:var(--ink2);">'+esc(st[0])+'</span><span style="font-family:var(--mono); font-size:14px; font-variant-numeric:tabular-nums; color:var(--ink);">'+esc(st[1])+'</span></div>';
+    });
+    h += '</div>';
+    h += '<button class="end-btn" data-act="reset" style="margin-top:30px; min-width:200px; height:50px; border:none; border-radius:6px; background:var(--accent); color:#1B130D; font-family:var(--sans); font-size:15px; font-weight:600; cursor:pointer;">'+primaryLabel+'</button>';
+    h += '</div></div>';
+    return h;
+  },
+
+  // ── boot ──
+  init: function(){
+    var self = this;
+    this.TREE.forEach(function(n){ self.byId[n.id] = n; });
+
+    // ambient particles (rendered once into the static layers)
+    document.getElementById('embers-back').innerHTML =
+      this.makeEmbers(18, false).map(function(st){ return '<span style="'+st+'"></span>'; }).join('');
+    document.getElementById('embers-front').innerHTML =
+      this.makeEmbers(9, true).map(function(st){ return '<span style="'+st+'"></span>'; }).join('');
+
+    // single delegated click handler for the whole app
+    document.getElementById('app').addEventListener('click', function(ev){
+      var t = ev.target.closest('[data-act]');
+      if(!t || t.disabled) return;
+      switch(t.getAttribute('data-act')){
+        case 'toggleMods':     self.toggleMods(); break;
+        case 'node':           self.selectNode(self.byId[t.getAttribute('data-id')]); break;
+        case 'attack':         self.doAttack(); break;
+        case 'sink':           self.useSink(t.getAttribute('data-key')); break;
+        case 'modalPrimary':   self.modalPrimary(); break;
+        case 'modalSecondary': self.modalSecondary(); break;
+        case 'reset':          self.reset(); break;
+      }
+    });
+
+    // close the mods panel when clicking anywhere except the toggle button
+    document.addEventListener('click', function(ev){
+      if(!self.state.modPanelOpen) return;
+      if(ev.target.closest('.mod-toggle')) return; // the toggle button handles itself
+      self.setState({ modPanelOpen:false });
+    });
+
+    this.render();
+  },
+};
+
+if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', function(){ Game.init(); });
+else Game.init();
+
+})();
+</script>
+</body>
+</html>

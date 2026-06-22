@@ -1,0 +1,17 @@
+# build / test scratch artifacts
+_*.html
+_*.png
+_*.js
+*.log
+
+# python / backend
+__pycache__/
+*.pyc
+.pytest_cache/
+backend/game.db
+
+# node / frontend
+node_modules/
+frontend/dist/
+frontend/.vite/
+*.tsbuildinfo

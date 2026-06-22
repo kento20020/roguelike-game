@@ -1,0 +1,11 @@
+# カジノタワー ローグライト — backend
+# エンジン本体は標準ライブラリのみで動く（決定論RNG・数値計算は自前）。
+# 以下は API 段 / テストで使用。
+fastapi>=0.110
+uvicorn[standard]>=0.29
+pydantic>=2.6
+sqlalchemy>=2.0
+pytest>=8.0
+httpx>=0.27
+# バランス検証フレームワーク(§18 balance_stats/analysis)のe-value計算用。エンジン本体は依存しない。
+numpy>=1.26

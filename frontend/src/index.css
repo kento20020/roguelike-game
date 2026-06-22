@@ -1,0 +1,165 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── カジノ・ノワール トークン（design/地下カジノ・探索と戦闘.dc.html から継承） ── */
+:root {
+  --paper: #15120e;
+  --paper2: #1f1b15;
+  --paper3: #2a241b;
+  --felt: #171814;
+  --ink: #f1ece0;
+  --ink2: rgba(241, 236, 224, 0.6);
+  --ink3: rgba(241, 236, 224, 0.33);
+  --ink4: rgba(241, 236, 224, 0.14);
+  --rule: rgba(241, 236, 224, 0.13);
+  --rule2: rgba(241, 236, 224, 0.24);
+  --accent: #c85a2a;
+  --accent2: #9a3a14;
+  --accentSoft: rgba(200, 90, 42, 0.14);
+  --accentRing: rgba(200, 90, 42, 0.55);
+  --brass: #c9a24b;
+  --brassSoft: rgba(201, 162, 75, 0.12);
+  --danger: #c7402a;
+  --moss: #5e8a66;
+  --ease: cubic-bezier(0.2, 0, 0, 1);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background-color: var(--paper);
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='g'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.93 0 0 0 0 0.91 0 0 0 0 0.86 0 0 0 0.02 0'/></filter><rect width='100%25' height='100%25' filter='url(%23g)'/></svg>");
+  background-size: 180px 180px;
+  color: var(--ink);
+  font-family: "Geist", "Noto Sans JP", system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+@keyframes availGlow {
+  0%,
+  100% {
+    box-shadow: 0 0 0 1px var(--accentRing), 0 8px 22px rgba(0, 0, 0, 0.45);
+  }
+  50% {
+    box-shadow: 0 0 0 1px var(--accent), 0 8px 30px rgba(200, 90, 42, 0.28);
+  }
+}
+@keyframes gateGlow {
+  0%,
+  100% {
+    box-shadow: 0 0 0 1px rgba(201, 162, 75, 0.5), 0 10px 26px rgba(0, 0, 0, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 0 1px var(--brass), 0 10px 34px rgba(201, 162, 75, 0.26);
+  }
+}
+@keyframes fadeUp {
+  from {
+    transform: translateY(7px);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+@keyframes overlayIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes emberRise {
+  0% {
+    transform: translateY(0);
+    opacity: 0;
+  }
+  12% {
+    opacity: 1;
+  }
+  86% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-280px);
+    opacity: 0;
+  }
+}
+@keyframes hazeDrift {
+  0% {
+    transform: translate(0, 0);
+  }
+  50% {
+    transform: translate(46px, -26px);
+  }
+  100% {
+    transform: translate(0, 0);
+  }
+}
+
+/* ── 再利用クラス ── */
+@layer components {
+  .label {
+    @apply font-sans uppercase text-ink3;
+    font-size: 10px;
+    letter-spacing: 0.16em;
+  }
+  .panel {
+    background: var(--felt);
+    border: 1px solid var(--rule2);
+    border-radius: 16px;
+    box-shadow: inset 0 1px 0 rgba(241, 236, 224, 0.04), 0 18px 50px rgba(0, 0, 0, 0.42);
+  }
+  .pill {
+    @apply inline-flex items-center font-sans whitespace-nowrap;
+    height: 22px;
+    padding: 0 9px;
+    border-radius: 999px;
+    border: 1px solid var(--rule2);
+    font-size: 11.5px;
+    color: var(--ink);
+    background: var(--paper2);
+  }
+  .btn {
+    @apply inline-flex items-center justify-center font-sans cursor-pointer;
+    gap: 8px;
+    padding: 11px 22px;
+    border-radius: 10px;
+    border: 1px solid var(--accent2);
+    background: var(--accent);
+    color: #fff;
+    font-size: 14px;
+    transition: filter 0.14s var(--ease), transform 0.06s var(--ease);
+  }
+  .btn:hover:not(:disabled) {
+    filter: brightness(1.08);
+  }
+  .btn:active:not(:disabled) {
+    transform: translateY(1px);
+  }
+  .btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+  .btn-ghost {
+    background: transparent;
+    border: 1px solid var(--rule2);
+    color: var(--ink);
+  }
+  .btn-ghost:hover:not(:disabled) {
+    border-color: var(--ink2);
+    filter: none;
+  }
+}
