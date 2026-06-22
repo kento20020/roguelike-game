@@ -1,0 +1,31 @@
+name: balance
+
+# §18 バランス検証フレームワークのCIゲート。
+# Phase0(全テスト) と Phase5(回帰ゲート test_balance_regression) を push/PR で実行。
+# 数値変更でバランスが基準から逸脱したら赤くなる（意図的なら gen_baseline で承認）。
+
+on:
+  push:
+    paths:
+      - "backend/**"
+  pull_request:
+    paths:
+      - "backend/**"
+
+jobs:
+  balance:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install deps
+        run: pip install -r requirements.txt
+      - name: Phase0 unit/engine tests
+        run: pytest -q
+      - name: Phase5 balance regression gate
+        run: pytest -q tests/test_balance_regression.py
