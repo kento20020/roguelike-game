@@ -65,3 +65,7 @@
 ### snapshot のバグ修正
 `Node.snapshot` の `resolved` は engine 側の解決状態（`state=="resolved"`）から導出するよう修正。
 Node.resolved 属性はエンジンが更新しないため state を正とする。
+
+### CI 動作確認
+2026-06-22: GitHub Actions `balance` ワークフロー（§18 ゲート）のトリガー検証。
+`backend/**` 変更で push 時に Phase0 全テスト＋Phase5 回帰ゲートが自動実行されることを確認するための記録行。
