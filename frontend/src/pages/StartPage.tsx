@@ -15,12 +15,12 @@ export default function StartPage() {
 
   return (
     <CenterStage maxWidth={480}>
-      <span className="label">地下カジノ・賭博都市</span>
+      <span className="label">賭博都市の摩天楼</span>
       <h1 className="font-serif" style={{ fontSize: 52, lineHeight: 1.05, color: "var(--ink)" }}>
         カジノタワー
       </h1>
       <p className="font-sans" style={{ fontSize: 13.5, color: "var(--ink2)", lineHeight: 1.7 }}>
-        最深部に眠る、全てを賭けた一勝負を目指す。
+        頂上に待つ、全てを賭けた一勝負を目指す。
         <br />
         5つの関門を抜けて頂上へ。倒れれば、そこで終わり。
       </p>
