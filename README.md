@@ -132,7 +132,7 @@ mod の効果文は `backend/app/data/mods.json` が正本で、API `GET /api/ca
 
 ## 設計書（正本）
 
-ゲームの設計はすべて **[`docs/game_design_document_v1.0.md`](docs/game_design_document_v1.0.md)** が正本。
+ゲームの設計はすべて **[`docs/game_design_document.md`](docs/game_design_document.md)** が正本（ファイル名はバージョンレス固定。現行 v1.1）。
 数値（戦闘係数・敵36体・技6種・5フロア構成）の正本は **`backend/app/data/*.json`**（`config` / `enemies` / `mods` / `floors`）で、設計書本文の数表はその要約。
 
 ### どんなゲームをイメージして作ったか

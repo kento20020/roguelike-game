@@ -1,7 +1,7 @@
 # CLAUDE.md — カジノタワー ローグライト
 
 確率ベースの戦闘を核にした、カジノタワーを登り詰める5フロアのパーマデス制ローグライト。
-React(表示) + FastAPI(全ロジック) のモノレポ。**詳細設計は `docs/game_design_document_v1.0.md` が正本。**
+React(表示) + FastAPI(全ロジック) のモノレポ。**詳細設計は `docs/game_design_document.md` が正本（バージョンレス固定名・現行v1.1）。**
 
 ---
 
@@ -64,7 +64,7 @@ React(表示) + FastAPI(全ロジック) のモノレポ。**詳細設計は `do
 以下は人間のレビューなしに数値や構造を変えない。変更が必要なら必ず質問する。
 
 - `backend/app/data/*.json` — バランスの正本。勝手に数値を書き換えない
-- `docs/game_design_document_v1.0.md` — 設計の正本
+- `docs/game_design_document.md` — 設計の正本（**ファイル名はバージョンレス固定**。版はタイトル＋巻末変更履歴で管理し、バンプ時もファイル名・参照は変えない）
 - `backend/app/engine/rng.py` — SFC32実装。seed再現性を壊さない
 
 ---
