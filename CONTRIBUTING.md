@@ -64,7 +64,7 @@
 |---|---|---|---|
 | `balance.yml` | `balance` | backend pytest 全件＋バランス回帰ゲート | 常時（backend 変更なしなら内部 skip で成功報告） |
 | `docs-ci.yml` | `check-docs` | schemas JSON 妥当性・相対リンク切れ・doc-code drift 検知 | 常時 |
-| `frontend-ci.yml` | `frontend` | typecheck / lint / build | 常時 |
+| `frontend-ci.yml` | `frontend` | typecheck / build（lint は eslint 未導入のため対象外・導入時に追加） | 常時 |
 
 - main は上記3チェックを必須とするブランチ保護（管理者にも適用・force push 禁止）。
 - PR トリガーを path フィルタしないのは意図的（必須チェックが発火しないPRで永久 pending になるのを防ぐ）。重い `balance` のみジョブ内で変更有無を判定して skip する。
