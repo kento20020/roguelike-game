@@ -1,0 +1,29 @@
+[
+  {
+    "mods": [
+      "mikiri",
+      "yomi"
+    ],
+    "type": "cancel",
+    "behavior": "先読みでevade予告されても与ダメ0は発生しない（見切り優先）。先読みは『evadeが来ない』確認のみ",
+    "is_intended": true
+  },
+  {
+    "mods": [
+      "mikiri",
+      "kouki"
+    ],
+    "type": "synergy",
+    "behavior": "evade weight=0により相対的にheavy_blowが来やすくなり、好機の発動頻度が上がる",
+    "is_intended": true
+  },
+  {
+    "mods": [
+      "hansha",
+      "juso"
+    ],
+    "type": "synergy",
+    "behavior": "被ダメ軽減後の値に反射追加ダメを乗せる。あえてcounterを受ける『被弾上等』立ち回りが成立",
+    "is_intended": true
+  }
+]

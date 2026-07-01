@@ -1,0 +1,25 @@
+{
+  "session_id": "uuid",
+  "phase": "exploring",
+  "current_floor": 2,
+  "player": {
+    "hp": 80, "max_hp": 100, "attack": 15,
+    "chips": 45, "mods": ["hansha", "mikiri"],
+    "stance_multiplier": 1.0, "attack_boost_pending": false
+  },
+  "floor": {
+    "floor_number": 2,
+    "nodes": {
+      "L": { "id": "L", "kind": "enemy", "row": 1, "parents": [], "parent_type": "root",
+             "resolved": false, "state": "available",
+             "experience": "削り合い", "name": "カジノの用心棒", "is_strong": false, "max_hp": 52 }
+    }
+  },
+  "battle": null,
+  "pending": {},
+  "available_actions": [
+    { "type": "select_node", "node": "L" },
+    { "type": "use_sink", "sink": "heal_small", "cost": 20 }
+  ],
+  "run_record": null
+}

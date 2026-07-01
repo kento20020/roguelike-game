@@ -1,0 +1,7 @@
+{ "phase": "battle",
+  "battle": {
+    "enemy": {"id":"f2_r1_b","name":"博打狂","experience":"賭け","hp":40,"max_hp":40,"attack":14,"difficulty":2,"is_strong":false,"chaos":false},
+    "turns":1, "ramp_value":0, "scout_hint":null, "preview":null, "next_action":null,
+    "log":[{"t":"博打狂 が席についた。","k":"info"}] },
+  "pending": {},
+  "available_actions":[{"type":"attack"},{"type":"guard"},{"type":"use_sink","sink":"scout","cost":15}] }
