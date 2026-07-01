@@ -12,6 +12,11 @@
     "heavy_factor": 1.8,
     "ramp_base_initial": 5,
     "stance_multiplier_default": 1.0,
+    "guard": {
+      "deal_factor": 0.5,
+      "incoming_factor": 0.25,
+      "_comment": "受け（ガード）: 与ダメ×deal_factor・被ダメ×incoming_factor（重装甲の軽減後に乗算）。回数無制限（攻撃を捨てる機会コストが抑制）。数値は叩き台・bot再検証で調整。"
+    },
     "_comment": "counter_factor/heavy_factorは全敵共通の既定値。敵がenemies.jsonで個別に上書き可能。ramp_value(n) = ramp_base_initial + ramp_increment*(n-1)"
   },
 
@@ -58,6 +63,11 @@
   "scaling": {
     "enemy_hp_tier_factor": 0.15,
     "_comment": "enemy.hp = base_hp * (1.0 + 0.15*(tier-1))"
+  },
+
+  "gate_special": {
+    "bonus_gold": 40,
+    "_comment": "ゲート『特殊(special)』通過の当たり報酬（GDD §7.4）。無傷通過＋ボーナスチップ。数値は叩き台・bot再検証で調整。"
   },
 
   "gold": {
