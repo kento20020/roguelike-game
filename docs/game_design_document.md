@@ -21,6 +21,7 @@
 | [changelog.md](changelog.md) | 変更履歴（v0.6〜v1.2） | 付録 |
 | [adr/](adr/) | アーキテクチャ決定記録（FastAPI / サーバ権威 / SQLite先行） | §22 由来 |
 | [schemas/](schemas/) | データ正本ミラー＋API例JSON（config/enemies/mods/floors ＋ gamestate/battle/mod_interactions） | §10.4, §25.3 |
+| [proposals/](proposals/) | 改善アイディア集（**提案・正本ではない**。採用時はクラスSとして正本へ反映してから実装） | — |
 
 ## 正本の優先順位（要約）
 
