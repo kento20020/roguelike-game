@@ -8,7 +8,7 @@
 | phase | 意味 | 主な遷移先 |
 |-------|------|----------|
 | `exploring` | マップ上でノード選択中 | battle / treasure_preview / heal / gate_preview |
-| `battle` | 戦闘中 | exploring（勝利）/ dead（HP0） |
+| `battle` | 戦闘中 | exploring（勝利・ドロップ無）/ **treasure_preview（勝利・撃破ドロップ有**・§4.2 `pending.source="enemy"`**）**/ dead（HP0） |
 | `treasure_preview` | 宝箱選択後・開封前（リロール可能） | treasure_opened（開封）/ treasure_preview のまま（リロールは中身を引き直すだけでphase不変・実装準拠）|
 | `treasure_opened` | 宝箱開封後・mod確認中 | exploring（`POST /continue`） |
 | `heal` | 回復ノード解決中（大小決定済み） | exploring（`POST /continue`） |
@@ -58,6 +58,8 @@
        └─► (戦闘継続はbattle内ループ)
 ```
 
+> **図注**：battle 勝利時に撃破ドロップ（多親敵・§4.2）がある場合は **battle → treasure_preview** へ遷移する（図では省略）。
+
 ### 6.3 拡張ポイント
 
 将来イベント（商人・呪い・隠し部屋）は**新phaseを追加するだけ**で組み込める。
@@ -85,7 +87,7 @@ phaseごとに「許可される操作」を制限するため、不正遷移を
 | `floor_state` | object | フロア進行状況（ノードは `state` でロック状態を表現） |
 | `seed` | int | マスターシード |
 | `rng_streams` | object | 9本のストリーム状態 |
-| `game_phase` / （API出力では `phase`） | string | §6.1の11phase |
+| `game_phase` / （API出力では `phase`） | string | §6.1の10phase（＋pause予約・未実装） |
 | `battle` | object\|null | 戦闘中一時データ（ログは `battle.log`） |
 | `combat_log` | string[] | 表示専用・使い捨て（戦闘終了で破棄可・統計には使わない） |
 | `chaos_weights` | object | このランのカオス敵行動比率（ストリーム8から生成） |

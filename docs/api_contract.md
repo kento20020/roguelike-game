@@ -33,7 +33,7 @@
 > **宝箱リロールは専用ルート**：`/treasure/reroll` のみで実行する。`/sink` に `treasure_reroll` を渡すと **400**（実装は `use_sink` で未対応）。※ RunRecord の `gold_spent.treasure_reroll`（§19.1）はチップ消費の記録カテゴリとしては残る。
 > **ゲート保証の重ねがけ**：`sink_type: "gate_guarantee"` を `gate_preview` phaseで複数回POSTできる。サーバーが現在の重ねがけ回数 `n` を保持し、コスト `50G×1.5^(n-1)` と削減量 `25%×0.5^(n-1)` を計算してGameStateに反映。ゴールド不足時は400を返す。
 > **攻撃ブースト**：`sink_type: "attack_boost"` は `battle` phaseでのみ有効。次の `attack` 1回だけ `stance_multiplier` に ×2.0 を**乗算**（`guard` では消費しない）。
-> **UpgradeState の形**：`{ points:int, levels:{max_hp,attack,init_gold,gold_drop,sink_cost}, maxes:{…} }`（`UpgradeStateResponse`）。`/upgrade`・`/profile/upgrades` が返す。理想は `/upgrade` も完全GameState（＋upgrade_state内包）だが現状は UpgradeState 単体（原則6の例外）。
+> **UpgradeState の形**：`{ points:int, levels:{max_hp,attack,init_gold,gold_drop,sink_cost}, maxes:{…} }`（`UpgradeStateResponse`）。`/upgrade`・`/profile/upgrades` が返す。理想は `/upgrade` も完全GameState（＋upgrade_state内包）だが現状は UpgradeState 単体（原則6の例外）。**スコープの矛盾（OPEN-002）**：恒久強化は Profile（ラン非依存）の資産だが操作口は `/run/{session_id}/upgrade`（ラン依存）。バンクした余剰ポイント（§12.3）を次ラン中に割り振れる phase は未定義——`/api/profile/upgrade`（セッション非依存）への移設 or 許可 phase の明記を OPEN-002 で扱う。
 > **冪等性・認証は非スコープ（OPEN-026）**：全 mutating POST に Idempotency-Key・state_version は無い。再送で `gate_guarantee` 二重課金・`/attack` 二重進行（RNGドリフト）が起き得る。単一プレイヤー・ローカル前提では実害限定だが、公開時は冪等キー＋楽観ロック＋所有者照合を必須化。`/stats/history` は無条件全件（`limit`のみ）＝スコープ化（client_id）＋件数上限を追跡。
 
 ### 25.3 GameStateレスポンスの形
@@ -70,7 +70,7 @@
 
 > sink の許可phaseは §13.2 準拠（scout/attack_boost=battle、gate_guarantee=gate_preview、reroll=treasure_preview、回復=exploring/battle）。許可外phaseでの sink は **409**（`WrongPhase`）で拒否。
 
-> **判定順（実装準拠）**：`get_engine_or_404`→**404**（session不在）／`WrongPhase`→**409**（phase不整合）／`InvalidMove`→**400**（ロックnode選択・不在node_id・チップ不足・満タン回復・未知sink/upgrade項目）。**チップ不足・ロックnode は 400**（`InvalidMove`）である点に注意（資源不足を422で別立てするかは将来）。
+> **判定順（実装準拠）**：`get_engine_or_404`→**404**（session不在）／`WrongPhase`→**409**（phase不整合）／`InvalidMove`→**400**（ロックnode選択・不在node_id・チップ不足・満タン回復・未知sink/upgrade項目）。**チップ不足・ロックnode は 400**（`InvalidMove`）である点に注意（資源不足を422で別立てするかは将来）。例：battle 中の `heal_small` チップ不足=**400**（許可phase内の資源不足）／battle 中の `gate_guarantee`=**409**（phase違反）。
 > **select-node の異常入力**：不在 node_id・前フロアの stale id（現フロア `nodes` に無い）は **400**、解決済み/ロック中の再選択も 400（`node_state != available`）。node_id はフロア間で L/M/R を再利用するが、フロア遷移で `resolved` リセット＆ `nodes` 再生成のため stale id は現フロアに無く 400 になる。
 > **攻撃ブーストの二重課金（OPEN-021）**：`attack_boost_pending=true` 中の `/sink attack_boost` 再POSTは現状サーバ側 guard が無く再課金し得る（`available_actions` は非提示）。400（無効）で弾くのが望ましい。
 > **エラーbody構造（OPEN-026）**：現状はHTTPステータスのみ。`{error_code, message, req_id}` で構造化し ErrorToast の分岐・ログ集計に載せるのが望ましい（運用・別タスク）。

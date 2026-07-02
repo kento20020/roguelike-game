@@ -66,6 +66,8 @@ RunRecord:
 > **不足フィールド（要追加・コード変更）**：
 > - **`data_version`（OPEN-024）**：4JSONの内容ハッシュ or 版文字列。敵HP/gold/sink/恒久強化はPhase1〜4で調整中で、`/stats/history` に版違いレコードが混ざると統計が壊れる。全統計クエリを版でフィルタするため必須。現 `RunRecordRow` に無い。
 > - **sink別 `use_count`（OPEN-025）**：回復は `20〜40G` とフロア係数で単価変動し -sinkコスト割引も掛かるため、`gold_spent` 合計から**使用回数を復元できない**。Phase4 の sink ROI（回数×効果）に必要。`gate_results`（per-floor：結果＋被ダメ）も同様に未記録で、特殊発生率・保証ROIの検証に要る。
+> - **`strategy_version`（OPEN-024に同乗）**：§18.1 は strong 戦略の版固定を要求するが、RunRecord に bot 戦略の版が無く `bot_type` だけでは戦略改訂を跨いだレコードを分離できない（data_version と同型の統計汚染）。同一マイグレーションで追加・human は null。
+> - **guard 使用記録（OPEN-025に同乗）**：guard 正式化（OPEN-018）後、`actions: {attack: n, guard: n}` 程度が無いと guard のクリア率寄与を事後分析できない。
 
 ### 19.2 用途
 - Phase2以降の全統計検証の入力
@@ -87,7 +89,7 @@ RunRecord:
 | `unlock_rules` | object | アンロック連鎖（§4.2の多親/単親マッピング） |
 | `gate_result_table` | object[] | ゲート確率テーブル（フロア別） |
 | `floor_multiplier` | float | ゴールド倍率 |
-| `heal_node_config` | object\|null | 回復ノード設定 |
+| `heal_node` / `heal_node_position` | bool / string | 回復ノードの有無と配置先。実データ準拠：`"heal_node": true, "heal_node_position": "row2_single_dead_end"`（旧記載 `heal_node_config: object` は誤り・floors.json に存在しない） |
 
 ### 20.2 敵データ
 §11.2参照
@@ -162,5 +164,7 @@ RunRecord:
 | `next_floor` | `{ gate_outcome, advanced_to, special_bonus }` |
 | `cleared` | `{ gate_outcome, special_bonus }` |
 | 空宝箱 / 勝利 | `{ empty_treasure }` / `{ victory }` |
+
+> **dismiss との対応（要確定）**：`empty_treasure`・`victory` がどの phase に属し、どの操作（`/continue` か次操作での自動消去か）で解消されるかは本書未定義。実装準拠の追記が必要（OPEN-013 の契約検査とあわせて確定）。
 
 ---

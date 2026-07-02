@@ -8,7 +8,7 @@
 | 表示項目 | 内容 |
 |---------|------|
 | 到達フロア | 何フロアまで登ったか |
-| 総ターン数 | そのランの総ターン |
+| 総ターン数 | **戦闘ターンの総和**（`RunRecord.total_turns`・§19.1。ラン全体の経過ターンではない） |
 | 取得mod一覧 | 集めたmod |
 | 死亡原因 | 死亡敵・行動（`death_cause`）または `gate:結果`（ゲート死） |
 | 獲得/消費チップ | `gold_earned` / `gold_spent` 合計 |
@@ -21,7 +21,7 @@
 
 | 表示項目 | 内容 |
 |---------|------|
-| 総ターン数 | クリアまでの総ターン |
+| 総ターン数 | 戦闘ターンの総和（§19.1 `total_turns`） |
 | 取得mod一覧 | 集めたmod |
 | → 恒久強化割り振り | そのままポイント配分画面へ遷移 |
 
@@ -86,7 +86,7 @@
 | `TreasurePage` | treasure_preview / treasure_opened | TreasurePreview, ModReveal |
 | `HealPage` | heal | HpBar（回復演出）＋[確認]（`/continue`） |
 | `NextFloorPage` | next_floor | 次フロア演出＋[次の階層へ]（`/continue`） |
-| `GatePage` | gate_preview / gate_resolve | ゲート保証sink・結果演出 |
+| `GatePage` | gate_preview | ゲート保証sink（**gate_resolve は瞬間phaseで滞在しない**・§6.1。結果は `pending.gate_outcome` を NextFloorPage / ClearedPage / DeadPage 側で表示・§20.8） |
 | `DeadPage` | dead | ResultSummary |
 | `ClearedPage` | cleared | ResultSummary, UpgradeAllocator（`/profile/upgrades`・`/upgrade`） |
 
@@ -189,6 +189,7 @@ gate_resolve:
 └──────────────────────────────────────────────┘
 ```
 
+> **gate_resolve 画面の実体**：gate_resolve は瞬間phase（§6.1）のため、上図「gate_resolve:」の結果表示は実際には next_floor / cleared / dead 確定後に `pending.gate_outcome`（§20.8）を表示する演出。
 > **特殊の表示**：特殊＝無傷通過＋ボーナスチップ **+40G**（§7.4）。UIの「特殊20%」は当たり（+40G）として訴求してよい（旧「実体なし」懸念は解消）。BattlePage は攻撃/受け/攻撃ブーストの3ボタン（§8.4）。
 
 ### 26.5 DeadPage（死亡）
