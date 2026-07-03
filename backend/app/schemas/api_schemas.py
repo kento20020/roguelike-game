@@ -95,6 +95,7 @@ class BattleOut(BaseModel):
     preview: Optional[str] = None
     next_action: Optional[str] = None  # 先読みが公開した確定の次手の種別
     log: list[LogLine]
+    side_bet_total: int = 0  # サイドベット『読み宣言』の戦闘あたり累計額（per_battle_cap 可視化用）
     side_bet_result: Optional[dict[str, Any]] = None  # 直近ターンのサイドベット結果（次ターンでクリア）
 
 

@@ -466,6 +466,8 @@ class GameEngine:
                 # 先読み(yomi)が公開した「確定の次手」の種別（counter/heavy_blow/...）。未公開は None。
                 "next_action": b.pending_action,
                 "log": list(b.log),
+                # サイドベット『読み宣言』の戦闘あたり累計額（per_battle_cap 可視化用・UI表示専用）。
+                "side_bet_total": b.side_bet_total,
                 # サイドベット『読み宣言』の直近ターン結果（表示専用・次ターンでクリア）。
                 "side_bet_result": b.side_bet_result,
             }

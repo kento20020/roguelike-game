@@ -87,6 +87,7 @@ export interface Battle {
   preview: string | null;
   next_action?: string | null; // 先読みが公開した確定の次手の種別
   log: LogLine[];
+  side_bet_total?: number; // サイドベット『読み宣言』の戦闘あたり累計額（per_battle_cap 可視化用）
   side_bet_result?: { hit: boolean; payout: number } | null; // サイドベット直近ターン結果（次ターンでクリア）
 }
 

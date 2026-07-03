@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { Battle, Player, SideBet } from "../../api/types";
 import { experienceMeta, behaviorMeta, BEHAVIOR } from "../../lib/labels";
 import Icon from "../common/Icon";
@@ -8,6 +8,9 @@ import CombatLog from "./CombatLog";
 import BehaviorGlossary from "../common/BehaviorGlossary";
 
 const SIDE_BET_AMOUNTS = [5, 10, 20];
+// config.json side_bet ブロックと同期（表示計算専用の静的値。正本はバックエンド）。
+const PAYOUT_MULTIPLIER = 3;
+const PER_BATTLE_CAP = 40;
 
 // 戦闘ステージ全体（design 忠実）：敵名・体験タイプ・敵HP・ramp・先読み・ログ・自分パネル・攻撃。
 export default function CombatPanel({
@@ -33,9 +36,26 @@ export default function CombatPanel({
   // サイドベット『読み宣言』: 次の敵行動への任意ベット。賭けない状態がデフォルト。
   const [betBehavior, setBetBehavior] = useState<string | null>(null);
   const [betAmount, setBetAmount] = useState<number>(SIDE_BET_AMOUNTS[0]);
+
+  const capTotal = battle.side_bet_total ?? 0;
+  const remainingCap = Math.max(0, PER_BATTLE_CAP - capTotal);
+  const capRatio = PER_BATTLE_CAP > 0 ? capTotal / PER_BATTLE_CAP : 0;
+  const capColor = capRatio >= 0.85 ? "var(--danger)" : capRatio >= 0.5 ? "var(--brass)" : "var(--ink3)";
+  // 上限/残高から見て、いま選べる賭け額が1つも無い＝実質ベット不可（事前抑制）。
+  const bettingDisabled = SIDE_BET_AMOUNTS.every((amt) => amt > remainingCap || amt > player.chips);
+  const canBet = player.chips >= betAmount && betAmount <= remainingCap;
+  const previewPayout = Math.round(betAmount * (PAYOUT_MULTIPLIER - 1));
+
+  useEffect(() => {
+    if (bettingDisabled && betBehavior !== null) setBetBehavior(null);
+  }, [bettingDisabled, betBehavior]);
+
   const sideBet: SideBet | undefined =
-    betBehavior != null ? { behavior: betBehavior, amount: betAmount } : undefined;
-  const canBet = player.chips >= betAmount;
+    betBehavior != null && canBet ? { behavior: betBehavior, amount: betAmount } : undefined;
+
+  const statusText = betBehavior
+    ? `${behaviorMeta(betBehavior)?.jp ?? betBehavior} に ${betAmount} 賭ける${canBet ? "" : player.chips < betAmount ? "（チップ不足）" : "（賭け上限超過）"}`
+    : "未選択＝賭けない（デフォルト）";
 
   function submitAttack() {
     onAttack(sideBet);
@@ -176,23 +196,36 @@ export default function CombatPanel({
           className="flex items-center gap-2"
           style={{
             marginTop: 14,
-            padding: "7px 16px",
+            padding: battle.side_bet_result.hit ? "8px 18px" : "7px 16px",
             borderRadius: 999,
-            border: `1px solid ${battle.side_bet_result.hit ? "var(--moss)" : "var(--danger)"}`,
-            background: "var(--paper2)",
-            animation: "fadeUp .28s var(--ease)",
+            border: `1px solid ${battle.side_bet_result.hit ? "var(--brass)" : "var(--danger)"}`,
+            background: battle.side_bet_result.hit
+              ? "color-mix(in srgb, var(--brass) 16%, var(--paper2))"
+              : "var(--paper2)",
+            boxShadow: battle.side_bet_result.hit
+              ? "0 0 0 3px color-mix(in srgb, var(--brass) 24%, transparent), 0 8px 22px rgba(201, 162, 75, 0.25)"
+              : "none",
+            opacity: battle.side_bet_result.hit ? 1 : 0.85,
+            animation: battle.side_bet_result.hit ? "sideBetHit .4s var(--ease)" : "sideBetMiss .28s var(--ease)",
           }}
         >
           <span
             style={{
               fontSize: 12.5,
-              fontWeight: 600,
-              color: battle.side_bet_result.hit ? "var(--moss)" : "var(--danger)",
+              fontWeight: battle.side_bet_result.hit ? 700 : 500,
+              color: battle.side_bet_result.hit ? "var(--brass)" : "var(--ink2)",
             }}
           >
             サイドベット · {battle.side_bet_result.hit ? "読み的中" : "外れ"}
           </span>
-          <span style={{ fontFamily: "var(--mono)", fontSize: 13 }}>
+          <span
+            style={{
+              fontFamily: "var(--mono)",
+              fontSize: battle.side_bet_result.hit ? 15 : 13,
+              fontWeight: battle.side_bet_result.hit ? 700 : 400,
+              color: battle.side_bet_result.hit ? "var(--brass)" : "var(--danger)",
+            }}
+          >
             {battle.side_bet_result.payout >= 0 ? "+" : ""}
             {battle.side_bet_result.payout}
           </span>
@@ -206,22 +239,53 @@ export default function CombatPanel({
           width: "100%",
           maxWidth: 560,
           gap: 10,
-          padding: "12px 16px",
+          padding: "14px 16px",
           borderRadius: 8,
           border: "1px dashed var(--rule2)",
           background: "var(--paper2)",
         }}
       >
-        <span className="label" style={{ color: "var(--brass)" }}>
-          サイドベット · 読み宣言（任意・次の敵行動を予想）
-        </span>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center justify-between" style={{ width: "100%" }}>
+          <span className="label" style={{ color: "var(--brass)" }}>
+            サイドベット · 読み宣言（任意・次の敵行動を予想）
+          </span>
+          <div className="flex items-center gap-2">
+            <span style={{ fontSize: 10, color: "var(--ink3)" }}>賭け累計</span>
+            <HpBar current={capTotal} max={PER_BATTLE_CAP} width={64} colorOverride={capColor} />
+            <span style={{ fontFamily: "var(--mono)", fontSize: 11, color: capColor }}>
+              {capTotal}/{PER_BATTLE_CAP}
+            </span>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 flex-wrap" style={{ width: "100%" }}>
+          <button
+            disabled={busy}
+            onClick={() => setBetBehavior(null)}
+            title="賭けない"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              height: 40,
+              padding: "0 12px",
+              borderRadius: 8,
+              fontSize: 12,
+              border: `1px solid ${betBehavior === null ? "var(--ink2)" : "var(--rule2)"}`,
+              background: betBehavior === null ? "var(--paper3)" : "transparent",
+              color: betBehavior === null ? "var(--ink)" : "var(--ink3)",
+              transform: betBehavior === null ? "scale(1.04)" : "scale(1)",
+              transition: "all .14s var(--ease)",
+              cursor: busy ? "default" : "pointer",
+            }}
+          >
+            見送る
+          </button>
           {BEHAVIOR.map((b) => {
             const active = betBehavior === b.key;
             return (
               <button
                 key={b.key}
-                disabled={busy}
+                disabled={busy || bettingDisabled}
                 onClick={() => setBetBehavior(active ? null : b.key)}
                 title={b.jp}
                 style={{
@@ -231,10 +295,14 @@ export default function CombatPanel({
                   width: 40,
                   height: 40,
                   borderRadius: 8,
-                  border: `1px solid ${active ? b.color : "var(--rule2)"}`,
-                  background: active ? "var(--accentSoft)" : "transparent",
-                  color: active ? b.color : "var(--ink2)",
-                  cursor: busy ? "default" : "pointer",
+                  border: `${active ? 2 : 1}px solid ${active ? b.color : "var(--rule2)"}`,
+                  background: active ? `color-mix(in srgb, ${b.color} 18%, var(--paper2))` : "transparent",
+                  boxShadow: active ? `0 0 0 3px color-mix(in srgb, ${b.color} 22%, transparent)` : "none",
+                  color: active ? b.color : "var(--ink3)",
+                  opacity: busy || bettingDisabled ? 0.4 : active ? 1 : 0.85,
+                  transform: active ? "scale(1.08)" : "scale(1)",
+                  transition: "all .14s var(--ease)",
+                  cursor: busy || bettingDisabled ? "default" : "pointer",
                 }}
               >
                 <Icon type={b.iconType} size={18} />
@@ -243,23 +311,44 @@ export default function CombatPanel({
           })}
         </div>
         <div className="flex items-center gap-2">
-          {SIDE_BET_AMOUNTS.map((amt) => (
-            <button
-              key={amt}
-              disabled={busy}
-              onClick={() => setBetAmount(amt)}
-              className={betAmount === amt ? "btn" : "btn btn-ghost"}
-              style={{ minWidth: 56, height: 32, fontSize: 12, padding: "0 10px" }}
-            >
-              {amt}
-            </button>
-          ))}
+          {SIDE_BET_AMOUNTS.map((amt) => {
+            const affordable = player.chips >= amt && amt <= remainingCap;
+            const active = betAmount === amt;
+            return (
+              <button
+                key={amt}
+                disabled={busy || !affordable}
+                onClick={() => setBetAmount(amt)}
+                className={active ? "btn" : "btn btn-ghost"}
+                style={{
+                  minWidth: 56,
+                  height: 32,
+                  fontSize: 12,
+                  padding: "0 10px",
+                  transform: active ? "scale(1.06)" : "scale(1)",
+                  boxShadow: active ? "0 0 0 2px color-mix(in srgb, var(--accent) 32%, transparent)" : "none",
+                  transition: "all .14s var(--ease)",
+                }}
+              >
+                {amt}
+              </button>
+            );
+          })}
         </div>
-        <span style={{ fontSize: 11, color: betBehavior ? "var(--brass)" : "var(--ink3)" }}>
-          {betBehavior
-            ? `${behaviorMeta(betBehavior)?.jp ?? betBehavior} に ${betAmount} 賭ける${canBet ? "" : "（チップ不足）"}`
-            : "未選択＝賭けない（デフォルト）"}
-        </span>
+        <div className="flex items-center gap-3" style={{ minHeight: 16 }}>
+          <span style={{ fontSize: 11, color: betBehavior ? "var(--brass)" : "var(--ink3)" }}>{statusText}</span>
+          {betBehavior && (
+            <span
+              style={{
+                fontSize: 11,
+                fontFamily: "var(--mono)",
+                color: canBet ? "var(--moss)" : "var(--ink3)",
+              }}
+            >
+              的中時 +{previewPayout}
+            </span>
+          )}
+        </div>
       </div>
     </section>
   );
