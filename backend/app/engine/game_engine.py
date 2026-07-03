@@ -11,6 +11,7 @@ from app.data.loader import GameData, get_data
 from app.engine import chaos_weights as cw
 from app.engine import combat_resolver as cr
 from app.engine import gate_resolver as gr
+from app.engine import tells
 from app.engine.floor_generator import build_enemy_instance, generate_floor
 from app.engine.rng import (
     STREAM_CHAOS,
@@ -33,6 +34,7 @@ from app.schemas.models import (
     PHASE_TREASURE_OPENED,
     PHASE_TREASURE_PREVIEW,
     Battle,
+    EnemyInstance,
     Floor,
     Node,
     Player,
@@ -69,6 +71,9 @@ class GameEngine:
         self.pending: dict[str, Any] = {}
         self.gate_guarantee_uses: int = 0
         self.resolved: dict[str, bool] = {}
+        self._postmortem: Optional[dict] = None  # _die() で計算済みの検死レポート（致命ターンの反実仮想）
+        # ディーラー調書用: (enemy_id, behavior) の観測イベント。API層がDBへ反映しdrainする。
+        self._pending_observations: list[tuple[str, str]] = []
 
     # ─────────────────────────── new run ───────────────────────────
     def new_run(self, seed: int, upgrades: Optional[dict[str, int]] = None,
@@ -149,18 +154,34 @@ class GameEngine:
         # 先読み（yomi）: turn1 の行動を先引き
         cr.prepare_preview(self.battle, self.player, self.data, self.rng.stream(STREAM_BEHAVIOR))
 
-    def attack(self) -> dict:
-        return self._combat_turn(guard=False)
+    def attack(self, side_bet: Optional[dict] = None) -> dict:
+        return self._combat_turn(guard=False, side_bet=side_bet)
 
-    def guard(self) -> dict:
+    def guard(self, side_bet: Optional[dict] = None) -> dict:
         """受け（ガード）: 与ダメ半減・被ダメ大幅軽減。先読みを活かす攻防の選択。"""
-        return self._combat_turn(guard=True)
+        return self._combat_turn(guard=True, side_bet=side_bet)
 
-    def _combat_turn(self, guard: bool) -> dict:
+    def _combat_turn(self, guard: bool, side_bet: Optional[dict] = None) -> dict:
         self._require(PHASE_BATTLE)
         b, p = self.battle, self.player
+        pre_snapshot = self._pre_turn_snapshot()
+        b.side_bet_result = None  # 前ターン分の表示をクリア
         res = cr.resolve_turn(b, p, self.data, self.rng.stream(STREAM_BEHAVIOR), guard=guard)
+        self._pending_observations.append((b.enemy.id, res["action"]))
         self.run.total_turns += 1
+        self.run.turn_history.append({
+            "node_id": b.node_id, "enemy_id": b.enemy.id, "guard": guard,
+            "action": res["action"], "dealt": res["dealt"], "incoming": res["incoming"],
+            "player_hp_before": pre_snapshot["player"]["hp"], "player_hp_after": p.hp,
+            "enemy_hp_before": pre_snapshot["enemy"]["hp"], "enemy_hp_after": b.enemy.hp,
+            "ramp_value": res["ramp_value"], "kouki_cooldown": b.kouki_cooldown,
+            "pre_turn_snapshot": pre_snapshot,
+        })
+
+        # サイドベット『読み宣言』: stream2(behavior_roll) の既存結果(res["action"])で判定。
+        # 新規RNG消費は一切しない（このメソッドはここまでで rng.stream() を追加で呼ばない）。
+        if side_bet is not None:
+            b.side_bet_result = self._settle_side_bet(b, p, side_bet, res["action"])
 
         if res["player_dead"]:
             self._die(cause=f"{b.enemy.id}:{res['action']}")
@@ -171,6 +192,55 @@ class GameEngine:
         # 継続: 次ターンの先読み
         cr.prepare_preview(b, p, self.data, self.rng.stream(STREAM_BEHAVIOR))
         return self.snapshot()
+
+    def _pre_turn_snapshot(self) -> dict:
+        """ターン解決"直前"の player/battle/enemy の軽量スナップショット（検死の反実仮想用）。
+        値はすべて不変（str/int/float/bool/tuple）なので list(...) で十分＝実オブジェクトとは無関係。"""
+        p, b, e = self.player, self.battle, self.battle.enemy
+        return {
+            "player": {
+                "hp": p.hp, "max_hp": p.max_hp, "attack": p.attack, "chips": p.chips,
+                "mods": list(p.mods), "stance_multiplier": p.stance_multiplier,
+                "attack_boost_pending": p.attack_boost_pending,
+            },
+            "battle": {
+                "turns": b.turns, "ramp_value": b.ramp_value, "kouki_cooldown": b.kouki_cooldown,
+                "node_id": b.node_id, "floor": b.floor,
+            },
+            "enemy": {
+                "id": e.id, "name": e.name, "experience": e.experience, "max_hp": e.max_hp,
+                "hp": e.hp, "attack": e.attack, "difficulty": e.difficulty, "gold_base": e.gold_base,
+                "chaos": e.chaos, "behaviors": list(e.behaviors), "ramp_increment": e.ramp_increment,
+                "heavy_factor": e.heavy_factor, "counter_factor": e.counter_factor,
+                "is_strong": e.is_strong,
+            },
+        }
+
+    def _settle_side_bet(self, battle: Battle, player: Player, side_bet: dict, action: str) -> dict:
+        """サイドベット『読み宣言』の検証＋判定。
+
+        検証: 賭け額が min/max 範囲内・チップ足りているか・per_battle_cap 超過なし。
+        違反時は InvalidMove（HTTP 400）。的中は payout_multiplier 倍の差分を加算、外れは没収。
+        """
+        cfg = self.data.config["side_bet"]
+        amount = side_bet.get("amount")
+        behavior = side_bet.get("behavior")
+        if not isinstance(amount, int) or not (cfg["min_amount"] <= amount <= cfg["max_amount"]):
+            raise InvalidMove(f"invalid side bet amount: {amount}")
+        if player.chips < amount:
+            raise InvalidMove("not enough chips for side bet")
+        if battle.side_bet_total + amount > cfg["per_battle_cap"]:
+            raise InvalidMove("side bet per-battle cap exceeded")
+
+        battle.side_bet_total += amount
+        hit = behavior == action
+        if hit:
+            payout = round(amount * (cfg["payout_multiplier"] - 1))
+            player.chips += payout
+        else:
+            payout = -amount
+            player.chips -= amount
+        return {"hit": hit, "payout": payout}
 
     def _victory(self, b: Battle) -> None:
         e = b.enemy
@@ -196,9 +266,72 @@ class GameEngine:
 
     def _die(self, cause: str) -> None:
         self.player.hp = 0
+        self._postmortem = self._compute_postmortem()
         self.battle = None
         self.phase = PHASE_DEAD
         self._finalize(cleared=False, death_cause=cause)
+
+    def _compute_postmortem(self) -> dict:
+        """致命ターン（turn_historyの最後）の反実仮想: guardを反転してforced_actionで再現。
+        forced_action指定によりroll_behaviorは呼ばれずRNGストリームは一切消費しない。"""
+        if not self.run.turn_history:
+            return {}
+        last = self.run.turn_history[-1]
+        snap = last["pre_turn_snapshot"]
+        p_snap, b_snap, e_snap = snap["player"], snap["battle"], snap["enemy"]
+
+        player = Player(
+            hp=p_snap["hp"], max_hp=p_snap["max_hp"], attack=p_snap["attack"], chips=p_snap["chips"],
+            mods=list(p_snap["mods"]), stance_multiplier=p_snap["stance_multiplier"],
+            attack_boost_pending=p_snap["attack_boost_pending"],
+        )
+        enemy = EnemyInstance(
+            id=e_snap["id"], name=e_snap["name"], experience=e_snap["experience"],
+            max_hp=e_snap["max_hp"], hp=e_snap["hp"], attack=e_snap["attack"],
+            difficulty=e_snap["difficulty"], gold_base=e_snap["gold_base"], chaos=e_snap["chaos"],
+            behaviors=list(e_snap["behaviors"]), ramp_increment=e_snap["ramp_increment"],
+            heavy_factor=e_snap["heavy_factor"], counter_factor=e_snap["counter_factor"],
+            is_strong=e_snap["is_strong"],
+        )
+        battle = Battle(
+            enemy=enemy, node_id=b_snap["node_id"], floor=b_snap["floor"],
+            turns=b_snap["turns"], ramp_value=b_snap["ramp_value"],
+            kouki_cooldown=b_snap["kouki_cooldown"],
+        )
+
+        original_guard = last["guard"]
+        flipped_guard = not original_guard
+        res = cr.resolve_turn(battle, player, self.data, self.rng.stream(STREAM_BEHAVIOR),
+                              forced_action=last["action"], guard=flipped_guard)
+
+        if res["player_dead"]:
+            category, avoidable = "unavoidable", False
+            message = "あれは避けられなかった"
+        elif not res["enemy_dead"]:
+            avoidable = True
+            if flipped_guard:  # 実際はguard=False致命 → 「ガードしていれば」
+                category = "avoidable_guard"
+                message = "ガードしていれば生存していた"
+            else:  # 実際はguard=True致命 → 「攻撃していれば」
+                category = "avoidable_attack"
+                message = "ガードせず攻撃していれば生存していた"
+        else:
+            category, avoidable = "mutual_kill_victory", True
+            message = "相打ちで敵を先に倒せていた"
+
+        return {
+            "fatal_turn_index": len(self.run.turn_history) - 1,
+            "original_guard": original_guard,
+            "counterfactual_guard": flipped_guard,
+            "category": category,
+            "avoidable": avoidable,
+            "message": message,
+            "counterfactual_result": {
+                "action": res["action"], "dealt": res["dealt"], "incoming": res["incoming"],
+                "player_hp": player.hp, "enemy_hp": enemy.hp,
+                "enemy_dead": res["enemy_dead"], "player_dead": res["player_dead"],
+            },
+        }
 
     # ─────────────────────────── treasure ───────────────────────────
     def treasure_open(self) -> dict:
@@ -350,6 +483,12 @@ class GameEngine:
             self.run.death_floor = self.current_floor
         self.run.floor_reached = self.current_floor
 
+    # ─────────────────────────── observations (dossier) ───────────────────────────
+    def drain_observations(self) -> list[tuple[str, str]]:
+        """蓄積した (enemy_id, behavior) 観測を取り出し内部バッファを空にする。DB書き込みはAPI層の責務。"""
+        obs, self._pending_observations = self._pending_observations, []
+        return obs
+
     # ─────────────────────────── guards ───────────────────────────
     def _require(self, phase: str) -> None:
         if self.phase != phase:
@@ -434,7 +573,17 @@ class GameEngine:
                 # 先読み(yomi)が公開した「確定の次手」の種別（counter/heavy_blow/...）。未公開は None。
                 "next_action": b.pending_action,
                 "log": list(b.log),
+                # サイドベット『読み宣言』の戦闘あたり累計額（per_battle_cap 可視化用・UI表示専用）。
+                "side_bet_total": b.side_bet_total,
+                # サイドベット『読み宣言』の直近ターン結果（表示専用・次ターンでクリア）。
+                "side_bet_result": b.side_bet_result,
             }
+            # テル（行動の前兆）システム試作: フラグON時のみ、次手が公開されているターンに
+            # 敵ごとの固定「気配信頼度」ラベルを添える（新規RNG消費なし・既存next_actionと同じ条件）。
+            if self.data.config.get("feature_flags", {}).get("tell_system") and b.pending_action is not None:
+                battle_state["tell_reliability"] = tells.tell_reliability(b.enemy.id)
+            else:
+                battle_state["tell_reliability"] = None
         return {
             "phase": self.phase,
             "current_floor": self.current_floor,

@@ -124,6 +124,8 @@ class Battle:
     pending_action: Optional[str] = None # 先読みで先引きした次行動（消費される）
     kouki_cooldown: int = 0              # 好機の残クールダウン
     log: list[dict] = field(default_factory=list)  # 表示専用・使い捨て
+    side_bet_total: int = 0              # サイドベット『読み宣言』累計額（per_battle_cap 判定用）
+    side_bet_result: Optional[dict] = None  # 直近ターンの的中/払戻（表示専用・次ターンでクリア）
 
     def add_log(self, text: str, kind: str = "info") -> None:
         self.log.append({"t": text, "k": kind})
@@ -150,6 +152,7 @@ class RunRecord:
     death_floor: Optional[int] = None
     permanent_upgrades_state: dict[str, int] = field(default_factory=dict)
     gate_guarantee_stacks: int = 0  # ゲート保証の重ねがけ回数（ラン合計・GDD §19.1 v0.9追加）
+    turn_history: list[dict] = field(default_factory=list)  # 検死/リプレイ用（ターン開始前スナップショット付き）。snapshot()には含めない（内部専用）。
 
     def snapshot(self) -> dict[str, Any]:
         return {

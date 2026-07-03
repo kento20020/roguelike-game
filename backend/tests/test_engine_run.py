@@ -354,14 +354,42 @@ def test_gate_guarantee_stacks_recorded(data):
 
 
 def test_yomi_exposes_next_action_in_snapshot(data):
-    """先読み所持なら戦闘突入時 snapshot に確定の次手(next_action)が載る。無しなら None。"""
+    """先読み所持なら戦闘突入時 snapshot に確定の次手(next_action)が載る。無しなら None。
+
+    tell_system フラグはON時「yomi無しでも常に先引き」する試作仕様のため、
+    このテストの意図（yomi無し→None）を保つには明示的にOFFにして検証する。
+    """
     BEH = {"counter", "heavy_blow", "evade", "ramp_hit", "none"}
-    eng = GameEngine(data)
-    eng.new_run(1)
-    eng.select_node("L")
-    assert eng.snapshot()["battle"]["next_action"] is None      # yomi 無し
-    eng2 = GameEngine(data)
-    eng2.new_run(1)
-    eng2.player.mods.append("yomi")
-    s = eng2.select_node("L")
-    assert s["battle"]["next_action"] in BEH                    # 確定の次手
+    prev_flag = data.config.get("feature_flags", {}).get("tell_system")
+    data.config.setdefault("feature_flags", {})["tell_system"] = False
+    try:
+        eng = GameEngine(data)
+        eng.new_run(1)
+        eng.select_node("L")
+        assert eng.snapshot()["battle"]["next_action"] is None      # yomi 無し
+        eng2 = GameEngine(data)
+        eng2.new_run(1)
+        eng2.player.mods.append("yomi")
+        s = eng2.select_node("L")
+        assert s["battle"]["next_action"] in BEH                    # 確定の次手
+    finally:
+        data.config["feature_flags"]["tell_system"] = prev_flag
+
+
+def test_tell_system_flag_forces_turn1_preview_without_yomi(data):
+    """テル試作: フラグON時、yomi未所持でもturn1でpending_action(next_action)がセットされる。
+
+    既存のroll_behavior呼び出しと同じコードパス・同じタイミングを使うだけで、
+    新規のRNG消費箇所は増えない、という前提の確認。
+    """
+    prev_flag = data.config.get("feature_flags", {}).get("tell_system")
+    data.config.setdefault("feature_flags", {})["tell_system"] = True
+    try:
+        eng = GameEngine(data)
+        eng.new_run(1)
+        s = eng.select_node("L")
+        assert "yomi" not in eng.player.mods
+        assert s["battle"]["next_action"] is not None
+        assert s["battle"]["tell_reliability"] is not None
+    finally:
+        data.config["feature_flags"]["tell_system"] = prev_flag

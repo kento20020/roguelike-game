@@ -27,6 +27,18 @@ class UpgradeRequest(BaseModel):
     upgrade_type: str
 
 
+class SideBet(BaseModel):
+    """サイドベット『読み宣言』: 次の敵行動(behavior)への任意ベット。
+    既存のstream2(behavior_roll)の結果をそのまま使う。新規RNG消費はしない。"""
+    behavior: str
+    amount: int
+
+
+class CombatActionRequest(BaseModel):
+    """attack/guard の共通リクエストボディ。side_bet は任意（賭けない状態がデフォルト）。"""
+    side_bet: Optional[SideBet] = None
+
+
 # ── state sub-models ──
 class PlayerOut(BaseModel):
     hp: int
@@ -83,6 +95,8 @@ class BattleOut(BaseModel):
     preview: Optional[str] = None
     next_action: Optional[str] = None  # 先読みが公開した確定の次手の種別
     log: list[LogLine]
+    side_bet_total: int = 0  # サイドベット『読み宣言』の戦闘あたり累計額（per_battle_cap 可視化用）
+    side_bet_result: Optional[dict[str, Any]] = None  # 直近ターンのサイドベット結果（次ターンでクリア）
 
 
 class ActionItem(BaseModel):
@@ -124,6 +138,17 @@ class GameStateResponse(BaseModel):
     run_record: Optional[RunRecordOut] = None
 
 
+class PostmortemResponse(BaseModel):
+    """検死レポート＋リプレイ（GET /run/{sid}/postmortem）。turn_history/counterfactual は
+    engineが計算した軽量dictをそのまま透過する（WinModel等の未実装インフラには依存しない）。"""
+    model_config = ConfigDict(extra="allow")
+    run_id: str
+    turn_history: list[dict[str, Any]]
+    fatal_turn_index: int
+    counterfactual: dict[str, Any]
+    created_at: Optional[str] = None
+
+
 class UpgradeStateResponse(BaseModel):
     points: int
     levels: dict[str, int]
@@ -136,3 +161,25 @@ class ModCatalogItem(BaseModel):
     name: str
     effect_1: str
     effect_stack: str
+
+
+class EnemyCatalogItem(BaseModel):
+    """敵の表示用カタログ（enemies.json 由来・id/name/experienceのみ。weight/behaviorsは含めない）。"""
+    id: str
+    name: str
+    experience: str
+
+
+# ── dealer dossier（個人観測統計・Wilson信頼区間。真のweightは非開示）──
+class DossierBehaviorOut(BaseModel):
+    behavior: str
+    count: int
+    n_total: int
+    ci_low: float
+    ci_high: float
+
+
+class DossierEnemyOut(BaseModel):
+    enemy_id: str
+    behaviors: list[DossierBehaviorOut]
+    n_total: int

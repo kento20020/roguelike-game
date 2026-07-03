@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import secrets
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_engine_or_404
@@ -18,9 +18,14 @@ from app.engine.game_engine import (
     GameEngine,
 )
 from app.schemas.api_schemas import (
+    CombatActionRequest,
+    DossierBehaviorOut,
+    DossierEnemyOut,
+    EnemyCatalogItem,
     GameStateResponse,
     ModCatalogItem,
     NewRunRequest,
+    PostmortemResponse,
     RunRecordOut,
     SelectNodeRequest,
     SinkRequest,
@@ -28,8 +33,12 @@ from app.schemas.api_schemas import (
     UpgradeStateResponse,
 )
 from app.session_store import store
+from app.simulation.balance_stats import wilson
 
 router = APIRouter(prefix="/api")
+
+# ディーラー調書の観測データ世代札（バランス改定等で分けたい場合に上げる。config.jsonとは無関係）。
+DOSSIER_DATA_VERSION = "prototype-v1"
 
 
 def _state(session_id: str, eng: GameEngine) -> GameStateResponse:
@@ -42,6 +51,11 @@ def _finalize_if_ended(db: Session, session_id: str, eng: GameEngine) -> None:
         if eng.phase == PHASE_CLEARED:
             pts = eng.data.config["permanent_upgrades"]["points_per_clear"]
             crud.award_points(db, pts)
+        elif eng.phase == PHASE_DEAD and eng._postmortem:
+            crud.save_postmortem(
+                db, eng.run.run_id, eng.run.turn_history,
+                eng._postmortem["fatal_turn_index"], eng._postmortem,
+            )
         store.mark_finalized(session_id)
 
 
@@ -53,6 +67,13 @@ def catalog_mods():
         {"id": m["id"], "name": m["name"], "effect_1": m["effect_1"], "effect_stack": m["effect_stack"]}
         for m in data.mods
     ]
+
+
+@router.get("/catalog/enemies", response_model=list[EnemyCatalogItem])
+def catalog_enemies():
+    """敵名表示用の軽量カタログ。weight/behaviorsなど生データは含めない（開示不変条件）。"""
+    data = get_data()
+    return [{"id": e["id"], "name": e["name"], "experience": e["experience"]} for e in data.enemies]
 
 
 # ── run lifecycle ──
@@ -79,18 +100,26 @@ def select_node(session_id: str, req: SelectNodeRequest, db: Session = Depends(g
     return _state(session_id, eng)
 
 
+def _drain_observations(db: Session, eng: GameEngine) -> None:
+    """戦闘ターンで蓄積された (enemy_id, behavior) 観測をディーラー調書に反映する。"""
+    for enemy_id, behavior in eng.drain_observations():
+        crud.increment_observation(db, enemy_id, behavior, data_version=DOSSIER_DATA_VERSION)
+
+
 @router.post("/run/{session_id}/attack", response_model=GameStateResponse)
-def attack(session_id: str, db: Session = Depends(get_db)):
+def attack(session_id: str, req: CombatActionRequest = CombatActionRequest(), db: Session = Depends(get_db)):
     eng = get_engine_or_404(session_id)
-    eng.attack()
+    eng.attack(side_bet=req.side_bet.model_dump() if req.side_bet else None)
+    _drain_observations(db, eng)
     _finalize_if_ended(db, session_id, eng)
     return _state(session_id, eng)
 
 
 @router.post("/run/{session_id}/guard", response_model=GameStateResponse)
-def guard(session_id: str, db: Session = Depends(get_db)):
+def guard(session_id: str, req: CombatActionRequest = CombatActionRequest(), db: Session = Depends(get_db)):
     eng = get_engine_or_404(session_id)
-    eng.guard()
+    eng.guard(side_bet=req.side_bet.model_dump() if req.side_bet else None)
+    _drain_observations(db, eng)
     _finalize_if_ended(db, session_id, eng)
     return _state(session_id, eng)
 
@@ -132,6 +161,16 @@ def continue_(session_id: str):
     return _state(session_id, eng)
 
 
+@router.get("/run/{session_id}/postmortem", response_model=PostmortemResponse)
+def postmortem(session_id: str, db: Session = Depends(get_db)):
+    """検死レポート＋リプレイ（戦闘死のみ。ゲート死は致命ターンが無いため対象外）。"""
+    eng = get_engine_or_404(session_id)
+    row = crud.get_postmortem(db, eng.run.run_id)
+    if row is None:
+        raise HTTPException(status_code=404, detail="postmortem not available for this run")
+    return PostmortemResponse(**row.to_dict())
+
+
 # ── meta progression ──
 @router.get("/profile/upgrades", response_model=UpgradeStateResponse)
 def profile_upgrades(db: Session = Depends(get_db)):
@@ -147,6 +186,31 @@ def upgrade(session_id: str, req: UpgradeRequest, db: Session = Depends(get_db))
     p = crud.allocate_upgrade(db, req.upgrade_type)  # UpgradeError -> 400
     return UpgradeStateResponse(
         points=p.points, levels=crud.profile_levels(p), maxes=crud.upgrade_maxes())
+
+
+@router.get("/profile/dossier", response_model=list[DossierEnemyOut])
+def profile_dossier(data_version: str = DOSSIER_DATA_VERSION, db: Session = Depends(get_db)):
+    """ディーラー調書: 自分が観測した行動頻度のみをWilson信頼区間つきで返す。
+
+    真のweight/確率・enemies.jsonの生データは一切含めない（開示不変条件）。
+    """
+    rows = crud.get_dossier(db, data_version)
+    by_enemy: dict[str, list] = {}
+    for r in rows:
+        by_enemy.setdefault(r.enemy_id, []).append(r)
+
+    result: list[DossierEnemyOut] = []
+    for enemy_id, rs in by_enemy.items():
+        n_total = sum(r.count for r in rs)
+        behaviors = []
+        for r in rs:
+            ci_low, ci_high = wilson(r.count, n_total)
+            behaviors.append(DossierBehaviorOut(
+                behavior=r.behavior, count=r.count, n_total=n_total,
+                ci_low=ci_low, ci_high=ci_high,
+            ))
+        result.append(DossierEnemyOut(enemy_id=enemy_id, behaviors=behaviors, n_total=n_total))
+    return result
 
 
 # ── telemetry ──

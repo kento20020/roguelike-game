@@ -76,14 +76,15 @@ export interface BehaviorMeta {
   jp: string;
   meaning: string;
   color: string;
+  iconType: string; // Icon のキー。色とセットでバー/CIひげ/リプレイの行タグ/サイドベットUI等の配色にも流用
   guardAdvice: string; // 先読みで確定したとき、受け（ガード）と連動した一言
 }
 export const BEHAVIOR: BehaviorMeta[] = [
-  { key: "counter", jp: "反撃", meaning: "ほぼ等倍で殴り返す（被ダメ＝相手の攻撃力ぶん）", color: "var(--danger)", guardAdvice: "受けると被害を抑えられる" },
-  { key: "heavy_blow", jp: "強打", meaning: "たまに大振り。当たると重い（約1.8倍）", color: "var(--danger)", guardAdvice: "重い一撃。受けると大きく軽減できる" },
-  { key: "evade", jp: "回避", meaning: "こちらの攻撃を空振りさせる（ダメージが通らない）", color: "var(--moss)", guardAdvice: "攻撃が空を切る手。偵察/強化に回すのも手" },
-  { key: "ramp_hit", jp: "蓄積の一撃", meaning: "長引くほど蓄積が増え、まとめて返してくる", color: "var(--brass)", guardAdvice: "蓄積の一撃。受けで軽減できる" },
-  { key: "none", jp: "様子見", meaning: "何もしてこない（被ダメ 0）", color: "var(--ink2)", guardAdvice: "様子見。攻めどき" },
+  { key: "counter", jp: "反撃", meaning: "ほぼ等倍で殴り返す（被ダメ＝相手の攻撃力ぶん）", color: "var(--danger)", iconType: "reflect", guardAdvice: "受けると被害を抑えられる" },
+  { key: "heavy_blow", jp: "強打", meaning: "たまに大振り。当たると重い（約1.8倍）", color: "var(--danger)", iconType: "sword", guardAdvice: "重い一撃。受けると大きく軽減できる" },
+  { key: "evade", jp: "回避", meaning: "こちらの攻撃を空振りさせる（ダメージが通らない）", color: "var(--moss)", iconType: "evade", guardAdvice: "攻撃が空を切る手。偵察/強化に回すのも手" },
+  { key: "ramp_hit", jp: "蓄積の一撃", meaning: "長引くほど蓄積が増え、まとめて返してくる", color: "var(--brass)", iconType: "race", guardAdvice: "蓄積の一撃。受けで軽減できる" },
+  { key: "none", jp: "様子見", meaning: "何もしてこない（被ダメ 0）", color: "var(--ink2)", iconType: "eye", guardAdvice: "様子見。攻めどき" },
 ];
 
 const BEHAVIOR_BY_KEY: Record<string, BehaviorMeta> = Object.fromEntries(BEHAVIOR.map((b) => [b.key, b]));

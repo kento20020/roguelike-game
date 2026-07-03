@@ -2,7 +2,15 @@
 // React は計算しない（CLAUDE.md）。各操作は gameApi を呼び、返ってきた状態で置換するだけ。
 import { create } from "zustand";
 import { gameApi, ApiError } from "../api/gameApi";
-import type { GameState, ModCatalogItem, SinkType, UpgradeState } from "../api/types";
+import type {
+  DossierEnemy,
+  EnemyCatalogItem,
+  GameState,
+  ModCatalogItem,
+  SideBet,
+  SinkType,
+  UpgradeState,
+} from "../api/types";
 
 interface GameStore {
   state: GameState | null;
@@ -15,10 +23,20 @@ interface GameStore {
   loadUpgradeState: () => Promise<void>;
   allocateUpgrade: (upgradeType: string) => Promise<void>;
 
+  // ディーラー調書（StartPage からのみ到達。state が null＝ラン中ではない時のみ表示される）。
+  dossierOpen: boolean;
+  openDossier: () => void;
+  closeDossier: () => void;
+  dossier: DossierEnemy[] | null;
+  dossierLoading: boolean;
+  loadDossier: () => Promise<void>;
+  enemyCatalog: Record<string, EnemyCatalogItem>; // 敵 id → 表示名（一度だけ取得）
+  loadEnemyCatalog: () => Promise<void>;
+
   newRun: (seed?: number) => Promise<void>;
   selectNode: (nodeId: string) => Promise<void>;
-  attack: () => Promise<void>;
-  guard: () => Promise<void>;
+  attack: (sideBet?: SideBet) => Promise<void>;
+  guard: (sideBet?: SideBet) => Promise<void>;
   sink: (sinkType: SinkType) => Promise<void>;
   treasureOpen: () => Promise<void>;
   treasureReroll: () => Promise<void>;
@@ -49,6 +67,35 @@ export const useGameStore = create<GameStore>((set, get) => {
     error: null,
     catalog: {},
     upgrade: null,
+    dossierOpen: false,
+    openDossier: () => set({ dossierOpen: true }),
+    closeDossier: () => set({ dossierOpen: false }),
+    dossier: null,
+    dossierLoading: false,
+    enemyCatalog: {},
+
+    loadDossier: async () => {
+      set({ dossierLoading: true });
+      try {
+        const items = await gameApi.dossier();
+        set({ dossier: items, dossierLoading: false });
+      } catch {
+        // 取得失敗は致命ではない（空の調書として扱う）
+        set({ dossier: [], dossierLoading: false });
+      }
+    },
+
+    loadEnemyCatalog: async () => {
+      if (Object.keys(get().enemyCatalog).length > 0) return;
+      try {
+        const items = await gameApi.enemiesCatalog();
+        const map: Record<string, EnemyCatalogItem> = {};
+        for (const it of items) map[it.id] = it;
+        set({ enemyCatalog: map });
+      } catch {
+        /* 取得失敗は致命ではない（敵名の代わりにidが出るだけ） */
+      }
+    },
 
     loadCatalog: async () => {
       if (Object.keys(get().catalog).length > 0) return;
@@ -95,8 +142,8 @@ export const useGameStore = create<GameStore>((set, get) => {
     },
 
     selectNode: (nodeId) => run((sid) => gameApi.selectNode(sid, nodeId)),
-    attack: () => run((sid) => gameApi.attack(sid)),
-    guard: () => run((sid) => gameApi.guard(sid)),
+    attack: (sideBet) => run((sid) => gameApi.attack(sid, sideBet)),
+    guard: (sideBet) => run((sid) => gameApi.guard(sid, sideBet)),
     sink: (sinkType) => run((sid) => gameApi.sink(sid, sinkType)),
     treasureOpen: () => run((sid) => gameApi.treasureOpen(sid)),
     treasureReroll: () => run((sid) => gameApi.treasureReroll(sid)),
