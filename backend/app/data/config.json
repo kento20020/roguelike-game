@@ -87,6 +87,14 @@
     "_comment": "1クリア=1ポイント。全項目MAXは26点=26クリア。gold_dropは率(+10%/Lv)、sink_costは割引(-5G/Lv)。"
   },
 
+  "side_bet": {
+    "min_amount": 5,
+    "max_amount": 20,
+    "payout_multiplier": 3,
+    "per_battle_cap": 40,
+    "_comment": "サイドベット『読み宣言』プロトタイプ仮値・要デザイナーレビュー。stream2(behavior_roll)の既存ロールをそのまま使い新規RNG消費はしない。"
+  },
+
   "rng_streams": {
     "0": "floor_generation",
     "1": "enemy_pool",

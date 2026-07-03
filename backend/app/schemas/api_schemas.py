@@ -27,6 +27,18 @@ class UpgradeRequest(BaseModel):
     upgrade_type: str
 
 
+class SideBet(BaseModel):
+    """サイドベット『読み宣言』: 次の敵行動(behavior)への任意ベット。
+    既存のstream2(behavior_roll)の結果をそのまま使う。新規RNG消費はしない。"""
+    behavior: str
+    amount: int
+
+
+class CombatActionRequest(BaseModel):
+    """attack/guard の共通リクエストボディ。side_bet は任意（賭けない状態がデフォルト）。"""
+    side_bet: Optional[SideBet] = None
+
+
 # ── state sub-models ──
 class PlayerOut(BaseModel):
     hp: int
@@ -83,6 +95,8 @@ class BattleOut(BaseModel):
     preview: Optional[str] = None
     next_action: Optional[str] = None  # 先読みが公開した確定の次手の種別
     log: list[LogLine]
+    side_bet_total: int = 0  # サイドベット『読み宣言』の戦闘あたり累計額（per_battle_cap 可視化用）
+    side_bet_result: Optional[dict[str, Any]] = None  # 直近ターンのサイドベット結果（次ターンでクリア）
 
 
 class ActionItem(BaseModel):

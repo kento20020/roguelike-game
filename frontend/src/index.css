@@ -74,6 +74,30 @@ body {
     opacity: 1;
   }
 }
+@keyframes sideBetHit {
+  0% {
+    transform: scale(0.86) translateY(6px);
+    opacity: 0;
+  }
+  55% {
+    transform: scale(1.06) translateY(0);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1) translateY(0);
+    opacity: 1;
+  }
+}
+@keyframes sideBetMiss {
+  from {
+    transform: translateY(4px);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 0.92;
+  }
+}
 @keyframes overlayIn {
   from {
     opacity: 0;

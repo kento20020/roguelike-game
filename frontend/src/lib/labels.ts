@@ -76,7 +76,7 @@ export interface BehaviorMeta {
   jp: string;
   meaning: string;
   color: string;
-  iconType: string; // Icon のキー。色とセットでバー/CIひげ/リプレイの行タグ等の配色にも流用
+  iconType: string; // Icon のキー。色とセットでバー/CIひげ/リプレイの行タグ/サイドベットUI等の配色にも流用
   guardAdvice: string; // 先読みで確定したとき、受け（ガード）と連動した一言
 }
 export const BEHAVIOR: BehaviorMeta[] = [

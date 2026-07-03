@@ -6,6 +6,7 @@ import type {
   GameState,
   ModCatalogItem,
   PostmortemResponse,
+  SideBet,
   SinkType,
   UpgradeState,
 } from "./types";
@@ -51,8 +52,10 @@ export const gameApi = {
   getRun: (sid: string) => request<GameState>(`/run/${sid}`, "GET"),
   selectNode: (sid: string, nodeId: string) =>
     request<GameState>(`/run/${sid}/select-node`, "POST", { node_id: nodeId }),
-  attack: (sid: string) => request<GameState>(`/run/${sid}/attack`, "POST", {}),
-  guard: (sid: string) => request<GameState>(`/run/${sid}/guard`, "POST", {}),
+  attack: (sid: string, sideBet?: SideBet) =>
+    request<GameState>(`/run/${sid}/attack`, "POST", sideBet ? { side_bet: sideBet } : {}),
+  guard: (sid: string, sideBet?: SideBet) =>
+    request<GameState>(`/run/${sid}/guard`, "POST", sideBet ? { side_bet: sideBet } : {}),
   sink: (sid: string, sinkType: SinkType) =>
     request<GameState>(`/run/${sid}/sink`, "POST", { sink_type: sinkType }),
   treasureOpen: (sid: string) => request<GameState>(`/run/${sid}/treasure/open`, "POST", {}),

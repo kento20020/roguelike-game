@@ -2,7 +2,15 @@
 // React は計算しない（CLAUDE.md）。各操作は gameApi を呼び、返ってきた状態で置換するだけ。
 import { create } from "zustand";
 import { gameApi, ApiError } from "../api/gameApi";
-import type { DossierEnemy, EnemyCatalogItem, GameState, ModCatalogItem, SinkType, UpgradeState } from "../api/types";
+import type {
+  DossierEnemy,
+  EnemyCatalogItem,
+  GameState,
+  ModCatalogItem,
+  SideBet,
+  SinkType,
+  UpgradeState,
+} from "../api/types";
 
 interface GameStore {
   state: GameState | null;
@@ -27,8 +35,8 @@ interface GameStore {
 
   newRun: (seed?: number) => Promise<void>;
   selectNode: (nodeId: string) => Promise<void>;
-  attack: () => Promise<void>;
-  guard: () => Promise<void>;
+  attack: (sideBet?: SideBet) => Promise<void>;
+  guard: (sideBet?: SideBet) => Promise<void>;
   sink: (sinkType: SinkType) => Promise<void>;
   treasureOpen: () => Promise<void>;
   treasureReroll: () => Promise<void>;
@@ -134,8 +142,8 @@ export const useGameStore = create<GameStore>((set, get) => {
     },
 
     selectNode: (nodeId) => run((sid) => gameApi.selectNode(sid, nodeId)),
-    attack: () => run((sid) => gameApi.attack(sid)),
-    guard: () => run((sid) => gameApi.guard(sid)),
+    attack: (sideBet) => run((sid) => gameApi.attack(sid, sideBet)),
+    guard: (sideBet) => run((sid) => gameApi.guard(sid, sideBet)),
     sink: (sinkType) => run((sid) => gameApi.sink(sid, sinkType)),
     treasureOpen: () => run((sid) => gameApi.treasureOpen(sid)),
     treasureReroll: () => run((sid) => gameApi.treasureReroll(sid)),
