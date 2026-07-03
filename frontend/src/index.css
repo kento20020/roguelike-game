@@ -108,6 +108,49 @@ body {
     transform: translate(0, 0);
   }
 }
+/* ── juice foundation: 実現結果（ヒット/被弾）を受けて再生する演出 ── */
+@keyframes hitShake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  20% {
+    transform: translateX(-6px);
+  }
+  40% {
+    transform: translateX(5px);
+  }
+  60% {
+    transform: translateX(-3px);
+  }
+  80% {
+    transform: translateX(2px);
+  }
+}
+@keyframes dmgPop {
+  0% {
+    transform: translate(-50%, 0);
+    opacity: 0;
+  }
+  15% {
+    opacity: 1;
+  }
+  100% {
+    transform: translate(-50%, -26px);
+    opacity: 0;
+  }
+}
+@keyframes critFlash {
+  0% {
+    opacity: 0;
+  }
+  18% {
+    opacity: 0.55;
+  }
+  100% {
+    opacity: 0;
+  }
+}
 
 /* ── 再利用クラス ── */
 @layer components {
@@ -161,5 +204,29 @@ body {
   .btn-ghost:hover:not(:disabled) {
     border-color: var(--ink2);
     filter: none;
+  }
+  .fx-shake {
+    animation: hitShake 0.32s var(--ease);
+  }
+  .fx-dmg-pop {
+    position: absolute;
+    left: 50%;
+    top: -4px;
+    transform: translate(-50%, 0);
+    font-family: var(--mono);
+    font-weight: 600;
+    font-size: 15px;
+    color: var(--danger);
+    pointer-events: none;
+    animation: dmgPop 0.62s var(--ease) forwards;
+  }
+  .fx-crit-flash {
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: var(--danger);
+    pointer-events: none;
+    opacity: 0;
+    animation: critFlash 0.28s var(--ease);
   }
 }

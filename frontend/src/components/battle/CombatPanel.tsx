@@ -5,6 +5,7 @@ import Motif from "../common/Motif";
 import HpBar from "../common/HpBar";
 import CombatLog from "./CombatLog";
 import BehaviorGlossary from "../common/BehaviorGlossary";
+import { useCombatFx } from "../../hooks/useCombatFx";
 
 // 戦闘ステージ全体（design 忠実）：敵名・体験タイプ・敵HP・ramp・先読み・ログ・自分パネル・攻撃。
 export default function CombatPanel({
@@ -26,6 +27,8 @@ export default function CombatPanel({
 }) {
   const e = battle.enemy;
   const exp = experienceMeta(e.experience);
+  // 演出は GameState の差分（実現結果）だけから駆動する（確率・非表示weightは見ない）。
+  const fx = useCombatFx(battle, player);
 
   return (
     <section
@@ -64,13 +67,21 @@ export default function CombatPanel({
         </span>
       </div>
 
-      <div className="flex items-center gap-3" style={{ marginTop: 22 }}>
+      <div
+        className={`flex items-center gap-3${fx.enemyShaking ? " fx-shake" : ""}`}
+        style={{ marginTop: 22, position: "relative" }}
+      >
         <span className="label">HP</span>
         <HpBar current={e.hp} max={e.max_hp} width={340} colorOverride="var(--accent)" />
         <span style={{ fontFamily: "var(--mono)", fontSize: 13 }}>
           {e.hp}
           <span style={{ color: "var(--ink3)" }}> / {e.max_hp}</span>
         </span>
+        {fx.enemyDamage && (
+          <span key={fx.enemyDamage.id} className="fx-dmg-pop">
+            −{fx.enemyDamage.amount}
+          </span>
+        )}
       </div>
 
       {battle.ramp_value > 0 && (
@@ -121,16 +132,23 @@ export default function CombatPanel({
       </div>
 
       <div
-        style={{ marginTop: 22, width: "100%", maxWidth: 560, display: "flex", alignItems: "center", gap: 16, padding: "12px 18px", borderRadius: 8, border: "1px solid var(--rule2)", background: "var(--paper2)" }}
+        className={fx.playerShaking ? "fx-shake" : undefined}
+        style={{ marginTop: 22, width: "100%", maxWidth: 560, display: "flex", alignItems: "center", gap: 16, padding: "12px 18px", borderRadius: 8, border: "1px solid var(--rule2)", background: "var(--paper2)", position: "relative", overflow: "hidden" }}
       >
+        {fx.playerCritFlash && <span className="fx-crit-flash" />}
         <span className="label" style={{ whiteSpace: "nowrap" }}>You · あなた</span>
-        <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 10 }}>
+        <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 10, position: "relative" }}>
           <span style={{ fontSize: 10, color: "var(--ink2)" }}>HP</span>
           <HpBar current={player.hp} max={player.max_hp} width="100%" />
           <span style={{ fontFamily: "var(--mono)", fontSize: 13, whiteSpace: "nowrap" }}>
             {player.hp}
             <span style={{ color: "var(--ink3)" }}> / {player.max_hp}</span>
           </span>
+          {fx.playerDamage && (
+            <span key={fx.playerDamage.id} className="fx-dmg-pop">
+              −{fx.playerDamage.amount}
+            </span>
+          )}
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8, paddingLeft: 16, borderLeft: "1px solid var(--rule)", color: "var(--accent)" }}>
           <Icon type="sword" size={16} />
