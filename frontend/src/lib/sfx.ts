@@ -15,6 +15,19 @@ type ToneOptions = {
   delay?: number; // 秒（重ね音のタイミングずらし用）
 };
 
+const MUTE_KEY = "casino-tower:sfx-muted";
+
+// ミュート状態は localStorage に薄く永続化するだけ（Zustand store は汚さない）。
+export function isMuted(): boolean {
+  if (typeof localStorage === "undefined") return false;
+  return localStorage.getItem(MUTE_KEY) === "1";
+}
+
+export function setMuted(muted: boolean): void {
+  if (typeof localStorage === "undefined") return;
+  localStorage.setItem(MUTE_KEY, muted ? "1" : "0");
+}
+
 let sharedCtx: AudioContext | null = null;
 
 function getCtx(): AudioContext | null {
@@ -54,21 +67,25 @@ function tone({ freqStart, freqEnd, duration, type = "sine", gain = 0.18, delay 
 
 // 打撃音：自分の攻撃が敵に命中した（=enemy.hp が減った）結果を受けて鳴らす。短く硬いクリック。
 export function playHit(): void {
+  if (isMuted()) return;
   tone({ freqStart: 620, freqEnd: 240, duration: 0.09, type: "square", gain: 0.16 });
 }
 
 // 受け音：防御・軽減が発生した結果を受けて鳴らす。低めでこもった音。
 export function playGuard(): void {
+  if (isMuted()) return;
   tone({ freqStart: 180, freqEnd: 90, duration: 0.14, type: "sine", gain: 0.16 });
 }
 
 // 強打音：被弾（反撃・強打・蓄積ダメージ等）の結果を受けて鳴らす。重めの二重音で衝撃感を出す。
 export function playHeavy(): void {
+  if (isMuted()) return;
   tone({ freqStart: 140, freqEnd: 55, duration: 0.22, type: "sawtooth", gain: 0.2 });
   tone({ freqStart: 90, freqEnd: 45, duration: 0.18, type: "sine", gain: 0.22, delay: 0.03 });
 }
 
 // 成功音：関門通過など、明るい確定結果を受けて鳴らす（上昇するトライアングル波）。
 export function playGateSuccess(): void {
+  if (isMuted()) return;
   tone({ freqStart: 440, freqEnd: 880, duration: 0.16, type: "triangle", gain: 0.16 });
 }

@@ -4,12 +4,15 @@ import { floorName, modLabel, MOD_ICON } from "../../lib/labels";
 import { useGameStore } from "../../store/gameStore";
 import HpBar from "./HpBar";
 import Icon from "./Icon";
+import MuteToggle from "./MuteToggle";
+import { useChipFx } from "../../hooks/useChipFx";
 
 // 探索/戦闘の固定ヘッダー（design 忠実）。フロア章・HP・攻・チップ・技mod（ドロップダウン）。
 export default function Header({ player, floorNumber }: { player: Player; floorNumber: number }) {
   const [open, setOpen] = useState(false);
   const catalog = useGameStore((s) => s.catalog);
   const uniqueMods = [...new Set(player.mods)];
+  const chipFx = useChipFx(player.chips);
 
   return (
     <header
@@ -57,12 +60,18 @@ export default function Header({ player, floorNumber }: { player: Player; floorN
 
       <div style={{ width: 1, height: 26, background: "var(--rule)" }} />
 
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2" style={{ position: "relative" }}>
         <span style={{ width: 13, height: 13, borderRadius: 999, border: "1.5px solid var(--brass)", display: "inline-block" }} />
         <span className="label">Chips</span>
         <span className="font-mono" style={{ fontSize: 14, color: "var(--brass)" }}>
-          {player.chips}
+          {chipFx.displayValue}
         </span>
+        {chipFx.popup && (
+          <span key={chipFx.popup.id} className="fx-chip-pop">
+            {chipFx.popup.delta > 0 ? "+" : "−"}
+            {Math.abs(chipFx.popup.delta)}
+          </span>
+        )}
       </div>
 
       {uniqueMods.length > 0 && (
@@ -117,6 +126,9 @@ export default function Header({ player, floorNumber }: { player: Player; floorN
           </div>
         </>
       )}
+
+      <div style={{ width: 1, height: 26, background: "var(--rule)" }} />
+      <MuteToggle />
     </header>
   );
 }

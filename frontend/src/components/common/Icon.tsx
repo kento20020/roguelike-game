@@ -50,6 +50,16 @@ const ICONS: Record<string, Shape[]> = {
   reflect: [{ p: "M4 8 H15 L11.5 4.5" }, { p: "M20 16 H9 L12.5 19.5" }],
   star: [{ p: "M12 3.5 L14.1 9.5 L20.5 9.7 L15.4 13.6 L17.2 19.8 L12 16 L6.8 19.8 L8.6 13.6 L3.5 9.7 L9.9 9.5 Z" }],
   cap: [{ p: "M6 15.5 L12 9.5 L18 15.5" }, { p: "M5 19.5 H19" }],
+  volume: [
+    { p: "M4 9.5 H7.2 L11.2 5.8 V18.2 L7.2 14.5 H4 Z" },
+    { p: "M14.2 8.6 a5.4 5.4 0 0 1 0 6.8" },
+    { p: "M16.6 6.2 a9 9.4 0 0 1 0 11.6" },
+  ],
+  volumeMute: [
+    { p: "M4 9.5 H7.2 L11.2 5.8 V18.2 L7.2 14.5 H4 Z" },
+    { p: "M15 9.5 L20 14.5" },
+    { p: "M20 9.5 L15 14.5" },
+  ],
 };
 
 export default function Icon({ type, size = 22, style }: { type: string; size?: number; style?: CSSProperties }) {
