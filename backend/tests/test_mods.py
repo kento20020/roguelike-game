@@ -187,12 +187,20 @@ def test_yomi_pre_rolls_and_consumes(data):
 
 
 def test_yomi_single_only_turn1(data):
-    e = make_enemy(behaviors=[("counter", 100)])
-    p, b = mk(e, mods=[YOMI])
-    cr.prepare_preview(b, p, data, Sfc32(5))
-    cr.resolve_turn(b, p, data, DUMMY)         # turn1 完了
-    cr.prepare_preview(b, p, data, Sfc32(5))   # turn2: 公開しない
-    assert b.pending_action is None
+    """yomi 1枚は本来turn1のみ公開。tell_system フラグは「常に先引き」する試作仕様なので、
+    このテストの意図（1枚ならturn2は非公開）を保つには明示的にOFFにして検証する。
+    """
+    prev_flag = data.config.get("feature_flags", {}).get("tell_system")
+    data.config.setdefault("feature_flags", {})["tell_system"] = False
+    try:
+        e = make_enemy(behaviors=[("counter", 100)])
+        p, b = mk(e, mods=[YOMI])
+        cr.prepare_preview(b, p, data, Sfc32(5))
+        cr.resolve_turn(b, p, data, DUMMY)         # turn1 完了
+        cr.prepare_preview(b, p, data, Sfc32(5))   # turn2: 公開しない
+        assert b.pending_action is None
+    finally:
+        data.config["feature_flags"]["tell_system"] = prev_flag
 
 
 def test_yomi_stack_two_turns(data):
@@ -203,6 +211,40 @@ def test_yomi_stack_two_turns(data):
     cr.resolve_turn(b, p, data, DUMMY)
     cr.prepare_preview(b, p, data, Sfc32(5))   # turn2 も公開
     assert b.pending_action == "counter"
+
+
+# ── テル試作 (feature_flags.tell_system) ──
+def test_tell_system_flag_previews_turn1_without_yomi(data):
+    """フラグON時、yomi未所持でもturn1でpending_actionがセットされる（既存roll_behaviorと同じ経路）。"""
+    prev_flag = data.config.get("feature_flags", {}).get("tell_system")
+    data.config.setdefault("feature_flags", {})["tell_system"] = True
+    try:
+        e = make_enemy(behaviors=[("counter", 100)])
+        p, b = mk(e, mods=[])                      # yomi 無し
+        cr.prepare_preview(b, p, data, Sfc32(5))
+        assert b.pending_action == "counter"
+        assert b.preview is not None
+    finally:
+        data.config["feature_flags"]["tell_system"] = prev_flag
+
+
+def test_tell_system_flag_does_not_shrink_existing_yomi_preview(data):
+    """フラグONでも既存yomi所持者のpreview_turnsは既存値以上になるだけ（縮まない）。
+
+    yomi 2枚（preview_turns=2）保持時、フラグONでもturn1・turn2いずれも変わらず公開される。
+    """
+    prev_flag = data.config.get("feature_flags", {}).get("tell_system")
+    data.config.setdefault("feature_flags", {})["tell_system"] = True
+    try:
+        e = make_enemy(behaviors=[("counter", 100)])
+        p, b = mk(e, mods=[YOMI, YOMI])
+        cr.prepare_preview(b, p, data, Sfc32(5))
+        assert b.pending_action == "counter"
+        cr.resolve_turn(b, p, data, DUMMY)
+        cr.prepare_preview(b, p, data, Sfc32(5))   # turn2 も公開（yomi 2枚分は維持）
+        assert b.pending_action == "counter"
+    finally:
+        data.config["feature_flags"]["tell_system"] = prev_flag
 
 
 # ── interactions ──
