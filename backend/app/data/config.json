@@ -97,5 +97,10 @@
     "6": "stance_reserved",
     "7": "general",
     "8": "chaos_weights"
+  },
+
+  "feature_flags": {
+    "tell_system": true,
+    "_comment": "テル（行動の前兆）システム・プロトタイプ仮値。v2.x候補・ADR未了・現在はフィーチャーフラグでの試作段階（このブランチではtrueで試作、本採用判断まではfalseが既定になる想定）。"
   }
 }

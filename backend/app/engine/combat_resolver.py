@@ -96,6 +96,8 @@ def prepare_preview(battle: Battle, player: Player, data: GameData, stream: Sfc3
     if battle.pending_action is not None:
         return
     preview_turns = mod_value(player, data, YOMI, default=0) or 0
+    if data.config.get("feature_flags", {}).get("tell_system"):
+        preview_turns = max(preview_turns, battle.turns + 1)
     if battle.turns < preview_turns:  # turn1..preview_turns を公開
         action = roll_behavior(effective_behaviors(player, battle.enemy), stream)
         battle.pending_action = action

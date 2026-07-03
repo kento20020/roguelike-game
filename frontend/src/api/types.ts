@@ -86,6 +86,7 @@ export interface Battle {
   scout_hint: string | null;
   preview: string | null;
   next_action?: string | null; // 先読みが公開した確定の次手の種別
+  tell_reliability?: string | null; // テル試作: 次手公開時の敵ごとの気配信頼度（high/mid/low）
   log: LogLine[];
 }
 

@@ -11,6 +11,7 @@ from app.data.loader import GameData, get_data
 from app.engine import chaos_weights as cw
 from app.engine import combat_resolver as cr
 from app.engine import gate_resolver as gr
+from app.engine import tells
 from app.engine.floor_generator import build_enemy_instance, generate_floor
 from app.engine.rng import (
     STREAM_CHAOS,
@@ -435,6 +436,12 @@ class GameEngine:
                 "next_action": b.pending_action,
                 "log": list(b.log),
             }
+            # テル（行動の前兆）システム試作: フラグON時のみ、次手が公開されているターンに
+            # 敵ごとの固定「気配信頼度」ラベルを添える（新規RNG消費なし・既存next_actionと同じ条件）。
+            if self.data.config.get("feature_flags", {}).get("tell_system") and b.pending_action is not None:
+                battle_state["tell_reliability"] = tells.tell_reliability(b.enemy.id)
+            else:
+                battle_state["tell_reliability"] = None
         return {
             "phase": self.phase,
             "current_floor": self.current_floor,
