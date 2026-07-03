@@ -5,7 +5,7 @@ from sqlalchemy import desc, select
 from sqlalchemy.orm import Session
 
 from app.data.loader import get_data
-from app.db.models import PostmortemRow, ProfileRow, RunRecordRow
+from app.db.models import ObservationRow, PostmortemRow, ProfileRow, RunRecordRow
 
 UPGRADE_ITEMS = ["max_hp", "attack", "init_gold", "gold_drop", "sink_cost"]
 
@@ -83,6 +83,31 @@ def award_points(db: Session, n: int = 1) -> ProfileRow:
     db.commit()
     db.refresh(p)
     return p
+
+
+def increment_observation(db: Session, enemy_id: str, behavior: str, data_version: str) -> ObservationRow:
+    """(enemy_id, behavior, data_version) の観測カウントを get-or-create して +1。"""
+    row = db.execute(
+        select(ObservationRow).where(
+            ObservationRow.enemy_id == enemy_id,
+            ObservationRow.behavior == behavior,
+            ObservationRow.data_version == data_version,
+        )
+    ).scalar_one_or_none()
+    if row is None:
+        row = ObservationRow(enemy_id=enemy_id, behavior=behavior, data_version=data_version, count=0)
+        db.add(row)
+    row.count += 1
+    db.commit()
+    db.refresh(row)
+    return row
+
+
+def get_dossier(db: Session, data_version: str) -> list[ObservationRow]:
+    """指定 data_version の観測行を全件返す（敵ごとの集約はAPI層で行う）。"""
+    return list(db.execute(
+        select(ObservationRow).where(ObservationRow.data_version == data_version)
+    ).scalars())
 
 
 def allocate_upgrade(db: Session, item: str) -> ProfileRow:

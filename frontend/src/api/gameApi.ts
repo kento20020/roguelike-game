@@ -1,6 +1,14 @@
 // API 通信の集約点（CLAUDE.md: コンポーネントから直接 fetch しない）。
 // 将来 TanStack Query へ移行する際はこのファイルだけを差し替える。
-import type { GameState, ModCatalogItem, PostmortemResponse, SinkType, UpgradeState } from "./types";
+import type {
+  DossierEnemy,
+  EnemyCatalogItem,
+  GameState,
+  ModCatalogItem,
+  PostmortemResponse,
+  SinkType,
+  UpgradeState,
+} from "./types";
 
 const BASE = "/api";
 
@@ -57,4 +65,10 @@ export const gameApi = {
   history: () => request<GameState["run_record"][]>("/stats/history", "GET"),
   modsCatalog: () => request<ModCatalogItem[]>("/catalog/mods", "GET"),
   postmortem: (sid: string) => request<PostmortemResponse>(`/run/${sid}/postmortem`, "GET"),
+  enemiesCatalog: () => request<EnemyCatalogItem[]>("/catalog/enemies", "GET"),
+  dossier: (dataVersion?: string) =>
+    request<DossierEnemy[]>(
+      `/profile/dossier${dataVersion ? `?data_version=${encodeURIComponent(dataVersion)}` : ""}`,
+      "GET",
+    ),
 };

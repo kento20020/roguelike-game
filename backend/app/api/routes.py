@@ -18,6 +18,9 @@ from app.engine.game_engine import (
     GameEngine,
 )
 from app.schemas.api_schemas import (
+    DossierBehaviorOut,
+    DossierEnemyOut,
+    EnemyCatalogItem,
     GameStateResponse,
     ModCatalogItem,
     NewRunRequest,
@@ -29,8 +32,12 @@ from app.schemas.api_schemas import (
     UpgradeStateResponse,
 )
 from app.session_store import store
+from app.simulation.balance_stats import wilson
 
 router = APIRouter(prefix="/api")
+
+# ディーラー調書の観測データ世代札（バランス改定等で分けたい場合に上げる。config.jsonとは無関係）。
+DOSSIER_DATA_VERSION = "prototype-v1"
 
 
 def _state(session_id: str, eng: GameEngine) -> GameStateResponse:
@@ -61,6 +68,13 @@ def catalog_mods():
     ]
 
 
+@router.get("/catalog/enemies", response_model=list[EnemyCatalogItem])
+def catalog_enemies():
+    """敵名表示用の軽量カタログ。weight/behaviorsなど生データは含めない（開示不変条件）。"""
+    data = get_data()
+    return [{"id": e["id"], "name": e["name"], "experience": e["experience"]} for e in data.enemies]
+
+
 # ── run lifecycle ──
 @router.post("/run/new", response_model=GameStateResponse)
 def new_run(req: NewRunRequest, db: Session = Depends(get_db)):
@@ -85,10 +99,17 @@ def select_node(session_id: str, req: SelectNodeRequest, db: Session = Depends(g
     return _state(session_id, eng)
 
 
+def _drain_observations(db: Session, eng: GameEngine) -> None:
+    """戦闘ターンで蓄積された (enemy_id, behavior) 観測をディーラー調書に反映する。"""
+    for enemy_id, behavior in eng.drain_observations():
+        crud.increment_observation(db, enemy_id, behavior, data_version=DOSSIER_DATA_VERSION)
+
+
 @router.post("/run/{session_id}/attack", response_model=GameStateResponse)
 def attack(session_id: str, db: Session = Depends(get_db)):
     eng = get_engine_or_404(session_id)
     eng.attack()
+    _drain_observations(db, eng)
     _finalize_if_ended(db, session_id, eng)
     return _state(session_id, eng)
 
@@ -97,6 +118,7 @@ def attack(session_id: str, db: Session = Depends(get_db)):
 def guard(session_id: str, db: Session = Depends(get_db)):
     eng = get_engine_or_404(session_id)
     eng.guard()
+    _drain_observations(db, eng)
     _finalize_if_ended(db, session_id, eng)
     return _state(session_id, eng)
 
@@ -163,6 +185,31 @@ def upgrade(session_id: str, req: UpgradeRequest, db: Session = Depends(get_db))
     p = crud.allocate_upgrade(db, req.upgrade_type)  # UpgradeError -> 400
     return UpgradeStateResponse(
         points=p.points, levels=crud.profile_levels(p), maxes=crud.upgrade_maxes())
+
+
+@router.get("/profile/dossier", response_model=list[DossierEnemyOut])
+def profile_dossier(data_version: str = DOSSIER_DATA_VERSION, db: Session = Depends(get_db)):
+    """ディーラー調書: 自分が観測した行動頻度のみをWilson信頼区間つきで返す。
+
+    真のweight/確率・enemies.jsonの生データは一切含めない（開示不変条件）。
+    """
+    rows = crud.get_dossier(db, data_version)
+    by_enemy: dict[str, list] = {}
+    for r in rows:
+        by_enemy.setdefault(r.enemy_id, []).append(r)
+
+    result: list[DossierEnemyOut] = []
+    for enemy_id, rs in by_enemy.items():
+        n_total = sum(r.count for r in rs)
+        behaviors = []
+        for r in rs:
+            ci_low, ci_high = wilson(r.count, n_total)
+            behaviors.append(DossierBehaviorOut(
+                behavior=r.behavior, count=r.count, n_total=n_total,
+                ci_low=ci_low, ci_high=ci_high,
+            ))
+        result.append(DossierEnemyOut(enemy_id=enemy_id, behaviors=behaviors, n_total=n_total))
+    return result
 
 
 # ── telemetry ──
