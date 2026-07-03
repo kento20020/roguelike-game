@@ -10,6 +10,7 @@ import GatePage from "./pages/GatePage";
 import NextFloorPage from "./pages/NextFloorPage";
 import ClearedPage from "./pages/ClearedPage";
 import DeadPage from "./pages/DeadPage";
+import DossierPage from "./pages/DossierPage";
 
 // phase → Page 切り替え（GDD §6 状態遷移 / §24.6 Pages）。
 export default function App() {
@@ -17,13 +18,17 @@ export default function App() {
   const error = useGameStore((s) => s.error);
   const clearError = useGameStore((s) => s.clearError);
   const loadCatalog = useGameStore((s) => s.loadCatalog);
+  const dossierOpen = useGameStore((s) => s.dossierOpen);
+  const closeDossier = useGameStore((s) => s.closeDossier);
 
   useEffect(() => {
     loadCatalog();
   }, [loadCatalog]);
 
   function page() {
-    if (!state) return <StartPage />;
+    // ラン中(state有り)は phase 分岐のみを通るため、調書には絶対に到達しない
+    // （ラン中閲覧禁止は phase ベースSPAの構造上自然に担保される）。
+    if (!state) return dossierOpen ? <DossierPage onBack={closeDossier} /> : <StartPage />;
     switch (state.phase) {
       case "exploring":
         return <ExploringPage state={state} />;

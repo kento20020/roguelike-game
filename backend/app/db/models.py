@@ -7,7 +7,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import JSON, Boolean, DateTime, Integer, String, func
+from sqlalchemy import JSON, Boolean, DateTime, Integer, String, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.session import Base
@@ -46,6 +46,24 @@ class RunRecordRow(Base):
             "gate_guarantee_stacks": self.gate_guarantee_stacks,
             "created_at": self.created_at.isoformat() if self.created_at else None,
         }
+
+
+class ObservationRow(Base):
+    """ディーラー調書: プレイヤーが観測した (enemy_id, behavior) の頻度カウント。
+
+    真のweight/確率は一切保持しない（観測回数のみ・開示不変条件はAPI層で担保）。
+    data_version はバランス改定などでカウントを世代分けするための札。
+    """
+    __tablename__ = "observations"
+    __table_args__ = (
+        UniqueConstraint("enemy_id", "behavior", "data_version", name="uq_observation_enemy_behavior_version"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    enemy_id: Mapped[str] = mapped_column(String, index=True)
+    behavior: Mapped[str] = mapped_column(String)
+    data_version: Mapped[str] = mapped_column(String)
+    count: Mapped[int] = mapped_column(Integer, default=0)
 
 
 class ProfileRow(Base):

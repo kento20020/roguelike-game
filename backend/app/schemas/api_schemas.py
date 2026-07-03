@@ -136,3 +136,25 @@ class ModCatalogItem(BaseModel):
     name: str
     effect_1: str
     effect_stack: str
+
+
+class EnemyCatalogItem(BaseModel):
+    """敵の表示用カタログ（enemies.json 由来・id/name/experienceのみ。weight/behaviorsは含めない）。"""
+    id: str
+    name: str
+    experience: str
+
+
+# ── dealer dossier（個人観測統計・Wilson信頼区間。真のweightは非開示）──
+class DossierBehaviorOut(BaseModel):
+    behavior: str
+    count: int
+    n_total: int
+    ci_low: float
+    ci_high: float
+
+
+class DossierEnemyOut(BaseModel):
+    enemy_id: str
+    behaviors: list[DossierBehaviorOut]
+    n_total: int

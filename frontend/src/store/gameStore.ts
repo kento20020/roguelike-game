@@ -2,7 +2,7 @@
 // React は計算しない（CLAUDE.md）。各操作は gameApi を呼び、返ってきた状態で置換するだけ。
 import { create } from "zustand";
 import { gameApi, ApiError } from "../api/gameApi";
-import type { GameState, ModCatalogItem, SinkType, UpgradeState } from "../api/types";
+import type { DossierEnemy, EnemyCatalogItem, GameState, ModCatalogItem, SinkType, UpgradeState } from "../api/types";
 
 interface GameStore {
   state: GameState | null;
@@ -14,6 +14,16 @@ interface GameStore {
   upgrade: UpgradeState | null;            // 恒久強化の現在状態（ClearedPage で割り振り）
   loadUpgradeState: () => Promise<void>;
   allocateUpgrade: (upgradeType: string) => Promise<void>;
+
+  // ディーラー調書（StartPage からのみ到達。state が null＝ラン中ではない時のみ表示される）。
+  dossierOpen: boolean;
+  openDossier: () => void;
+  closeDossier: () => void;
+  dossier: DossierEnemy[] | null;
+  dossierLoading: boolean;
+  loadDossier: () => Promise<void>;
+  enemyCatalog: Record<string, EnemyCatalogItem>; // 敵 id → 表示名（一度だけ取得）
+  loadEnemyCatalog: () => Promise<void>;
 
   newRun: (seed?: number) => Promise<void>;
   selectNode: (nodeId: string) => Promise<void>;
@@ -49,6 +59,35 @@ export const useGameStore = create<GameStore>((set, get) => {
     error: null,
     catalog: {},
     upgrade: null,
+    dossierOpen: false,
+    openDossier: () => set({ dossierOpen: true }),
+    closeDossier: () => set({ dossierOpen: false }),
+    dossier: null,
+    dossierLoading: false,
+    enemyCatalog: {},
+
+    loadDossier: async () => {
+      set({ dossierLoading: true });
+      try {
+        const items = await gameApi.dossier();
+        set({ dossier: items, dossierLoading: false });
+      } catch {
+        // 取得失敗は致命ではない（空の調書として扱う）
+        set({ dossier: [], dossierLoading: false });
+      }
+    },
+
+    loadEnemyCatalog: async () => {
+      if (Object.keys(get().enemyCatalog).length > 0) return;
+      try {
+        const items = await gameApi.enemiesCatalog();
+        const map: Record<string, EnemyCatalogItem> = {};
+        for (const it of items) map[it.id] = it;
+        set({ enemyCatalog: map });
+      } catch {
+        /* 取得失敗は致命ではない（敵名の代わりにidが出るだけ） */
+      }
+    },
 
     loadCatalog: async () => {
       if (Object.keys(get().catalog).length > 0) return;

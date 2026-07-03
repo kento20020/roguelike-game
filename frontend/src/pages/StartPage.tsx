@@ -6,6 +6,7 @@ import CenterStage from "../components/common/CenterStage";
 export default function StartPage() {
   const newRun = useGameStore((s) => s.newRun);
   const busy = useGameStore((s) => s.busy);
+  const openDossier = useGameStore((s) => s.openDossier);
   const [seed, setSeed] = useState("");
 
   const start = () => {
@@ -47,6 +48,9 @@ export default function StartPage() {
 
       <button className="btn" style={{ minWidth: 200 }} disabled={busy} onClick={start}>
         {busy ? "…" : "卓に着く"}
+      </button>
+      <button className="btn btn-ghost" style={{ minWidth: 200 }} onClick={openDossier}>
+        調書を見る
       </button>
     </CenterStage>
   );

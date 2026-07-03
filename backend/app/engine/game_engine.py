@@ -69,6 +69,8 @@ class GameEngine:
         self.pending: dict[str, Any] = {}
         self.gate_guarantee_uses: int = 0
         self.resolved: dict[str, bool] = {}
+        # ディーラー調書用: (enemy_id, behavior) の観測イベント。API層がDBへ反映しdrainする。
+        self._pending_observations: list[tuple[str, str]] = []
 
     # ─────────────────────────── new run ───────────────────────────
     def new_run(self, seed: int, upgrades: Optional[dict[str, int]] = None,
@@ -160,6 +162,7 @@ class GameEngine:
         self._require(PHASE_BATTLE)
         b, p = self.battle, self.player
         res = cr.resolve_turn(b, p, self.data, self.rng.stream(STREAM_BEHAVIOR), guard=guard)
+        self._pending_observations.append((b.enemy.id, res["action"]))
         self.run.total_turns += 1
 
         if res["player_dead"]:
@@ -349,6 +352,12 @@ class GameEngine:
             self.run.death_cause = death_cause
             self.run.death_floor = self.current_floor
         self.run.floor_reached = self.current_floor
+
+    # ─────────────────────────── observations (dossier) ───────────────────────────
+    def drain_observations(self) -> list[tuple[str, str]]:
+        """蓄積した (enemy_id, behavior) 観測を取り出し内部バッファを空にする。DB書き込みはAPI層の責務。"""
+        obs, self._pending_observations = self._pending_observations, []
+        return obs
 
     # ─────────────────────────── guards ───────────────────────────
     def _require(self, phase: str) -> None:

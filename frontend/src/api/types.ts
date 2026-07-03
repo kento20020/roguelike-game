@@ -139,3 +139,25 @@ export interface ModCatalogItem {
   effect_1: string;
   effect_stack: string;
 }
+
+// 敵の表示用カタログ（/api/catalog/enemies）。id/name/experienceのみ・weight非開示。
+export interface EnemyCatalogItem {
+  id: string;
+  name: string;
+  experience: string;
+}
+
+// ディーラー調書（/api/profile/dossier）。自分が観測した行動頻度のみ・真のweight非開示。
+export interface DossierBehavior {
+  behavior: string;
+  count: number;
+  n_total: number;
+  ci_low: number;
+  ci_high: number;
+}
+
+export interface DossierEnemy {
+  enemy_id: string;
+  behaviors: DossierBehavior[];
+  n_total: number;
+}
