@@ -108,6 +108,14 @@ body {
     transform: translate(0, 0);
   }
 }
+@keyframes shimmer {
+  0% {
+    background-position: -180% 0;
+  }
+  100% {
+    background-position: 180% 0;
+  }
+}
 
 /* ── 再利用クラス ── */
 @layer components {
@@ -161,5 +169,49 @@ body {
   .btn-ghost:hover:not(:disabled) {
     border-color: var(--ink2);
     filter: none;
+  }
+  .dossier-card {
+    transition: transform 0.16s var(--ease), box-shadow 0.16s var(--ease), border-color 0.16s var(--ease);
+  }
+  .dossier-card:hover {
+    transform: translateY(-3px);
+    border-color: var(--rule2);
+    box-shadow: 0 14px 30px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(241, 236, 224, 0.04);
+  }
+  .dossier-card--unmet {
+    opacity: 0.5;
+  }
+  .dossier-card--unmet:hover {
+    transform: none;
+    box-shadow: none;
+  }
+  .dossier-skeleton {
+    background: linear-gradient(
+      100deg,
+      var(--paper2) 40%,
+      var(--paper3) 50%,
+      var(--paper2) 60%
+    );
+    background-size: 250% 100%;
+    animation: shimmer 1.6s ease-in-out infinite;
+  }
+  .dossier-sort-btn {
+    @apply font-sans cursor-pointer;
+    padding: 5px 12px;
+    font-size: 11.5px;
+    border-radius: 999px;
+    border: 1px solid var(--rule2);
+    background: transparent;
+    color: var(--ink3);
+    transition: color 0.14s var(--ease), border-color 0.14s var(--ease), background 0.14s var(--ease);
+  }
+  .dossier-sort-btn:hover {
+    color: var(--ink);
+    border-color: var(--ink2);
+  }
+  .dossier-sort-btn--active {
+    background: var(--accentSoft);
+    border-color: var(--accentRing);
+    color: var(--ink);
   }
 }
