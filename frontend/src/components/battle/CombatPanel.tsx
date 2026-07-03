@@ -1,10 +1,13 @@
-import type { Battle, Player } from "../../api/types";
-import { experienceMeta, behaviorMeta } from "../../lib/labels";
+import { useState } from "react";
+import type { Battle, Player, SideBet } from "../../api/types";
+import { experienceMeta, behaviorMeta, BEHAVIOR } from "../../lib/labels";
 import Icon from "../common/Icon";
 import Motif from "../common/Motif";
 import HpBar from "../common/HpBar";
 import CombatLog from "./CombatLog";
 import BehaviorGlossary from "../common/BehaviorGlossary";
+
+const SIDE_BET_AMOUNTS = [5, 10, 20];
 
 // 戦闘ステージ全体（design 忠実）：敵名・体験タイプ・敵HP・ramp・先読み・ログ・自分パネル・攻撃。
 export default function CombatPanel({
@@ -21,11 +24,27 @@ export default function CombatPanel({
   busy: boolean;
   canAttack: boolean;
   canGuard: boolean;
-  onAttack: () => void;
-  onGuard: () => void;
+  onAttack: (sideBet?: SideBet) => void;
+  onGuard: (sideBet?: SideBet) => void;
 }) {
   const e = battle.enemy;
   const exp = experienceMeta(e.experience);
+
+  // サイドベット『読み宣言』: 次の敵行動への任意ベット。賭けない状態がデフォルト。
+  const [betBehavior, setBetBehavior] = useState<string | null>(null);
+  const [betAmount, setBetAmount] = useState<number>(SIDE_BET_AMOUNTS[0]);
+  const sideBet: SideBet | undefined =
+    betBehavior != null ? { behavior: betBehavior, amount: betAmount } : undefined;
+  const canBet = player.chips >= betAmount;
+
+  function submitAttack() {
+    onAttack(sideBet);
+    setBetBehavior(null);
+  }
+  function submitGuard() {
+    onGuard(sideBet);
+    setBetBehavior(null);
+  }
 
   return (
     <section
@@ -140,16 +159,107 @@ export default function CombatPanel({
       </div>
 
       <div className="flex items-center gap-3" style={{ marginTop: 18 }}>
-        <button onClick={onAttack} disabled={!canAttack || busy} className="btn" style={{ minWidth: 200, height: 50 }}>
+        <button onClick={submitAttack} disabled={!canAttack || busy} className="btn" style={{ minWidth: 200, height: 50 }}>
           攻撃する — {player.attack}
           {player.attack_boost_pending ? "（強化）" : ""}
         </button>
-        <button onClick={onGuard} disabled={!canGuard || busy} className="btn btn-ghost" style={{ minWidth: 130, height: 50 }}>
+        <button onClick={submitGuard} disabled={!canGuard || busy} className="btn btn-ghost" style={{ minWidth: 130, height: 50 }}>
           受ける
         </button>
       </div>
       <div style={{ marginTop: 9, fontSize: 11, color: "var(--ink3)" }}>
         攻撃＝確率で相手が反応／受け＝与ダメ半減・被ダメを大きく軽減（先読みで危険を受け流す）
+      </div>
+
+      {battle.side_bet_result && (
+        <div
+          className="flex items-center gap-2"
+          style={{
+            marginTop: 14,
+            padding: "7px 16px",
+            borderRadius: 999,
+            border: `1px solid ${battle.side_bet_result.hit ? "var(--moss)" : "var(--danger)"}`,
+            background: "var(--paper2)",
+            animation: "fadeUp .28s var(--ease)",
+          }}
+        >
+          <span
+            style={{
+              fontSize: 12.5,
+              fontWeight: 600,
+              color: battle.side_bet_result.hit ? "var(--moss)" : "var(--danger)",
+            }}
+          >
+            サイドベット · {battle.side_bet_result.hit ? "読み的中" : "外れ"}
+          </span>
+          <span style={{ fontFamily: "var(--mono)", fontSize: 13 }}>
+            {battle.side_bet_result.payout >= 0 ? "+" : ""}
+            {battle.side_bet_result.payout}
+          </span>
+        </div>
+      )}
+
+      <div
+        className="flex flex-col items-center"
+        style={{
+          marginTop: 16,
+          width: "100%",
+          maxWidth: 560,
+          gap: 10,
+          padding: "12px 16px",
+          borderRadius: 8,
+          border: "1px dashed var(--rule2)",
+          background: "var(--paper2)",
+        }}
+      >
+        <span className="label" style={{ color: "var(--brass)" }}>
+          サイドベット · 読み宣言（任意・次の敵行動を予想）
+        </span>
+        <div className="flex items-center gap-2">
+          {BEHAVIOR.map((b) => {
+            const active = betBehavior === b.key;
+            return (
+              <button
+                key={b.key}
+                disabled={busy}
+                onClick={() => setBetBehavior(active ? null : b.key)}
+                title={b.jp}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  width: 40,
+                  height: 40,
+                  borderRadius: 8,
+                  border: `1px solid ${active ? b.color : "var(--rule2)"}`,
+                  background: active ? "var(--accentSoft)" : "transparent",
+                  color: active ? b.color : "var(--ink2)",
+                  cursor: busy ? "default" : "pointer",
+                }}
+              >
+                <Icon type={b.iconType} size={18} />
+              </button>
+            );
+          })}
+        </div>
+        <div className="flex items-center gap-2">
+          {SIDE_BET_AMOUNTS.map((amt) => (
+            <button
+              key={amt}
+              disabled={busy}
+              onClick={() => setBetAmount(amt)}
+              className={betAmount === amt ? "btn" : "btn btn-ghost"}
+              style={{ minWidth: 56, height: 32, fontSize: 12, padding: "0 10px" }}
+            >
+              {amt}
+            </button>
+          ))}
+        </div>
+        <span style={{ fontSize: 11, color: betBehavior ? "var(--brass)" : "var(--ink3)" }}>
+          {betBehavior
+            ? `${behaviorMeta(betBehavior)?.jp ?? betBehavior} に ${betAmount} 賭ける${canBet ? "" : "（チップ不足）"}`
+            : "未選択＝賭けない（デフォルト）"}
+        </span>
       </div>
     </section>
   );

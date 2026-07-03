@@ -87,6 +87,13 @@ export interface Battle {
   preview: string | null;
   next_action?: string | null; // 先読みが公開した確定の次手の種別
   log: LogLine[];
+  side_bet_result?: { hit: boolean; payout: number } | null; // サイドベット直近ターン結果（次ターンでクリア）
+}
+
+// サイドベット『読み宣言』: 次の敵行動(behavior)への任意ベット（stream2の既存ロールで判定・新規RNG消費なし）。
+export interface SideBet {
+  behavior: string;
+  amount: number;
 }
 
 export interface ActionItem {

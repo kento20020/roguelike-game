@@ -1,6 +1,6 @@
 // API 通信の集約点（CLAUDE.md: コンポーネントから直接 fetch しない）。
 // 将来 TanStack Query へ移行する際はこのファイルだけを差し替える。
-import type { GameState, ModCatalogItem, SinkType, UpgradeState } from "./types";
+import type { GameState, ModCatalogItem, SideBet, SinkType, UpgradeState } from "./types";
 
 const BASE = "/api";
 
@@ -43,8 +43,10 @@ export const gameApi = {
   getRun: (sid: string) => request<GameState>(`/run/${sid}`, "GET"),
   selectNode: (sid: string, nodeId: string) =>
     request<GameState>(`/run/${sid}/select-node`, "POST", { node_id: nodeId }),
-  attack: (sid: string) => request<GameState>(`/run/${sid}/attack`, "POST", {}),
-  guard: (sid: string) => request<GameState>(`/run/${sid}/guard`, "POST", {}),
+  attack: (sid: string, sideBet?: SideBet) =>
+    request<GameState>(`/run/${sid}/attack`, "POST", sideBet ? { side_bet: sideBet } : {}),
+  guard: (sid: string, sideBet?: SideBet) =>
+    request<GameState>(`/run/${sid}/guard`, "POST", sideBet ? { side_bet: sideBet } : {}),
   sink: (sid: string, sinkType: SinkType) =>
     request<GameState>(`/run/${sid}/sink`, "POST", { sink_type: sinkType }),
   treasureOpen: (sid: string) => request<GameState>(`/run/${sid}/treasure/open`, "POST", {}),

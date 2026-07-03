@@ -18,6 +18,7 @@ from app.engine.game_engine import (
     GameEngine,
 )
 from app.schemas.api_schemas import (
+    CombatActionRequest,
     GameStateResponse,
     ModCatalogItem,
     NewRunRequest,
@@ -80,17 +81,17 @@ def select_node(session_id: str, req: SelectNodeRequest, db: Session = Depends(g
 
 
 @router.post("/run/{session_id}/attack", response_model=GameStateResponse)
-def attack(session_id: str, db: Session = Depends(get_db)):
+def attack(session_id: str, req: CombatActionRequest = CombatActionRequest(), db: Session = Depends(get_db)):
     eng = get_engine_or_404(session_id)
-    eng.attack()
+    eng.attack(side_bet=req.side_bet.model_dump() if req.side_bet else None)
     _finalize_if_ended(db, session_id, eng)
     return _state(session_id, eng)
 
 
 @router.post("/run/{session_id}/guard", response_model=GameStateResponse)
-def guard(session_id: str, db: Session = Depends(get_db)):
+def guard(session_id: str, req: CombatActionRequest = CombatActionRequest(), db: Session = Depends(get_db)):
     eng = get_engine_or_404(session_id)
-    eng.guard()
+    eng.guard(side_bet=req.side_bet.model_dump() if req.side_bet else None)
     _finalize_if_ended(db, session_id, eng)
     return _state(session_id, eng)
 

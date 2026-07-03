@@ -149,18 +149,24 @@ class GameEngine:
         # 先読み（yomi）: turn1 の行動を先引き
         cr.prepare_preview(self.battle, self.player, self.data, self.rng.stream(STREAM_BEHAVIOR))
 
-    def attack(self) -> dict:
-        return self._combat_turn(guard=False)
+    def attack(self, side_bet: Optional[dict] = None) -> dict:
+        return self._combat_turn(guard=False, side_bet=side_bet)
 
-    def guard(self) -> dict:
+    def guard(self, side_bet: Optional[dict] = None) -> dict:
         """受け（ガード）: 与ダメ半減・被ダメ大幅軽減。先読みを活かす攻防の選択。"""
-        return self._combat_turn(guard=True)
+        return self._combat_turn(guard=True, side_bet=side_bet)
 
-    def _combat_turn(self, guard: bool) -> dict:
+    def _combat_turn(self, guard: bool, side_bet: Optional[dict] = None) -> dict:
         self._require(PHASE_BATTLE)
         b, p = self.battle, self.player
+        b.side_bet_result = None  # 前ターン分の表示をクリア
         res = cr.resolve_turn(b, p, self.data, self.rng.stream(STREAM_BEHAVIOR), guard=guard)
         self.run.total_turns += 1
+
+        # サイドベット『読み宣言』: stream2(behavior_roll) の既存結果(res["action"])で判定。
+        # 新規RNG消費は一切しない（このメソッドはここまでで rng.stream() を追加で呼ばない）。
+        if side_bet is not None:
+            b.side_bet_result = self._settle_side_bet(b, p, side_bet, res["action"])
 
         if res["player_dead"]:
             self._die(cause=f"{b.enemy.id}:{res['action']}")
@@ -171,6 +177,32 @@ class GameEngine:
         # 継続: 次ターンの先読み
         cr.prepare_preview(b, p, self.data, self.rng.stream(STREAM_BEHAVIOR))
         return self.snapshot()
+
+    def _settle_side_bet(self, battle: Battle, player: Player, side_bet: dict, action: str) -> dict:
+        """サイドベット『読み宣言』の検証＋判定。
+
+        検証: 賭け額が min/max 範囲内・チップ足りているか・per_battle_cap 超過なし。
+        違反時は InvalidMove（HTTP 400）。的中は payout_multiplier 倍の差分を加算、外れは没収。
+        """
+        cfg = self.data.config["side_bet"]
+        amount = side_bet.get("amount")
+        behavior = side_bet.get("behavior")
+        if not isinstance(amount, int) or not (cfg["min_amount"] <= amount <= cfg["max_amount"]):
+            raise InvalidMove(f"invalid side bet amount: {amount}")
+        if player.chips < amount:
+            raise InvalidMove("not enough chips for side bet")
+        if battle.side_bet_total + amount > cfg["per_battle_cap"]:
+            raise InvalidMove("side bet per-battle cap exceeded")
+
+        battle.side_bet_total += amount
+        hit = behavior == action
+        if hit:
+            payout = round(amount * (cfg["payout_multiplier"] - 1))
+            player.chips += payout
+        else:
+            payout = -amount
+            player.chips -= amount
+        return {"hit": hit, "payout": payout}
 
     def _victory(self, b: Battle) -> None:
         e = b.enemy
@@ -434,6 +466,8 @@ class GameEngine:
                 # 先読み(yomi)が公開した「確定の次手」の種別（counter/heavy_blow/...）。未公開は None。
                 "next_action": b.pending_action,
                 "log": list(b.log),
+                # サイドベット『読み宣言』の直近ターン結果（表示専用・次ターンでクリア）。
+                "side_bet_result": b.side_bet_result,
             }
         return {
             "phase": self.phase,
