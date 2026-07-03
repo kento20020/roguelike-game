@@ -139,3 +139,55 @@ export interface ModCatalogItem {
   effect_1: string;
   effect_stack: string;
 }
+
+// 検死レポート＋リプレイ（GET /run/{sid}/postmortem）。致命ターン1つの反実仮想＋ターンリプレイ。
+export interface TurnPreSnapshot {
+  player: { hp: number; max_hp: number; [extra: string]: unknown };
+  battle: { turns: number; ramp_value: number; kouki_cooldown: number; node_id: string; floor: number };
+  enemy: { hp: number; max_hp: number; [extra: string]: unknown };
+}
+
+export interface TurnHistoryEntry {
+  node_id: string;
+  enemy_id: string;
+  guard: boolean;
+  action: string;
+  dealt: number;
+  incoming: number;
+  player_hp_before: number;
+  player_hp_after: number;
+  enemy_hp_before: number;
+  enemy_hp_after: number;
+  ramp_value: number;
+  kouki_cooldown: number;
+  pre_turn_snapshot: TurnPreSnapshot;
+  [extra: string]: unknown;
+}
+
+export interface PostmortemCounterfactualResult {
+  action: string;
+  dealt: number;
+  incoming: number;
+  player_hp: number;
+  enemy_hp: number;
+  enemy_dead: boolean;
+  player_dead: boolean;
+}
+
+export interface PostmortemCounterfactual {
+  fatal_turn_index: number;
+  original_guard: boolean;
+  counterfactual_guard: boolean;
+  category: "unavoidable" | "avoidable_guard" | "avoidable_attack" | "mutual_kill_victory";
+  avoidable: boolean | null;
+  message: string;
+  counterfactual_result: PostmortemCounterfactualResult;
+}
+
+export interface PostmortemResponse {
+  run_id: string;
+  turn_history: TurnHistoryEntry[];
+  fatal_turn_index: number;
+  counterfactual: PostmortemCounterfactual;
+  created_at?: string | null;
+}

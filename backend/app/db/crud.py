@@ -5,7 +5,7 @@ from sqlalchemy import desc, select
 from sqlalchemy.orm import Session
 
 from app.data.loader import get_data
-from app.db.models import ProfileRow, RunRecordRow
+from app.db.models import PostmortemRow, ProfileRow, RunRecordRow
 
 UPGRADE_ITEMS = ["max_hp", "attack", "init_gold", "gold_drop", "sink_cost"]
 
@@ -36,6 +36,25 @@ def list_run_records(db: Session, limit: int = 50) -> list[RunRecordRow]:
     return list(db.execute(
         select(RunRecordRow).order_by(desc(RunRecordRow.id)).limit(limit)
     ).scalars())
+
+
+# ── Postmortem（検死レポート＋リプレイ）──
+def save_postmortem(db: Session, run_id: str, turn_history: list, fatal_turn_index: int,
+                     counterfactual: dict) -> PostmortemRow:
+    row = PostmortemRow(
+        run_id=run_id, turn_history_json=turn_history,
+        fatal_turn_index=fatal_turn_index, counterfactual_json=counterfactual,
+    )
+    db.add(row)
+    db.commit()
+    db.refresh(row)
+    return row
+
+
+def get_postmortem(db: Session, run_id: str) -> PostmortemRow | None:
+    return db.execute(
+        select(PostmortemRow).where(PostmortemRow.run_id == run_id).order_by(desc(PostmortemRow.id))
+    ).scalars().first()
 
 
 # ── Profile（恒久強化）──

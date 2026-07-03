@@ -150,6 +150,7 @@ class RunRecord:
     death_floor: Optional[int] = None
     permanent_upgrades_state: dict[str, int] = field(default_factory=dict)
     gate_guarantee_stacks: int = 0  # ゲート保証の重ねがけ回数（ラン合計・GDD §19.1 v0.9追加）
+    turn_history: list[dict] = field(default_factory=list)  # 検死/リプレイ用（ターン開始前スナップショット付き）。snapshot()には含めない（内部専用）。
 
     def snapshot(self) -> dict[str, Any]:
         return {

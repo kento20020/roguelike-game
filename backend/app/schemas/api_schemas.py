@@ -124,6 +124,17 @@ class GameStateResponse(BaseModel):
     run_record: Optional[RunRecordOut] = None
 
 
+class PostmortemResponse(BaseModel):
+    """検死レポート＋リプレイ（GET /run/{sid}/postmortem）。turn_history/counterfactual は
+    engineが計算した軽量dictをそのまま透過する（WinModel等の未実装インフラには依存しない）。"""
+    model_config = ConfigDict(extra="allow")
+    run_id: str
+    turn_history: list[dict[str, Any]]
+    fatal_turn_index: int
+    counterfactual: dict[str, Any]
+    created_at: Optional[str] = None
+
+
 class UpgradeStateResponse(BaseModel):
     points: int
     levels: dict[str, int]

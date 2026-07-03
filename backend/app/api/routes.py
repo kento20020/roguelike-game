@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import secrets
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_engine_or_404
@@ -21,6 +21,7 @@ from app.schemas.api_schemas import (
     GameStateResponse,
     ModCatalogItem,
     NewRunRequest,
+    PostmortemResponse,
     RunRecordOut,
     SelectNodeRequest,
     SinkRequest,
@@ -42,6 +43,11 @@ def _finalize_if_ended(db: Session, session_id: str, eng: GameEngine) -> None:
         if eng.phase == PHASE_CLEARED:
             pts = eng.data.config["permanent_upgrades"]["points_per_clear"]
             crud.award_points(db, pts)
+        elif eng.phase == PHASE_DEAD and eng._postmortem:
+            crud.save_postmortem(
+                db, eng.run.run_id, eng.run.turn_history,
+                eng._postmortem["fatal_turn_index"], eng._postmortem,
+            )
         store.mark_finalized(session_id)
 
 
@@ -130,6 +136,16 @@ def continue_(session_id: str):
     eng = get_engine_or_404(session_id)
     eng.dismiss()
     return _state(session_id, eng)
+
+
+@router.get("/run/{session_id}/postmortem", response_model=PostmortemResponse)
+def postmortem(session_id: str, db: Session = Depends(get_db)):
+    """検死レポート＋リプレイ（戦闘死のみ。ゲート死は致命ターンが無いため対象外）。"""
+    eng = get_engine_or_404(session_id)
+    row = crud.get_postmortem(db, eng.run.run_id)
+    if row is None:
+        raise HTTPException(status_code=404, detail="postmortem not available for this run")
+    return PostmortemResponse(**row.to_dict())
 
 
 # ── meta progression ──

@@ -60,6 +60,7 @@ const ICONS: Record<string, Shape[]> = {
     { p: "M15 9.5 L20 14.5" },
     { p: "M20 9.5 L15 14.5" },
   ],
+  warn: [{ p: "M12 3.3 L21.3 19.8 H2.7 Z" }, { p: "M12 9.6 V14.2" }, { circle: [12, 17, 0.75] }],
 };
 
 export default function Icon({ type, size = 22, style }: { type: string; size?: number; style?: CSSProperties }) {

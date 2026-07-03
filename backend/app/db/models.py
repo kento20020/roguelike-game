@@ -48,6 +48,27 @@ class RunRecordRow(Base):
         }
 
 
+class PostmortemRow(Base):
+    """検死レポート（致命ターンの反実仮想＋ターンリプレイ）。run_id 単位で1行（RunRecordRowと対）。"""
+    __tablename__ = "postmortems"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    run_id: Mapped[str] = mapped_column(String, index=True)
+    turn_history_json: Mapped[list] = mapped_column(JSON)
+    fatal_turn_index: Mapped[int] = mapped_column(Integer)
+    counterfactual_json: Mapped[dict] = mapped_column(JSON)
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+    def to_dict(self) -> dict:
+        return {
+            "id": self.id, "run_id": self.run_id,
+            "turn_history": self.turn_history_json,
+            "fatal_turn_index": self.fatal_turn_index,
+            "counterfactual": self.counterfactual_json,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+
+
 class ProfileRow(Base):
     """単一プレイヤーの恒久強化プロファイル（id=1 固定）。"""
     __tablename__ = "profiles"

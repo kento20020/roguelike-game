@@ -33,6 +33,7 @@ from app.schemas.models import (
     PHASE_TREASURE_OPENED,
     PHASE_TREASURE_PREVIEW,
     Battle,
+    EnemyInstance,
     Floor,
     Node,
     Player,
@@ -69,6 +70,7 @@ class GameEngine:
         self.pending: dict[str, Any] = {}
         self.gate_guarantee_uses: int = 0
         self.resolved: dict[str, bool] = {}
+        self._postmortem: Optional[dict] = None  # _die() で計算済みの検死レポート（致命ターンの反実仮想）
 
     # ─────────────────────────── new run ───────────────────────────
     def new_run(self, seed: int, upgrades: Optional[dict[str, int]] = None,
@@ -159,8 +161,17 @@ class GameEngine:
     def _combat_turn(self, guard: bool) -> dict:
         self._require(PHASE_BATTLE)
         b, p = self.battle, self.player
+        pre_snapshot = self._pre_turn_snapshot()
         res = cr.resolve_turn(b, p, self.data, self.rng.stream(STREAM_BEHAVIOR), guard=guard)
         self.run.total_turns += 1
+        self.run.turn_history.append({
+            "node_id": b.node_id, "enemy_id": b.enemy.id, "guard": guard,
+            "action": res["action"], "dealt": res["dealt"], "incoming": res["incoming"],
+            "player_hp_before": pre_snapshot["player"]["hp"], "player_hp_after": p.hp,
+            "enemy_hp_before": pre_snapshot["enemy"]["hp"], "enemy_hp_after": b.enemy.hp,
+            "ramp_value": res["ramp_value"], "kouki_cooldown": b.kouki_cooldown,
+            "pre_turn_snapshot": pre_snapshot,
+        })
 
         if res["player_dead"]:
             self._die(cause=f"{b.enemy.id}:{res['action']}")
@@ -171,6 +182,29 @@ class GameEngine:
         # 継続: 次ターンの先読み
         cr.prepare_preview(b, p, self.data, self.rng.stream(STREAM_BEHAVIOR))
         return self.snapshot()
+
+    def _pre_turn_snapshot(self) -> dict:
+        """ターン解決"直前"の player/battle/enemy の軽量スナップショット（検死の反実仮想用）。
+        値はすべて不変（str/int/float/bool/tuple）なので list(...) で十分＝実オブジェクトとは無関係。"""
+        p, b, e = self.player, self.battle, self.battle.enemy
+        return {
+            "player": {
+                "hp": p.hp, "max_hp": p.max_hp, "attack": p.attack, "chips": p.chips,
+                "mods": list(p.mods), "stance_multiplier": p.stance_multiplier,
+                "attack_boost_pending": p.attack_boost_pending,
+            },
+            "battle": {
+                "turns": b.turns, "ramp_value": b.ramp_value, "kouki_cooldown": b.kouki_cooldown,
+                "node_id": b.node_id, "floor": b.floor,
+            },
+            "enemy": {
+                "id": e.id, "name": e.name, "experience": e.experience, "max_hp": e.max_hp,
+                "hp": e.hp, "attack": e.attack, "difficulty": e.difficulty, "gold_base": e.gold_base,
+                "chaos": e.chaos, "behaviors": list(e.behaviors), "ramp_increment": e.ramp_increment,
+                "heavy_factor": e.heavy_factor, "counter_factor": e.counter_factor,
+                "is_strong": e.is_strong,
+            },
+        }
 
     def _victory(self, b: Battle) -> None:
         e = b.enemy
@@ -196,9 +230,72 @@ class GameEngine:
 
     def _die(self, cause: str) -> None:
         self.player.hp = 0
+        self._postmortem = self._compute_postmortem()
         self.battle = None
         self.phase = PHASE_DEAD
         self._finalize(cleared=False, death_cause=cause)
+
+    def _compute_postmortem(self) -> dict:
+        """致命ターン（turn_historyの最後）の反実仮想: guardを反転してforced_actionで再現。
+        forced_action指定によりroll_behaviorは呼ばれずRNGストリームは一切消費しない。"""
+        if not self.run.turn_history:
+            return {}
+        last = self.run.turn_history[-1]
+        snap = last["pre_turn_snapshot"]
+        p_snap, b_snap, e_snap = snap["player"], snap["battle"], snap["enemy"]
+
+        player = Player(
+            hp=p_snap["hp"], max_hp=p_snap["max_hp"], attack=p_snap["attack"], chips=p_snap["chips"],
+            mods=list(p_snap["mods"]), stance_multiplier=p_snap["stance_multiplier"],
+            attack_boost_pending=p_snap["attack_boost_pending"],
+        )
+        enemy = EnemyInstance(
+            id=e_snap["id"], name=e_snap["name"], experience=e_snap["experience"],
+            max_hp=e_snap["max_hp"], hp=e_snap["hp"], attack=e_snap["attack"],
+            difficulty=e_snap["difficulty"], gold_base=e_snap["gold_base"], chaos=e_snap["chaos"],
+            behaviors=list(e_snap["behaviors"]), ramp_increment=e_snap["ramp_increment"],
+            heavy_factor=e_snap["heavy_factor"], counter_factor=e_snap["counter_factor"],
+            is_strong=e_snap["is_strong"],
+        )
+        battle = Battle(
+            enemy=enemy, node_id=b_snap["node_id"], floor=b_snap["floor"],
+            turns=b_snap["turns"], ramp_value=b_snap["ramp_value"],
+            kouki_cooldown=b_snap["kouki_cooldown"],
+        )
+
+        original_guard = last["guard"]
+        flipped_guard = not original_guard
+        res = cr.resolve_turn(battle, player, self.data, self.rng.stream(STREAM_BEHAVIOR),
+                              forced_action=last["action"], guard=flipped_guard)
+
+        if res["player_dead"]:
+            category, avoidable = "unavoidable", False
+            message = "あれは避けられなかった"
+        elif not res["enemy_dead"]:
+            avoidable = True
+            if flipped_guard:  # 実際はguard=False致命 → 「ガードしていれば」
+                category = "avoidable_guard"
+                message = "ガードしていれば生存していた"
+            else:  # 実際はguard=True致命 → 「攻撃していれば」
+                category = "avoidable_attack"
+                message = "ガードせず攻撃していれば生存していた"
+        else:
+            category, avoidable = "mutual_kill_victory", True
+            message = "相打ちで敵を先に倒せていた"
+
+        return {
+            "fatal_turn_index": len(self.run.turn_history) - 1,
+            "original_guard": original_guard,
+            "counterfactual_guard": flipped_guard,
+            "category": category,
+            "avoidable": avoidable,
+            "message": message,
+            "counterfactual_result": {
+                "action": res["action"], "dealt": res["dealt"], "incoming": res["incoming"],
+                "player_hp": player.hp, "enemy_hp": enemy.hp,
+                "enemy_dead": res["enemy_dead"], "player_dead": res["player_dead"],
+            },
+        }
 
     # ─────────────────────────── treasure ───────────────────────────
     def treasure_open(self) -> dict:
