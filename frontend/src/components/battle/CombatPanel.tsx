@@ -7,11 +7,12 @@ import CombatLog from "./CombatLog";
 import BehaviorGlossary from "../common/BehaviorGlossary";
 
 // テル（行動の前兆）試作: バックエンドの信頼度ラベル(high/mid/low)を表示用の日本語＋色に変換するだけ。
-// 確率・weightの計算はしない（他ブランチのjuiciness原則と一貫）。
-const TELL_META: Record<string, { jp: string; color: string }> = {
-  high: { jp: "強い", color: "var(--accent)" },
-  mid: { jp: "中", color: "var(--brass)" },
-  low: { jp: "弱い", color: "var(--ink3)" },
+// 確率・weightの計算はしない（他ブランチのjuiciness原則と一貫）。先読み（確定情報）と混同しないよう、
+// 安心/ニュートラル/警戒の3色に明確に振り分ける。
+const TELL_META: Record<string, { jp: string; color: string; bg: string; hint: string }> = {
+  high: { jp: "高", color: "var(--moss)", bg: "rgba(94, 138, 102, 0.14)", hint: "読みやすい" },
+  mid: { jp: "中", color: "var(--brass)", bg: "var(--brassSoft)", hint: "普通" },
+  low: { jp: "低", color: "var(--danger)", bg: "rgba(199, 64, 42, 0.14)", hint: "読みにくい" },
 };
 
 // 戦闘ステージ全体（design 忠実）：敵名・体験タイプ・敵HP・ramp・先読み・ログ・自分パネル・攻撃。
@@ -105,13 +106,26 @@ export default function CombatPanel({
                 <span className="label" style={{ color: "var(--brass)" }}>先読み · 確定</span>
                 <span style={{ fontSize: 14, fontWeight: 600, color: nb.color }}>次は {nb.jp}</span>
                 {tell && (
-                  <span
-                    className="pill"
-                    style={{ color: tell.color, borderColor: tell.color, fontSize: 10.5 }}
-                    title="気配（テル）の信頼度・試作"
-                  >
-                    気配 · {tell.jp}
-                  </span>
+                  <>
+                    <span style={{ width: 1, height: 14, background: "var(--rule2)", flex: "none" }} />
+                    <span
+                      key={`tell-${battle.turns}`}
+                      className="pill"
+                      style={{
+                        color: tell.color,
+                        borderColor: tell.color,
+                        borderStyle: "dashed",
+                        background: tell.bg,
+                        fontSize: 10.5,
+                        gap: 5,
+                        animation: "fadeUp .3s var(--ease)",
+                      }}
+                      title={`気配の信頼度: この敵の行動パターンはどれくらい読みやすいか（${tell.hint}）。先読みの確定情報とは違い、あくまで傾向のヒント`}
+                    >
+                      <span style={{ width: 5, height: 5, borderRadius: 999, background: tell.color, flex: "none" }} />
+                      気配 · {tell.jp}
+                    </span>
+                  </>
                 )}
               </div>
               <span style={{ fontSize: 11.5, color: "var(--ink2)" }}>{nb.meaning}</span>
