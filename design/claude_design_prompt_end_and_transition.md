@@ -1,6 +1,7 @@
 # Claude Design 制作プロンプト — エンド＆遷移（3画面）
 
-> **使い方**: 以下の「--- ここから貼る ---」以降を丸ごと claude.ai/design の新規プロンプトに貼る。
+> **使い方**: claude.ai/design で新規プロンプトを開き、**モデルは Fable** を選択する。
+> 以下の「--- ここから貼る ---」以降を丸ごと貼る。
 > 生成された `.dc.html` を `design/` に取り込み、React 化する（`frontend/` 構築時）。
 > データ契約の根拠は `design/spec_end_and_transition.md`。視覚言語の出所は `design/地下カジノ・探索と戦闘.dc.html`。
 
