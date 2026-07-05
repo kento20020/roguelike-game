@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import type { Battle, Player, SideBet } from "../../api/types";
-import { experienceMeta, behaviorMeta, BEHAVIOR } from "../../lib/labels";
+import { experienceMeta, behaviorMeta, BEHAVIOR, TELL_META } from "../../lib/labels";
 import Icon from "../common/Icon";
 import Motif from "../common/Motif";
 import HpBar from "../common/HpBar";
@@ -8,19 +8,9 @@ import CombatLog from "./CombatLog";
 import BehaviorGlossary from "../common/BehaviorGlossary";
 import { useCombatFx } from "../../hooks/useCombatFx";
 
-const SIDE_BET_AMOUNTS = [5, 10, 20];
-// config.json side_bet ブロックと同期（表示計算専用の静的値。正本はバックエンド）。
-const PAYOUT_MULTIPLIER = 3;
-const PER_BATTLE_CAP = 40;
-
-// テル（行動の前兆）試作: バックエンドの信頼度ラベル(high/mid/low)を表示用の日本語＋色に変換するだけ。
-// 確率・weightの計算はしない（他ブランチのjuiciness原則と一貫）。先読み（確定情報）と混同しないよう、
-// 安心/ニュートラル/警戒の3色に明確に振り分ける。
-const TELL_META: Record<string, { jp: string; color: string; bg: string; hint: string }> = {
-  high: { jp: "高", color: "var(--moss)", bg: "rgba(94, 138, 102, 0.14)", hint: "読みやすい" },
-  mid: { jp: "中", color: "var(--brass)", bg: "var(--brassSoft)", hint: "普通" },
-  low: { jp: "低", color: "var(--danger)", bg: "rgba(199, 64, 42, 0.14)", hint: "読みにくい" },
-};
+// ボタンとして提示する賭け額の候補（UI表現の選択）。有効範囲・払戻・上限の規則は
+// battle.side_bet（正本 config.json をバックエンドが供給）に従い、ここでは数値規則を複製しない。
+const SIDE_BET_AMOUNT_PRESETS = [5, 10, 20];
 
 // 戦闘ステージ全体（design 忠実）：敵名・体験タイプ・敵HP・ramp・先読み・ログ・自分パネル・攻撃。
 export default function CombatPanel({
@@ -47,16 +37,24 @@ export default function CombatPanel({
 
   // サイドベット『読み宣言』: 次の敵行動への任意ベット。賭けない状態がデフォルト。
   const [betBehavior, setBetBehavior] = useState<string | null>(null);
-  const [betAmount, setBetAmount] = useState<number>(SIDE_BET_AMOUNTS[0]);
+  const [betAmount, setBetAmount] = useState<number>(SIDE_BET_AMOUNT_PRESETS[0]);
+
+  // 数値規則はバックエンド供給（battle.side_bet・正本 config.json）。未供給時のみ従来定数へ後退。
+  const rules = battle.side_bet;
+  const payoutMultiplier = rules?.payout_multiplier ?? 3;
+  const perBattleCap = rules?.per_battle_cap ?? 40;
+  const amounts = SIDE_BET_AMOUNT_PRESETS.filter(
+    (amt) => amt >= (rules?.min_amount ?? 5) && amt <= (rules?.max_amount ?? 20),
+  );
 
   const capTotal = battle.side_bet_total ?? 0;
-  const remainingCap = Math.max(0, PER_BATTLE_CAP - capTotal);
-  const capRatio = PER_BATTLE_CAP > 0 ? capTotal / PER_BATTLE_CAP : 0;
+  const remainingCap = Math.max(0, perBattleCap - capTotal);
+  const capRatio = perBattleCap > 0 ? capTotal / perBattleCap : 0;
   const capColor = capRatio >= 0.85 ? "var(--danger)" : capRatio >= 0.5 ? "var(--brass)" : "var(--ink3)";
   // 上限/残高から見て、いま選べる賭け額が1つも無い＝実質ベット不可（事前抑制）。
-  const bettingDisabled = SIDE_BET_AMOUNTS.every((amt) => amt > remainingCap || amt > player.chips);
-  const canBet = player.chips >= betAmount && betAmount <= remainingCap;
-  const previewPayout = Math.round(betAmount * (PAYOUT_MULTIPLIER - 1));
+  const bettingDisabled = amounts.every((amt) => amt > remainingCap || amt > player.chips);
+  const canBet = amounts.includes(betAmount) && player.chips >= betAmount && betAmount <= remainingCap;
+  const previewPayout = Math.round(betAmount * (payoutMultiplier - 1));
 
   useEffect(() => {
     if (bettingDisabled && betBehavior !== null) setBetBehavior(null);
@@ -207,7 +205,7 @@ export default function CombatPanel({
         className={fx.playerShaking ? "fx-shake" : undefined}
         style={{ marginTop: 22, width: "100%", maxWidth: 560, display: "flex", alignItems: "center", gap: 16, padding: "12px 18px", borderRadius: 8, border: "1px solid var(--rule2)", background: "var(--paper2)", position: "relative", overflow: "hidden" }}
       >
-        {fx.playerCritFlash && <span className="fx-crit-flash" style={{ background: fx.playerCritColor }} />}
+        {fx.playerCritFlash && <span className="fx-crit-flash" />}
         {fx.playerGuardFlash && <span className="fx-guard-flash" />}
         <span className="label" style={{ whiteSpace: "nowrap" }}>You · あなた</span>
         <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 10, position: "relative" }}>
@@ -228,19 +226,6 @@ export default function CombatPanel({
           <span className="label">攻撃力</span>
           <span style={{ fontFamily: "var(--mono)", fontSize: 16, fontWeight: 600 }}>{player.attack}</span>
         </div>
-      </div>
-
-      <div className="flex items-center gap-3" style={{ marginTop: 18 }}>
-        <button onClick={submitAttack} disabled={!canAttack || busy} className="btn" style={{ minWidth: 200, height: 50 }}>
-          攻撃する — {player.attack}
-          {player.attack_boost_pending ? "（強化）" : ""}
-        </button>
-        <button onClick={submitGuard} disabled={!canGuard || busy} className="btn btn-ghost" style={{ minWidth: 130, height: 50 }}>
-          受ける
-        </button>
-      </div>
-      <div style={{ marginTop: 9, fontSize: 11, color: "var(--ink3)" }}>
-        攻撃＝確率で相手が反応／受け＝与ダメ半減・被ダメを大きく軽減（先読みで危険を受け流す）
       </div>
 
       {battle.side_bet_result && (
@@ -268,7 +253,7 @@ export default function CombatPanel({
               color: battle.side_bet_result.hit ? "var(--brass)" : "var(--ink2)",
             }}
           >
-            サイドベット · {battle.side_bet_result.hit ? "読み的中" : "外れ"}
+            前ターンの読み宣言 · {battle.side_bet_result.hit ? "読み的中" : "外れ"}
           </span>
           <span
             style={{
@@ -284,6 +269,9 @@ export default function CombatPanel({
         </div>
       )}
 
+      {/* サイドベットは「攻撃する/受ける」に一切影響しない独立した賭け（GDD §15.4）だが、
+          宣言はボタンを押す前に決める必要があるため、コミット操作(攻撃/受け)より上に置く。
+          真鍮の縁取りで戦闘の主フローとは別の「賭けの窓口」であることを視覚的に区別する。 */}
       <div
         className="flex flex-col items-center"
         style={{
@@ -293,7 +281,7 @@ export default function CombatPanel({
           gap: 10,
           padding: "14px 16px",
           borderRadius: 8,
-          border: "1px dashed var(--rule2)",
+          border: "1px solid var(--brassSoft)",
           background: "var(--paper2)",
         }}
       >
@@ -303,9 +291,9 @@ export default function CombatPanel({
           </span>
           <div className="flex items-center gap-2">
             <span style={{ fontSize: 10, color: "var(--ink3)" }}>賭け累計</span>
-            <HpBar current={capTotal} max={PER_BATTLE_CAP} width={64} colorOverride={capColor} />
+            <HpBar current={capTotal} max={perBattleCap} width={64} colorOverride={capColor} />
             <span style={{ fontFamily: "var(--mono)", fontSize: 11, color: capColor }}>
-              {capTotal}/{PER_BATTLE_CAP}
+              {capTotal}/{perBattleCap}
             </span>
           </div>
         </div>
@@ -363,7 +351,7 @@ export default function CombatPanel({
           })}
         </div>
         <div className="flex items-center gap-2">
-          {SIDE_BET_AMOUNTS.map((amt) => {
+          {amounts.map((amt) => {
             const affordable = player.chips >= amt && amt <= remainingCap;
             const active = betAmount === amt;
             return (
@@ -401,6 +389,19 @@ export default function CombatPanel({
             </span>
           )}
         </div>
+      </div>
+
+      <div className="flex items-center gap-3" style={{ marginTop: 18 }}>
+        <button onClick={submitAttack} disabled={!canAttack || busy} className="btn" style={{ minWidth: 200, height: 50 }}>
+          攻撃する — {player.attack}
+          {player.attack_boost_pending ? "（強化）" : ""}
+        </button>
+        <button onClick={submitGuard} disabled={!canGuard || busy} className="btn btn-ghost" style={{ minWidth: 130, height: 50 }}>
+          受ける
+        </button>
+      </div>
+      <div style={{ marginTop: 9, fontSize: 11, color: "var(--ink3)" }}>
+        攻撃＝確率で相手が反応／受け＝与ダメ半減・被ダメを大きく軽減（先読みで危険を受け流す）
       </div>
     </section>
   );

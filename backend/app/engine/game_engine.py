@@ -167,6 +167,9 @@ class GameEngine:
         pre_snapshot = self._pre_turn_snapshot()
         b.side_bet_result = None  # 前ターン分の表示をクリア
         res = cr.resolve_turn(b, p, self.data, self.rng.stream(STREAM_BEHAVIOR), guard=guard)
+        # 表示契約: 直近ターンの実現結果（この時点でログにも出力済みの公開情報）。
+        # UIがログ文言を解析して演出分岐する文字列依存をさせないための構造化フィールド。
+        b.last_action, b.last_guard = res["action"], guard
         self._pending_observations.append((b.enemy.id, res["action"]))
         self.run.total_turns += 1
         self.run.turn_history.append({
@@ -251,6 +254,7 @@ class GameEngine:
         self.run.gold_earned += gold
         self.run.enemies_defeated.append({
             "enemy_id": e.id, "experience": e.experience, "floor": self.current_floor, "turns": b.turns,
+            "is_strong": e.is_strong,
         })
         self.resolved[b.node_id] = True
         self.battle = None
@@ -577,6 +581,12 @@ class GameEngine:
                 "side_bet_total": b.side_bet_total,
                 # サイドベット『読み宣言』の直近ターン結果（表示専用・次ターンでクリア）。
                 "side_bet_result": b.side_bet_result,
+                # 直近ターンの実現結果（ログに表示済みの公開情報のみ・非公開情報は含めない）。
+                "last_turn": ({"action": b.last_action, "guard": b.last_guard}
+                              if b.last_action is not None else None),
+                # サイドベットの表示規則（正本 config.json side_bet。フロントに定数を複製させない）。
+                "side_bet": {k: self.data.config["side_bet"][k]
+                             for k in ("min_amount", "max_amount", "payout_multiplier", "per_battle_cap")},
             }
             # テル（行動の前兆）システム試作: フラグON時のみ、次手が公開されているターンに
             # 敵ごとの固定「気配信頼度」ラベルを添える（新規RNG消費なし・既存next_actionと同じ条件）。

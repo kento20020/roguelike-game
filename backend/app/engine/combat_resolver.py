@@ -97,7 +97,10 @@ def prepare_preview(battle: Battle, player: Player, data: GameData, stream: Sfc3
         return
     preview_turns = mod_value(player, data, YOMI, default=0) or 0
     if data.config.get("feature_flags", {}).get("tell_system"):
-        preview_turns = max(preview_turns, battle.turns + 1)
+        # テル試作＝turn1のみ強制公開（このメソッドは毎ターン呼ばれるため、閾値は
+        # battle.turns基準の動的値ではなく固定の1にする。battle.turns+1だと
+        # 「常に現在ターン+1」＝毎ターン公開になり続けてしまうバグがあった）。
+        preview_turns = max(preview_turns, 1)
     if battle.turns < preview_turns:  # turn1..preview_turns を公開
         action = roll_behavior(effective_behaviors(player, battle.enemy), stream)
         battle.pending_action = action

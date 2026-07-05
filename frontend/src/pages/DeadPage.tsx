@@ -5,24 +5,23 @@ import { gameApi, ApiError } from "../api/gameApi";
 import CenterStage from "../components/common/CenterStage";
 import ResultSummary from "../components/result/ResultSummary";
 import Icon from "../components/common/Icon";
-import { floorName, behaviorMeta } from "../lib/labels";
-
-type Tab = "result" | "postmortem" | "replay";
+import { floorName, behaviorMeta, deathCauseLabel } from "../lib/labels";
 
 // 3分類の視覚トーン（CLAUDE.md: 既存CSS変数のみ使用）。
-// unavoidable=落ち着いた色調／avoidable系=警告色／mutual_kill=勝利トーン(金)。
+// unavoidable=落ち着いた色調／avoidable系=警告色／mutual_kill=惜しかった(真鍮)だが
+// カード面自体は felt のまま中立に保ち、敗北全体の沈んだトーンと衝突させない（枠線のみ色を乗せる）。
 const CATEGORY_META: Record<
   string,
   { tone: string; bg: string; border: string; icon: string; badge: string }
 > = {
-  unavoidable: { tone: "var(--ink2)", bg: "var(--ink4)", border: "var(--rule2)", icon: "lock", badge: "回避不能だった" },
+  unavoidable: { tone: "var(--ink2)", bg: "var(--paper2)", border: "var(--rule2)", icon: "lock", badge: "回避不能だった" },
   avoidable_guard: { tone: "var(--danger)", bg: "var(--dangerSoft)", border: "var(--danger)", icon: "warn", badge: "回避可能だった" },
   avoidable_attack: { tone: "var(--danger)", bg: "var(--dangerSoft)", border: "var(--danger)", icon: "warn", badge: "回避可能だった" },
-  mutual_kill_victory: { tone: "var(--brass)", bg: "var(--brassSoft)", border: "var(--brass)", icon: "star", badge: "刺し違い勝利だった" },
+  mutual_kill_victory: { tone: "var(--brass)", bg: "var(--brassSoft)", border: "var(--brass)", icon: "star", badge: "相打ち勝利だった" },
 };
 const DEFAULT_CATEGORY_META = { tone: "var(--ink2)", bg: "var(--paper2)", border: "var(--rule2)", icon: "check", badge: "" };
 
-// 穏やかな空状態（読み込み中／エラー／該当データなし）共通の器。
+// 穏やかな空状態（検死データ取得に失敗した場合のみ使用。読み込み中は無演出で待つ）。
 function EmptyState({ icon, text }: { icon: string; text: string }) {
   return (
     <div
@@ -142,14 +141,23 @@ function TurnRow({ entry, index, isFatal }: { entry: TurnHistoryEntry; index: nu
   );
 }
 
-function PostmortemPanel({ pm, loading, error }: { pm: PostmortemResponse | null; loading: boolean; error: string | null }) {
-  if (loading) return <EmptyState icon="eye" text="検死中…" />;
-  if (error) return <EmptyState icon="gate" text={error} />;
-  if (!pm) return null;
+// 検死レポート＝この画面で最も重い視覚的ウェイトを持つ常時表示カード（タブの奥に隠さない）。
+// 決算カードにわずかに遅れてフェードインし、「決算の次に主役」であることを示す。
+function PostmortemCard({ pm }: { pm: PostmortemResponse }) {
   const cf = pm.counterfactual;
   const meta = CATEGORY_META[cf.category] ?? DEFAULT_CATEGORY_META;
   return (
-    <div className="flex w-full flex-col items-center gap-4" style={{ animation: "fadeUp .35s var(--ease) both" }}>
+    <div
+      className="flex w-full flex-col items-center gap-4"
+      style={{
+        padding: "24px 28px",
+        borderRadius: 14,
+        border: `1px solid ${meta.border}`,
+        background: "var(--felt)",
+        boxShadow: "inset 0 1px 0 rgba(241, 236, 224, 0.04)",
+        animation: "fadeUp .4s var(--ease) .12s both",
+      }}
+    >
       <div
         className="inline-flex items-center gap-2"
         style={{ padding: "6px 16px", borderRadius: 999, border: `1px solid ${meta.border}`, background: meta.bg }}
@@ -194,44 +202,107 @@ function PostmortemPanel({ pm, loading, error }: { pm: PostmortemResponse | null
   );
 }
 
-function ReplayPanel({ pm, loading, error }: { pm: PostmortemResponse | null; loading: boolean; error: string | null }) {
-  if (loading) return <EmptyState icon="eye" text="読み込み中…" />;
-  if (error) return <EmptyState icon="gate" text={error} />;
-  if (!pm || pm.turn_history.length === 0) {
-    return <EmptyState icon="gate" text="リプレイできるターンがない。" />;
-  }
+// リプレイ＝任意の深掘り。デフォルト折りたたみ、致命ターンだけは閉じた状態でもプレビューで見える。
+// 「戦闘の再演」ではなく「記録の閲覧」なので開閉アニメーションは高さのfadeUp程度に留める。
+function ReplayDisclosure({ pm }: { pm: PostmortemResponse }) {
+  const [open, setOpen] = useState(false);
+  if (pm.turn_history.length === 0) return null;
+  const fatalEntry = pm.turn_history[pm.fatal_turn_index];
+
   return (
     <div
       className="flex w-full flex-col"
-      style={{ maxHeight: 360, overflowY: "auto", textAlign: "left", animation: "fadeUp .35s var(--ease) both" }}
+      style={{
+        borderRadius: 12,
+        border: "1px solid var(--rule2)",
+        background: "var(--paper2)",
+        overflow: "hidden",
+        animation: "fadeUp .4s var(--ease) .2s both",
+      }}
     >
-      {pm.turn_history.map((entry, i) => (
-        <TurnRow key={i} entry={entry} index={i} isFatal={i === pm.fatal_turn_index} />
-      ))}
+      <button
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        className="flex items-center gap-2 font-sans"
+        style={{
+          width: "100%",
+          padding: "12px 16px",
+          background: "transparent",
+          border: "none",
+          cursor: "pointer",
+          color: "var(--ink2)",
+          fontSize: 12.5,
+        }}
+      >
+        <Icon
+          type="arrow"
+          size={13}
+          style={{ transform: open ? "rotate(90deg)" : "rotate(0deg)", transition: "transform .2s var(--ease)", flex: "none" }}
+        />
+        <span>ターンごとの記録を見る（全{pm.turn_history.length}手）</span>
+      </button>
+      {!open && fatalEntry && (
+        <div
+          role="button"
+          tabIndex={0}
+          onClick={() => setOpen(true)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") setOpen(true);
+          }}
+          title="クリックで全ターンを展開"
+          style={{ padding: "0 12px 12px", textAlign: "left", cursor: "pointer" }}
+        >
+          <TurnRow entry={fatalEntry} index={pm.fatal_turn_index} isFatal />
+        </div>
+      )}
+      {open && (
+        <div style={{ maxHeight: 360, overflowY: "auto", textAlign: "left", padding: "0 12px 12px" }}>
+          {pm.turn_history.map((entry, i) => (
+            <TurnRow key={i} entry={entry} index={i} isFatal={i === pm.fatal_turn_index} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
 
-const GATE_DEATH_MESSAGE = "この死因には検死レポートがない（関門での敗北のため）。";
 const GENERIC_FAIL_MESSAGE = "検死データの取得に失敗した。";
 
 // 敗北（dead）。パーマデス。コア表示＝到達/総ターン/取得mod（GDD §15.1）。
 // death_cause は機械語。日本語化辞書が無いので任意の補足表示に留める。
-// [結果]/[検死レポート]/[リプレイ] の3タブ。検死・リプレイは戦闘死のみ利用可(関門死は対象外・404)。
+// 決算(常時)→検死レポート(常時・最重要)→リプレイ(折りたたみ・任意)の順に縦積み。
+// 粒度の異なる3体験を並列タブで同格に扱わない（design/spec_postmortem_replay.md）。
+// 検死・リプレイは戦闘死のみ利用可(関門死はpostmortemが404＝pmUnavailable)。
 export default function DeadPage({ state }: { state: GameState }) {
   const newRun = useGameStore((s) => s.newRun);
   const reset = useGameStore((s) => s.reset);
   const busy = useGameStore((s) => s.busy);
   const rec = state.run_record;
 
-  const [tab, setTab] = useState<Tab>("result");
   const [pm, setPm] = useState<PostmortemResponse | null>(null);
   const [pmLoading, setPmLoading] = useState(true);
+  const [pmUnavailable, setPmUnavailable] = useState(false);
   const [pmError, setPmError] = useState<string | null>(null);
+  // death_cause の敵id→敵名変換用（GDD §15.1: 死亡原因は日本語で必須表示）。取得失敗時はid素通し。
+  const [enemyNames, setEnemyNames] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    let cancelled = false;
+    gameApi
+      .enemiesCatalog()
+      .then((list) => {
+        if (!cancelled) setEnemyNames(Object.fromEntries(list.map((e) => [e.id, e.name])));
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
     setPmLoading(true);
+    setPmUnavailable(false);
     setPmError(null);
     gameApi
       .postmortem(state.session_id)
@@ -240,8 +311,8 @@ export default function DeadPage({ state }: { state: GameState }) {
       })
       .catch((e) => {
         if (cancelled) return;
-        const msg = e instanceof ApiError && e.status === 404 ? GATE_DEATH_MESSAGE : GENERIC_FAIL_MESSAGE;
-        setPmError(msg);
+        if (e instanceof ApiError && e.status === 404) setPmUnavailable(true);
+        else setPmError(GENERIC_FAIL_MESSAGE);
       })
       .finally(() => {
         if (!cancelled) setPmLoading(false);
@@ -250,12 +321,6 @@ export default function DeadPage({ state }: { state: GameState }) {
       cancelled = true;
     };
   }, [state.session_id]);
-
-  const TABS: { key: Tab; label: string }[] = [
-    { key: "result", label: "結果" },
-    { key: "postmortem", label: "検死レポート" },
-    { key: "replay", label: "リプレイ" },
-  ];
 
   return (
     <CenterStage tone="lose" maxWidth={660}>
@@ -267,39 +332,26 @@ export default function DeadPage({ state }: { state: GameState }) {
       </h1>
       {rec?.death_floor != null && (
         <p className="font-sans" style={{ fontSize: 14, color: "var(--ink)" }}>
-          {floorName(rec.death_floor)} で倒れた
-          {rec.death_cause ? `（${rec.death_cause}）` : ""}
+          {rec.death_cause
+            ? `${floorName(rec.death_floor)} で ${deathCauseLabel(rec.death_cause, enemyNames)} に倒れた`
+            : `${floorName(rec.death_floor)} で倒れた`}
+        </p>
+      )}
+      {!pmLoading && pmUnavailable && (
+        <p className="font-sans" style={{ fontSize: 11.5, color: "var(--ink3)" }}>
+          この死因には検死レポートがない（関門での敗北のため）。
         </p>
       )}
 
-      <div
-        className="flex items-center gap-1"
-        style={{ padding: 4, borderRadius: 12, border: "1px solid var(--rule)", background: "var(--paper2)" }}
-      >
-        {TABS.map((t) => (
-          <button
-            key={t.key}
-            className={tab === t.key ? "btn" : "btn btn-ghost"}
-            style={{
-              minWidth: 100,
-              height: 34,
-              padding: "0 16px",
-              fontSize: 12,
-              borderRadius: 8,
-              border: tab === t.key ? "1px solid var(--accent2)" : "1px solid transparent",
-            }}
-            onClick={() => setTab(t.key)}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
+      {rec && <ResultSummary record={rec} />}
 
-      <div key={tab} className="flex w-full flex-col items-center" style={{ animation: "fadeUp .28s var(--ease) both" }}>
-        {tab === "result" && rec && <ResultSummary record={rec} />}
-        {tab === "postmortem" && <PostmortemPanel pm={pm} loading={pmLoading} error={pmError} />}
-        {tab === "replay" && <ReplayPanel pm={pm} loading={pmLoading} error={pmError} />}
-      </div>
+      {!pmLoading && pmError && <EmptyState icon="gate" text={pmError} />}
+      {!pmLoading && pm && (
+        <>
+          <PostmortemCard pm={pm} />
+          <ReplayDisclosure pm={pm} />
+        </>
+      )}
 
       <div className="flex items-center gap-3">
         <button className="btn" style={{ minWidth: 160 }} disabled={busy} onClick={() => newRun()}>

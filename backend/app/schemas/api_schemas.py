@@ -97,6 +97,8 @@ class BattleOut(BaseModel):
     log: list[LogLine]
     side_bet_total: int = 0  # サイドベット『読み宣言』の戦闘あたり累計額（per_battle_cap 可視化用）
     side_bet_result: Optional[dict[str, Any]] = None  # 直近ターンのサイドベット結果（次ターンでクリア）
+    last_turn: Optional[dict[str, Any]] = None  # 直近ターンの実現結果 {action, guard}（ログ表示済みの公開情報のみ）
+    side_bet: Optional[dict[str, Any]] = None  # サイドベット表示規則（正本 config.json side_bet の該当キーのみ）
 
 
 class ActionItem(BaseModel):
