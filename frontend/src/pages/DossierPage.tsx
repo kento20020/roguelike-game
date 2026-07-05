@@ -3,6 +3,7 @@ import clsx from "clsx";
 import { useGameStore } from "../store/gameStore";
 import CenterStage from "../components/common/CenterStage";
 import Icon from "../components/common/Icon";
+import EnemyPortraitCard from "../components/common/EnemyPortraitCard";
 import { behaviorMeta, experienceMeta } from "../lib/labels";
 import type { DossierBehavior, DossierEnemy, EnemyCatalogItem } from "../api/types";
 
@@ -180,20 +181,16 @@ function EmptyDossier() {
   );
 }
 
+// ランク(数札/絵札)はdifficultyから算出するが、difficultyは調書APIでは非開示（開示不変条件・
+// backend/tests/test_dossier.py test_catalog_enemies_never_exposes_weights）。
+// そのためここでは rank を渡さず、既に開示済みの experience(色・アイコン)のみでカード化する。
 function EnemyCard({ enemy }: { enemy: MergedEnemy }) {
   const exp = experienceMeta(enemy.experience);
   return (
     <div className="dossier-card" style={cardStyle}>
       <div className="flex items-center gap-2" style={{ marginBottom: 8 }}>
-        <span className="font-sans" style={{ fontSize: 14, fontWeight: 700, color: "var(--ink)" }}>
-          {enemy.name}
-        </span>
-        {enemy.experience && (
-          <span className="font-mono" style={{ fontSize: 10, color: exp.color }}>
-            {exp.jp}
-          </span>
-        )}
-        <span className="font-mono" style={{ fontSize: 10.5, color: "var(--ink3)", marginLeft: "auto" }}>
+        <EnemyPortraitCard name={enemy.name} exp={exp} size="sm" />
+        <span className="font-mono" style={{ fontSize: 10.5, color: "var(--ink3)", marginLeft: "auto", flex: "none" }}>
           観測 n={enemy.nTotal}
         </span>
       </div>
@@ -213,15 +210,8 @@ function UnmetEnemyCard({ enemy }: { enemy: MergedEnemy }) {
   return (
     <div className="dossier-card dossier-card--unmet" style={{ ...cardStyle, padding: "9px 16px" }}>
       <div className="flex items-center gap-2">
-        <span className="font-sans" style={{ fontSize: 13, fontWeight: 600, color: "var(--ink3)" }}>
-          {enemy.name}
-        </span>
-        {enemy.experience && (
-          <span className="font-mono" style={{ fontSize: 10, color: "var(--ink4)" }}>
-            {exp.jp}
-          </span>
-        )}
-        <span className="font-mono" style={{ fontSize: 10, color: "var(--ink4)", marginLeft: "auto" }}>
+        <EnemyPortraitCard name={enemy.name} exp={exp} size="sm" />
+        <span className="font-mono" style={{ fontSize: 10, color: "var(--ink4)", marginLeft: "auto", flex: "none" }}>
           未遭遇
         </span>
       </div>

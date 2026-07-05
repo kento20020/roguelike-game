@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import clsx from "clsx";
-import type { Battle, Enemy, Player, SideBet } from "../../api/types";
-import { experienceMeta, behaviorMeta, BEHAVIOR, TELL_META, type ExpMeta } from "../../lib/labels";
+import type { Battle, Player, SideBet } from "../../api/types";
+import { experienceMeta, behaviorMeta, BEHAVIOR, TELL_META } from "../../lib/labels";
 import Icon from "../common/Icon";
-import Motif from "../common/Motif";
 import HpBar from "../common/HpBar";
+import EnemyPortraitCard from "../common/EnemyPortraitCard";
 import CombatLog from "./CombatLog";
 import BehaviorGlossary from "../common/BehaviorGlossary";
 import { useCombatFx } from "../../hooks/useCombatFx";
@@ -97,7 +97,9 @@ export default function CombatPanel({
       <span className="label" style={{ letterSpacing: "0.22em" }}>
         {exp.en || "Encounter"}
       </span>
-      <EnemyPortraitCard enemy={e} exp={exp} />
+      <div style={{ marginTop: 13 }}>
+        <EnemyPortraitCard name={e.name} exp={exp} rank={enemyRank(e.difficulty)} boss={e.is_strong} />
+      </div>
 
       <div
         className={`flex items-center gap-3${fx.enemyShaking ? " fx-shake" : ""}`}
@@ -343,79 +345,6 @@ export default function CombatPanel({
         攻撃＝確率で相手が反応／受け＝与ダメ半減・被ダメを大きく軽減（先読みで危険を受け流す）
       </div>
     </section>
-  );
-}
-
-// 敵カードモチーフ(手配書/コートカード): トランプ札の様式に規格化した敵の肖像。
-// 肖像は単色シルエット＋輪郭のリムライトのみ(色は経験タイプで統一)とし、個別の敵絵は持たない
-// （design/claude_design_prompt_chip_fx_and_enemy_card_motif.md B案）。大物は縁を朱＋常時グローに。
-function EnemyPortraitCard({ enemy, exp }: { enemy: Enemy; exp: ExpMeta }) {
-  const rank = enemyRank(enemy.difficulty);
-  const boss = enemy.is_strong;
-  const frameColor = boss ? "var(--accent)" : exp.color;
-  return (
-    <div
-      className="flex items-center gap-4"
-      style={{
-        marginTop: 13,
-        padding: "12px 20px 12px 12px",
-        borderRadius: 14,
-        background: "var(--paper2)",
-        border: `1px solid ${frameColor}`,
-        boxShadow: boss
-          ? `0 0 0 1px ${frameColor}, 0 0 26px var(--glowAccent), 0 10px 26px rgba(0, 0, 0, 0.45)`
-          : "0 10px 26px rgba(0, 0, 0, 0.35)",
-      }}
-    >
-      <div
-        style={{
-          position: "relative",
-          width: 72,
-          height: 72,
-          flex: "none",
-          borderRadius: 10,
-          background: "var(--felt)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          boxShadow: `inset 0 0 0 1px var(--rule2), 0 0 22px ${exp.color}55`,
-        }}
-      >
-        <span style={{ color: exp.color, display: "flex" }}>
-          <Icon type={exp.iconType} size={38} />
-        </span>
-        <span
-          className="font-mono"
-          style={{
-            position: "absolute",
-            top: 4,
-            left: 6,
-            fontSize: 11,
-            fontWeight: 700,
-            color: exp.color,
-          }}
-        >
-          {rank}
-        </span>
-      </div>
-      <div className="flex flex-col" style={{ gap: 3 }}>
-        <span className="label" style={{ letterSpacing: "0.16em" }}>
-          RANK {rank} · {exp.en || enemy.experience}
-          {boss ? " · BOSS" : ""}
-        </span>
-        <div className="flex items-center gap-2">
-          <h2 style={{ margin: 0, fontFamily: "var(--serif)", fontSize: 30, lineHeight: 1.1, color: boss ? "var(--accent)" : "var(--ink)" }}>
-            {enemy.name}
-          </h2>
-        </div>
-        <div className="flex items-center gap-2">
-          <Motif type={exp.iconType} color={exp.color} />
-          <span style={{ fontFamily: "var(--sans)", fontSize: 12 }}>
-            <span style={{ color: exp.color, fontWeight: 600 }}>{exp.jp}</span> · {exp.tend}
-          </span>
-        </div>
-      </div>
-    </div>
   );
 }
 
