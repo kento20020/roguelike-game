@@ -74,30 +74,6 @@ body {
     opacity: 1;
   }
 }
-@keyframes sideBetHit {
-  0% {
-    transform: scale(0.86) translateY(6px);
-    opacity: 0;
-  }
-  55% {
-    transform: scale(1.06) translateY(0);
-    opacity: 1;
-  }
-  100% {
-    transform: scale(1) translateY(0);
-    opacity: 1;
-  }
-}
-@keyframes sideBetMiss {
-  from {
-    transform: translateY(4px);
-    opacity: 0;
-  }
-  to {
-    transform: none;
-    opacity: 0.92;
-  }
-}
 @keyframes overlayIn {
   from {
     opacity: 0;
@@ -204,6 +180,32 @@ body {
     background-position: 180% 0;
   }
 }
+/* ── チップ&カード物理演出（design/claude_design_prompt_chip_fx_and_enemy_card_motif.md 由来） ── */
+@keyframes chipEnter {
+  0% {
+    transform: translateY(-8px) scale(0.85);
+    opacity: 0;
+  }
+  60% {
+    transform: translateY(1px) scale(1.03);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+@keyframes counterTick {
+  0% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-3px);
+  }
+  100% {
+    transform: translateY(0);
+  }
+}
 
 /* ── 再利用クラス ── */
 @layer components {
@@ -290,6 +292,82 @@ body {
     pointer-events: none;
     opacity: 0;
     animation: guardFlash 0.3s var(--ease);
+  }
+  .fx-counter-tick {
+    display: inline-block;
+    animation: counterTick 0.22s var(--ease);
+  }
+  .chip-disc {
+    flex: none;
+    width: 13px;
+    height: 13px;
+    border-radius: 50%;
+    border: 2px dashed var(--brass);
+    background: var(--paper2);
+  }
+  .chip-disc.fx-chip-enter {
+    animation: chipEnter 0.32s var(--ease) both;
+  }
+  .chip-btn {
+    @apply inline-flex items-center justify-center font-mono cursor-pointer;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    border: 2px dashed var(--rule2);
+    background: var(--paper2);
+    color: var(--ink3);
+    font-size: 12px;
+    transition: all 0.14s var(--ease);
+  }
+  .chip-btn:hover:not(:disabled) {
+    border-color: var(--ink2);
+  }
+  .chip-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+  .chip-btn--active {
+    border: 2px solid var(--brass);
+    background: color-mix(in srgb, var(--brass) 18%, var(--paper2));
+    color: var(--brass);
+    transform: scale(1.08);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--brass) 22%, transparent);
+  }
+  .flip-scene {
+    width: 52px;
+    height: 68px;
+    perspective: 700px;
+    flex: none;
+  }
+  .flip-card {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    transform-style: preserve-3d;
+    transition: transform 0.5s var(--ease);
+  }
+  .flip-card.flipped {
+    transform: rotateY(180deg);
+  }
+  .flip-face {
+    position: absolute;
+    inset: 0;
+    backface-visibility: hidden;
+    border-radius: 8px;
+    border: 1px solid var(--rule2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: "Instrument Serif", "Noto Serif JP", serif;
+    font-size: 18px;
+  }
+  .flip-back {
+    background: var(--paper2);
+    color: var(--ink3);
+  }
+  .flip-front {
+    background: var(--felt);
+    transform: rotateY(180deg);
   }
   .fx-chip-pop {
     position: absolute;

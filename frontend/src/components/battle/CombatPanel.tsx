@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import clsx from "clsx";
 import type { Battle, Player, SideBet } from "../../api/types";
 import { experienceMeta, behaviorMeta, BEHAVIOR, TELL_META } from "../../lib/labels";
 import Icon from "../common/Icon";
@@ -11,6 +12,10 @@ import { useCombatFx } from "../../hooks/useCombatFx";
 // ボタンとして提示する賭け額の候補（UI表現の選択）。有効範囲・払戻・上限の規則は
 // battle.side_bet（正本 config.json をバックエンドが供給）に従い、ここでは数値規則を複製しない。
 const SIDE_BET_AMOUNT_PRESETS = [5, 10, 20];
+
+// チップの山（賭け累計の可視化）: 最小賭け単位=1チップ相当。per_battle_cap(既定40)/最小賭け(既定5)=8枚で満杯になる想定。
+const CHIP_PILE_UNIT = 5;
+const CHIP_PILE_MAX = 8;
 
 // 戦闘ステージ全体（design 忠実）：敵名・体験タイプ・敵HP・ramp・先読み・ログ・自分パネル・攻撃。
 export default function CombatPanel({
@@ -228,46 +233,7 @@ export default function CombatPanel({
         </div>
       </div>
 
-      {battle.side_bet_result && (
-        <div
-          className="flex items-center gap-2"
-          style={{
-            marginTop: 14,
-            padding: battle.side_bet_result.hit ? "8px 18px" : "7px 16px",
-            borderRadius: 999,
-            border: `1px solid ${battle.side_bet_result.hit ? "var(--brass)" : "var(--danger)"}`,
-            background: battle.side_bet_result.hit
-              ? "color-mix(in srgb, var(--brass) 16%, var(--paper2))"
-              : "var(--paper2)",
-            boxShadow: battle.side_bet_result.hit
-              ? "0 0 0 3px color-mix(in srgb, var(--brass) 24%, transparent), 0 8px 22px rgba(201, 162, 75, 0.25)"
-              : "none",
-            opacity: battle.side_bet_result.hit ? 1 : 0.85,
-            animation: battle.side_bet_result.hit ? "sideBetHit .4s var(--ease)" : "sideBetMiss .28s var(--ease)",
-          }}
-        >
-          <span
-            style={{
-              fontSize: 12.5,
-              fontWeight: battle.side_bet_result.hit ? 700 : 500,
-              color: battle.side_bet_result.hit ? "var(--brass)" : "var(--ink2)",
-            }}
-          >
-            前ターンの読み宣言 · {battle.side_bet_result.hit ? "読み的中" : "外れ"}
-          </span>
-          <span
-            style={{
-              fontFamily: "var(--mono)",
-              fontSize: battle.side_bet_result.hit ? 15 : 13,
-              fontWeight: battle.side_bet_result.hit ? 700 : 400,
-              color: battle.side_bet_result.hit ? "var(--brass)" : "var(--danger)",
-            }}
-          >
-            {battle.side_bet_result.payout >= 0 ? "+" : ""}
-            {battle.side_bet_result.payout}
-          </span>
-        </div>
-      )}
+      <SideBetResultCard key={battle.turns} result={battle.side_bet_result} />
 
       {/* サイドベットは「攻撃する/受ける」に一切影響しない独立した賭け（GDD §15.4）だが、
           宣言はボタンを押す前に決める必要があるため、コミット操作(攻撃/受け)より上に置く。
@@ -291,7 +257,7 @@ export default function CombatPanel({
           </span>
           <div className="flex items-center gap-2">
             <span style={{ fontSize: 10, color: "var(--ink3)" }}>賭け累計</span>
-            <HpBar current={capTotal} max={perBattleCap} width={64} colorOverride={capColor} />
+            <ChipPile total={capTotal} />
             <span style={{ fontFamily: "var(--mono)", fontSize: 11, color: capColor }}>
               {capTotal}/{perBattleCap}
             </span>
@@ -350,7 +316,7 @@ export default function CombatPanel({
             );
           })}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
           {amounts.map((amt) => {
             const affordable = player.chips >= amt && amt <= remainingCap;
             const active = betAmount === amt;
@@ -359,16 +325,8 @@ export default function CombatPanel({
                 key={amt}
                 disabled={busy || !affordable}
                 onClick={() => setBetAmount(amt)}
-                className={active ? "btn" : "btn btn-ghost"}
-                style={{
-                  minWidth: 56,
-                  height: 32,
-                  fontSize: 12,
-                  padding: "0 10px",
-                  transform: active ? "scale(1.06)" : "scale(1)",
-                  boxShadow: active ? "0 0 0 2px color-mix(in srgb, var(--accent) 32%, transparent)" : "none",
-                  transition: "all .14s var(--ease)",
-                }}
+                title={`${amt}チップ賭ける`}
+                className={clsx("chip-btn", active && "chip-btn--active")}
               >
                 {amt}
               </button>
@@ -404,5 +362,70 @@ export default function CombatPanel({
         攻撃＝確率で相手が反応／受け＝与ダメ半減・被ダメを大きく軽減（先読みで危険を受け流す）
       </div>
     </section>
+  );
+}
+
+// 賭け累計チップの山: 新しく積まれた分だけ(既存の枚数はkeyが変わらないため再アニメしない)チップが浮き上がって現れる。
+function ChipPile({ total }: { total: number }) {
+  const units = Math.min(CHIP_PILE_MAX, Math.round(total / CHIP_PILE_UNIT));
+  if (units <= 0) return <span style={{ fontSize: 10, color: "var(--ink4)" }}>—</span>;
+  return (
+    <div className="flex items-center" style={{ gap: 2 }}>
+      {Array.from({ length: units }, (_, i) => (
+        <span key={i} className="chip-disc fx-chip-enter" />
+      ))}
+    </div>
+  );
+}
+
+// サイドベット結果の開示: 「?」の裏面から的中/外れの表面へ1回だけめくる(CombatPanel側でturnごとにkeyを変えて再マウントさせる)。
+function SideBetResultCard({ result }: { result: { hit: boolean; payout: number } | null | undefined }) {
+  const [flipped, setFlipped] = useState(false);
+
+  useEffect(() => {
+    if (!result) return;
+    const t = window.setTimeout(() => setFlipped(true), 30);
+    return () => window.clearTimeout(t);
+  }, [result]);
+
+  if (!result) return null;
+
+  return (
+    <div className="flex items-center gap-3" style={{ marginTop: 14 }}>
+      <div className="flip-scene">
+        <div className={clsx("flip-card", flipped && "flipped")}>
+          <div className="flip-face flip-back">?</div>
+          <div
+            className="flip-face flip-front"
+            style={{
+              borderColor: result.hit ? "var(--brass)" : "var(--danger)",
+              color: result.hit ? "var(--brass)" : "var(--danger)",
+              background: result.hit
+                ? "color-mix(in srgb, var(--brass) 16%, var(--felt))"
+                : "var(--felt)",
+              boxShadow: result.hit ? "0 0 18px rgba(201, 162, 75, 0.35)" : "none",
+            }}
+          >
+            {result.hit ? "WIN" : "LOSS"}
+          </div>
+        </div>
+      </div>
+      <div className="flex flex-col" style={{ gap: 2 }}>
+        <span style={{ fontSize: 12, color: result.hit ? "var(--brass)" : "var(--ink2)" }}>
+          前ターンの読み宣言 · {result.hit ? "読み的中" : "外れ"}
+        </span>
+        <span
+          className="font-mono fx-counter-tick"
+          style={{
+            fontSize: 16,
+            fontWeight: 700,
+            color: result.hit ? "var(--brass)" : "var(--danger)",
+          }}
+        >
+          {result.payout >= 0 ? "+" : ""}
+          {result.payout}
+        </span>
+      </div>
+    </div>
   );
 }
