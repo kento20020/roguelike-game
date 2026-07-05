@@ -23,6 +23,7 @@
   --danger: #c7402a;
   --dangerSoft: rgba(199, 64, 42, 0.13);
   --moss: #5e8a66;
+  --glowAccent: rgba(200, 90, 42, 0.55);
   --ease: cubic-bezier(0.2, 0, 0, 1);
 }
 

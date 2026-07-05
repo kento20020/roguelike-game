@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import clsx from "clsx";
-import type { Battle, Player, SideBet } from "../../api/types";
-import { experienceMeta, behaviorMeta, BEHAVIOR, TELL_META } from "../../lib/labels";
+import type { Battle, Enemy, Player, SideBet } from "../../api/types";
+import { experienceMeta, behaviorMeta, BEHAVIOR, TELL_META, type ExpMeta } from "../../lib/labels";
 import Icon from "../common/Icon";
 import Motif from "../common/Motif";
 import HpBar from "../common/HpBar";
@@ -16,6 +16,14 @@ const SIDE_BET_AMOUNT_PRESETS = [5, 10, 20];
 // チップの山（賭け累計の可視化）: 最小賭け単位=1チップ相当。per_battle_cap(既定40)/最小賭け(既定5)=8枚で満杯になる想定。
 const CHIP_PILE_UNIT = 5;
 const CHIP_PILE_MAX = 8;
+
+// 敵カードモチーフ: difficulty(1-5・正本 enemies.json)をトランプのランクに変換。数札(10)→絵札(J/Q/K)でフロア深度を表す。
+function enemyRank(difficulty: number): string {
+  if (difficulty >= 5) return "K";
+  if (difficulty === 4) return "Q";
+  if (difficulty === 3) return "J";
+  return "10";
+}
 
 // 戦闘ステージ全体（design 忠実）：敵名・体験タイプ・敵HP・ramp・先読み・ログ・自分パネル・攻撃。
 export default function CombatPanel({
@@ -89,34 +97,7 @@ export default function CombatPanel({
       <span className="label" style={{ letterSpacing: "0.22em" }}>
         {exp.en || "Encounter"}
       </span>
-      <div className="flex items-center gap-3" style={{ marginTop: 9 }}>
-        <span style={{ color: exp.color, display: "flex" }}>
-          <Icon type={exp.iconType} size={24} />
-        </span>
-        <h2 style={{ margin: 0, fontFamily: "var(--serif)", fontSize: 35, lineHeight: 1 }}>{e.name}</h2>
-        {e.is_strong && (
-          <span className="pill" style={{ color: "var(--brass)", borderColor: "var(--brass)" }}>
-            大物
-          </span>
-        )}
-      </div>
-      <div
-        style={{
-          marginTop: 13,
-          display: "inline-flex",
-          alignItems: "center",
-          gap: 11,
-          padding: "7px 15px",
-          borderRadius: 999,
-          border: `1px solid ${exp.color}`,
-          background: "var(--paper2)",
-        }}
-      >
-        <Motif type={exp.iconType} color={exp.color} />
-        <span style={{ fontFamily: "var(--sans)", fontSize: 12.5 }}>
-          <span style={{ color: exp.color, fontWeight: 600 }}>{exp.jp}</span> · {exp.tend}
-        </span>
-      </div>
+      <EnemyPortraitCard enemy={e} exp={exp} />
 
       <div
         className={`flex items-center gap-3${fx.enemyShaking ? " fx-shake" : ""}`}
@@ -362,6 +343,79 @@ export default function CombatPanel({
         攻撃＝確率で相手が反応／受け＝与ダメ半減・被ダメを大きく軽減（先読みで危険を受け流す）
       </div>
     </section>
+  );
+}
+
+// 敵カードモチーフ(手配書/コートカード): トランプ札の様式に規格化した敵の肖像。
+// 肖像は単色シルエット＋輪郭のリムライトのみ(色は経験タイプで統一)とし、個別の敵絵は持たない
+// （design/claude_design_prompt_chip_fx_and_enemy_card_motif.md B案）。大物は縁を朱＋常時グローに。
+function EnemyPortraitCard({ enemy, exp }: { enemy: Enemy; exp: ExpMeta }) {
+  const rank = enemyRank(enemy.difficulty);
+  const boss = enemy.is_strong;
+  const frameColor = boss ? "var(--accent)" : exp.color;
+  return (
+    <div
+      className="flex items-center gap-4"
+      style={{
+        marginTop: 13,
+        padding: "12px 20px 12px 12px",
+        borderRadius: 14,
+        background: "var(--paper2)",
+        border: `1px solid ${frameColor}`,
+        boxShadow: boss
+          ? `0 0 0 1px ${frameColor}, 0 0 26px var(--glowAccent), 0 10px 26px rgba(0, 0, 0, 0.45)`
+          : "0 10px 26px rgba(0, 0, 0, 0.35)",
+      }}
+    >
+      <div
+        style={{
+          position: "relative",
+          width: 72,
+          height: 72,
+          flex: "none",
+          borderRadius: 10,
+          background: "var(--felt)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          boxShadow: `inset 0 0 0 1px var(--rule2), 0 0 22px ${exp.color}55`,
+        }}
+      >
+        <span style={{ color: exp.color, display: "flex" }}>
+          <Icon type={exp.iconType} size={38} />
+        </span>
+        <span
+          className="font-mono"
+          style={{
+            position: "absolute",
+            top: 4,
+            left: 6,
+            fontSize: 11,
+            fontWeight: 700,
+            color: exp.color,
+          }}
+        >
+          {rank}
+        </span>
+      </div>
+      <div className="flex flex-col" style={{ gap: 3 }}>
+        <span className="label" style={{ letterSpacing: "0.16em" }}>
+          RANK {rank} · {exp.en || enemy.experience}
+          {boss ? " · BOSS" : ""}
+        </span>
+        <div className="flex items-center gap-2">
+          <h2 style={{ margin: 0, fontFamily: "var(--serif)", fontSize: 30, lineHeight: 1.1, color: boss ? "var(--accent)" : "var(--ink)" }}>
+            {enemy.name}
+          </h2>
+        </div>
+        <div className="flex items-center gap-2">
+          <Motif type={exp.iconType} color={exp.color} />
+          <span style={{ fontFamily: "var(--sans)", fontSize: 12 }}>
+            <span style={{ color: exp.color, fontWeight: 600 }}>{exp.jp}</span> · {exp.tend}
+          </span>
+        </div>
+      </div>
+    </div>
   );
 }
 
