@@ -31,6 +31,8 @@ export const FLOOR_NAMES: Record<number, string> = {
   4: "4F",
   5: "5F 頂上",
 };
+// 総フロア数（floors.json 正本の5フロア構成に対応する表示用定数）。
+export const TOTAL_FLOORS = 5;
 export function floorName(n: number): string {
   return FLOOR_NAMES[n] ?? `${n}F`;
 }

@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { Player } from "../../api/types";
 import { floorName, modLabel, MOD_ICON } from "../../lib/labels";
 import { useGameStore } from "../../store/gameStore";
+import FloorProgressDots from "./FloorProgressDots";
 import HpBar from "./HpBar";
 import Icon from "./Icon";
 import MuteToggle from "./MuteToggle";
@@ -34,6 +35,8 @@ export default function Header({ player, floorNumber }: { player: Player; floorN
             {floorName(floorNumber)}
           </span>
         </div>
+        {/* フロア進行ドット。常時表示ヘッダーなので静的点灯のみ（gate-dot--lit はアニメ無し） */}
+        <FloorProgressDots current={floorNumber} orientation="horizontal" />
       </div>
 
       <div className="flex-1" />

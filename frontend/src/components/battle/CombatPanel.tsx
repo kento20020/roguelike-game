@@ -3,8 +3,8 @@ import clsx from "clsx";
 import type { Battle, Player, SideBet } from "../../api/types";
 import { experienceMeta, behaviorMeta, BEHAVIOR, TELL_META } from "../../lib/labels";
 import Icon from "../common/Icon";
-import Motif from "../common/Motif";
 import HpBar from "../common/HpBar";
+import EnemyPortraitCard from "../common/EnemyPortraitCard";
 import CombatLog from "./CombatLog";
 import BehaviorGlossary from "../common/BehaviorGlossary";
 import { useCombatFx } from "../../hooks/useCombatFx";
@@ -16,6 +16,14 @@ const SIDE_BET_AMOUNT_PRESETS = [5, 10, 20];
 // チップの山（賭け累計の可視化）: 最小賭け単位=1チップ相当。per_battle_cap(既定40)/最小賭け(既定5)=8枚で満杯になる想定。
 const CHIP_PILE_UNIT = 5;
 const CHIP_PILE_MAX = 8;
+
+// 敵カードモチーフ: difficulty(1-5・正本 enemies.json)をトランプのランクに変換。数札(10)→絵札(J/Q/K)でフロア深度を表す。
+function enemyRank(difficulty: number): string {
+  if (difficulty >= 5) return "K";
+  if (difficulty === 4) return "Q";
+  if (difficulty === 3) return "J";
+  return "10";
+}
 
 // 戦闘ステージ全体（design 忠実）：敵名・体験タイプ・敵HP・ramp・先読み・ログ・自分パネル・攻撃。
 export default function CombatPanel({
@@ -89,33 +97,8 @@ export default function CombatPanel({
       <span className="label" style={{ letterSpacing: "0.22em" }}>
         {exp.en || "Encounter"}
       </span>
-      <div className="flex items-center gap-3" style={{ marginTop: 9 }}>
-        <span style={{ color: exp.color, display: "flex" }}>
-          <Icon type={exp.iconType} size={24} />
-        </span>
-        <h2 style={{ margin: 0, fontFamily: "var(--serif)", fontSize: 35, lineHeight: 1 }}>{e.name}</h2>
-        {e.is_strong && (
-          <span className="pill" style={{ color: "var(--brass)", borderColor: "var(--brass)" }}>
-            大物
-          </span>
-        )}
-      </div>
-      <div
-        style={{
-          marginTop: 13,
-          display: "inline-flex",
-          alignItems: "center",
-          gap: 11,
-          padding: "7px 15px",
-          borderRadius: 999,
-          border: `1px solid ${exp.color}`,
-          background: "var(--paper2)",
-        }}
-      >
-        <Motif type={exp.iconType} color={exp.color} />
-        <span style={{ fontFamily: "var(--sans)", fontSize: 12.5 }}>
-          <span style={{ color: exp.color, fontWeight: 600 }}>{exp.jp}</span> · {exp.tend}
-        </span>
+      <div style={{ marginTop: 13 }}>
+        <EnemyPortraitCard name={e.name} exp={exp} rank={enemyRank(e.difficulty)} boss={e.is_strong} />
       </div>
 
       <div

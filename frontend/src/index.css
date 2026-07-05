@@ -23,7 +23,16 @@
   --danger: #c7402a;
   --dangerSoft: rgba(199, 64, 42, 0.13);
   --moss: #5e8a66;
+  --glowAccent: rgba(200, 90, 42, 0.55);
+  --glowBrass: rgba(201, 162, 75, 0.55);
+  --glowBrassStrong: rgba(201, 162, 75, 0.85);
   --ease: cubic-bezier(0.2, 0, 0, 1);
+  /* フォントトークン: tailwind.config.js の fontFamily と同一スタック。
+     コンポーネント各所の var(--serif)/var(--sans)/var(--mono) 参照はこれが正本
+     （未定義のまま放置すると serif/mono 指定が全て body の sans に落ちる）。 */
+  --serif: "Instrument Serif", "Noto Serif JP", serif;
+  --sans: "Geist", "Noto Sans JP", system-ui, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, monospace;
 }
 
 * {
@@ -204,6 +213,35 @@ body {
   }
   100% {
     transform: translateY(0);
+  }
+}
+/* CombatPanel の蓄積ダメージ表示ドットが参照(未定義のままだと点滅しない) */
+@keyframes pulseDot {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+/* ── A案「ネオン・マーキー」（design/preview/components-glow-marquee.html 由来） ── */
+@keyframes marqueeGlow {
+  0%,
+  100% {
+    text-shadow: 0 0 6px var(--glowBrass), 0 0 18px rgba(201, 162, 75, 0.25);
+  }
+  50% {
+    text-shadow: 0 0 10px var(--glowBrassStrong), 0 0 30px rgba(201, 162, 75, 0.45);
+  }
+}
+@keyframes btnPulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 1px var(--accent2), 0 0 14px var(--glowAccent);
+  }
+  50% {
+    box-shadow: 0 0 0 1px var(--accent2), 0 0 26px var(--glowAccent);
   }
 }
 
@@ -426,5 +464,44 @@ body {
     background: var(--accentSoft);
     border-color: var(--accentRing);
     color: var(--ink);
+  }
+  /* ── A案「ネオン・マーキー」: 注目対象にだけグローを乗せる ── */
+  .glow-title {
+    color: var(--brass);
+    text-shadow: 0 0 6px var(--glowBrass), 0 0 18px rgba(201, 162, 75, 0.25);
+    animation: marqueeGlow 3.2s var(--ease) infinite;
+  }
+  .btn-glow {
+    box-shadow: 0 0 0 1px var(--accent2), 0 0 20px var(--glowAccent);
+    animation: btnPulse 2.2s var(--ease) infinite;
+  }
+  .gate-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--paper2);
+    border: 1px solid var(--rule2);
+    flex: none;
+  }
+  .gate-dot--lit {
+    background: var(--brass);
+    border-color: var(--brass);
+    box-shadow: 0 0 6px var(--glowBrass), 0 0 14px var(--glowBrassStrong);
+  }
+  .victory-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 18px;
+    border-radius: 999px;
+    border: 1px solid var(--brass);
+    background: var(--brassSoft);
+    color: var(--brass);
+    font-size: 12px;
+    letter-spacing: 0.06em;
+    box-shadow: 0 0 24px var(--glowBrass);
+  }
+  .glow-ring {
+    box-shadow: 0 0 0 1px var(--brass), 0 0 22px var(--glowBrass), inset 0 1px 0 rgba(241, 236, 224, 0.04), 0 18px 50px rgba(0, 0, 0, 0.42) !important;
   }
 }
