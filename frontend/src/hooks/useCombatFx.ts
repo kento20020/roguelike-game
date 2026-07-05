@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react";
 import type { Battle, LogLine, Player } from "../api/types";
-import { behaviorMeta } from "../lib/labels";
 import { playGuard, playHeavy, playHit } from "../lib/sfx";
 
 // ─────────────────────────────────────────────────────────────────
@@ -22,19 +21,12 @@ function isGuardTurn(entries: LogLine[]): boolean {
   return entries.some((e) => e.k === "hit" && e.t.startsWith("受け"));
 }
 
-// 被弾の色は labels.ts の BehaviorMeta（既存の色分け）に揃える。ログ文言から手筋を逆引きする。
-const HURT_TEXT_TO_BEHAVIOR: Array<[string, string]> = [
-  ["反撃", "counter"],
-  ["強打", "heavy_blow"],
-  ["時を刻む一撃", "ramp_hit"],
-];
-function hurtFlashColor(entries: LogLine[]): string {
-  for (const entry of entries) {
-    if (entry.k !== "hurt") continue;
-    const hit = HURT_TEXT_TO_BEHAVIOR.find(([prefix]) => entry.t.startsWith(prefix));
-    if (hit) return behaviorMeta(hit[1])?.color ?? "var(--danger)";
-  }
-  return "var(--danger)";
+// GDD §15.1: 「被弾」(全ヒット共通=揺れ+ダメージポップ)と「強打を受けた」(それに加え
+// 通常より強い赤の光)は別の段の演出。backend は反撃/強打/蓄積の一撃を全て kind="hurt" で
+// 一括ログするため、ログ文言の "強打" 接頭辞だけを見て強打の一撃かどうかを判別する
+// (反撃・蓄積の一撃は揺れ+ポップに留め、強打フラッシュを出さない＝強打の重さを際立たせる)。
+function isHeavyBlowHit(entries: LogLine[]): boolean {
+  return entries.some((entry) => entry.k === "hurt" && entry.t.startsWith("強打"));
 }
 
 export interface DamagePopup {
@@ -47,8 +39,7 @@ export interface CombatFx {
   playerShaking: boolean;
   enemyDamage: DamagePopup | null;
   playerDamage: DamagePopup | null;
-  playerCritFlash: boolean; // 強打（重い被弾）の一瞬のフラッシュ
-  playerCritColor: string; // 手筋に応じた強打フラッシュの色（labels.ts のBEHAVIOR色に追従）
+  playerCritFlash: boolean; // 強打（heavy_blow）だけの一瞬のフラッシュ（GDD §15.1）
   playerGuardFlash: boolean; // 受け（ガード）で軽減できた被弾の落ち着いたフラッシュ
 }
 
@@ -68,7 +59,6 @@ export function useCombatFx(battle: Battle | null, player: Player | null): Comba
   const [enemyDamage, setEnemyDamage] = useState<DamagePopup | null>(null);
   const [playerDamage, setPlayerDamage] = useState<DamagePopup | null>(null);
   const [playerCritFlash, setPlayerCritFlash] = useState(false);
-  const [playerCritColor, setPlayerCritColor] = useState("var(--danger)");
   const [playerGuardFlash, setPlayerGuardFlash] = useState(false);
 
   // アンマウント時にタイマーの後始末をする。
@@ -125,8 +115,7 @@ export function useCombatFx(battle: Battle | null, player: Player | null): Comba
           setPlayerGuardFlash(true);
           window.clearTimeout(timersRef.current.guard);
           timersRef.current.guard = window.setTimeout(() => setPlayerGuardFlash(false), GUARD_FLASH_MS);
-        } else if (lastKind === "hurt") {
-          setPlayerCritColor(hurtFlashColor(newEntries));
+        } else if (isHeavyBlowHit(newEntries)) {
           setPlayerCritFlash(true);
           window.clearTimeout(timersRef.current.crit);
           timersRef.current.crit = window.setTimeout(() => setPlayerCritFlash(false), CRIT_MS);
@@ -143,7 +132,6 @@ export function useCombatFx(battle: Battle | null, player: Player | null): Comba
     enemyDamage,
     playerDamage,
     playerCritFlash,
-    playerCritColor,
     playerGuardFlash,
   };
 }

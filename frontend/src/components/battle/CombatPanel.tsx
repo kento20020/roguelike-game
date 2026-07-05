@@ -207,7 +207,7 @@ export default function CombatPanel({
         className={fx.playerShaking ? "fx-shake" : undefined}
         style={{ marginTop: 22, width: "100%", maxWidth: 560, display: "flex", alignItems: "center", gap: 16, padding: "12px 18px", borderRadius: 8, border: "1px solid var(--rule2)", background: "var(--paper2)", position: "relative", overflow: "hidden" }}
       >
-        {fx.playerCritFlash && <span className="fx-crit-flash" style={{ background: fx.playerCritColor }} />}
+        {fx.playerCritFlash && <span className="fx-crit-flash" />}
         {fx.playerGuardFlash && <span className="fx-guard-flash" />}
         <span className="label" style={{ whiteSpace: "nowrap" }}>You · あなた</span>
         <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 10, position: "relative" }}>
