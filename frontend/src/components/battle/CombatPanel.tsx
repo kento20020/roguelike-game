@@ -230,19 +230,6 @@ export default function CombatPanel({
         </div>
       </div>
 
-      <div className="flex items-center gap-3" style={{ marginTop: 18 }}>
-        <button onClick={submitAttack} disabled={!canAttack || busy} className="btn" style={{ minWidth: 200, height: 50 }}>
-          攻撃する — {player.attack}
-          {player.attack_boost_pending ? "（強化）" : ""}
-        </button>
-        <button onClick={submitGuard} disabled={!canGuard || busy} className="btn btn-ghost" style={{ minWidth: 130, height: 50 }}>
-          受ける
-        </button>
-      </div>
-      <div style={{ marginTop: 9, fontSize: 11, color: "var(--ink3)" }}>
-        攻撃＝確率で相手が反応／受け＝与ダメ半減・被ダメを大きく軽減（先読みで危険を受け流す）
-      </div>
-
       {battle.side_bet_result && (
         <div
           className="flex items-center gap-2"
@@ -268,7 +255,7 @@ export default function CombatPanel({
               color: battle.side_bet_result.hit ? "var(--brass)" : "var(--ink2)",
             }}
           >
-            サイドベット · {battle.side_bet_result.hit ? "読み的中" : "外れ"}
+            前ターンの読み宣言 · {battle.side_bet_result.hit ? "読み的中" : "外れ"}
           </span>
           <span
             style={{
@@ -284,6 +271,9 @@ export default function CombatPanel({
         </div>
       )}
 
+      {/* サイドベットは「攻撃する/受ける」に一切影響しない独立した賭け（GDD §15.4）だが、
+          宣言はボタンを押す前に決める必要があるため、コミット操作(攻撃/受け)より上に置く。
+          真鍮の縁取りで戦闘の主フローとは別の「賭けの窓口」であることを視覚的に区別する。 */}
       <div
         className="flex flex-col items-center"
         style={{
@@ -293,7 +283,7 @@ export default function CombatPanel({
           gap: 10,
           padding: "14px 16px",
           borderRadius: 8,
-          border: "1px dashed var(--rule2)",
+          border: "1px solid var(--brassSoft)",
           background: "var(--paper2)",
         }}
       >
@@ -401,6 +391,19 @@ export default function CombatPanel({
             </span>
           )}
         </div>
+      </div>
+
+      <div className="flex items-center gap-3" style={{ marginTop: 18 }}>
+        <button onClick={submitAttack} disabled={!canAttack || busy} className="btn" style={{ minWidth: 200, height: 50 }}>
+          攻撃する — {player.attack}
+          {player.attack_boost_pending ? "（強化）" : ""}
+        </button>
+        <button onClick={submitGuard} disabled={!canGuard || busy} className="btn btn-ghost" style={{ minWidth: 130, height: 50 }}>
+          受ける
+        </button>
+      </div>
+      <div style={{ marginTop: 9, fontSize: 11, color: "var(--ink3)" }}>
+        攻撃＝確率で相手が反応／受け＝与ダメ半減・被ダメを大きく軽減（先読みで危険を受け流す）
       </div>
     </section>
   );

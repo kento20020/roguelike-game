@@ -393,5 +393,13 @@ def test_tell_system_flag_forces_turn1_preview_without_yomi(data):
         assert "yomi" not in eng.player.mods
         assert s["battle"]["next_action"] is not None
         assert s["battle"]["tell_reliability"] is not None
+
+        # 回帰テスト: battle.turns基準の閾値を使うと「常に次ターンを公開」し続けてしまい、
+        # yomi無しでも実質全ターン確定情報が見える＝暗黙知型ギャンブル性が壊れる致命的な
+        # バグがあった（閾値をturn1固定の1にして修正）。turn2以降はNoneに戻ることを確認。
+        s2 = eng.attack()
+        if s2["phase"] == "battle":
+            assert s2["battle"]["next_action"] is None
+            assert s2["battle"]["tell_reliability"] is None
     finally:
         data.config["feature_flags"]["tell_system"] = prev_flag
