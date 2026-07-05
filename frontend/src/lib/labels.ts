@@ -92,6 +92,14 @@ export function behaviorMeta(key: string | null | undefined): BehaviorMeta | und
   return key ? BEHAVIOR_BY_KEY[key] : undefined;
 }
 
+// テル（行動の前兆）: バックエンドの気配信頼度ラベル(high/mid/low)を表示用の日本語＋色に変換する。
+// 確率・weightの計算はしない。先読み（確定情報）と混同しないよう安心/中立/警戒の3色に振り分ける。
+export const TELL_META: Record<string, { jp: string; color: string; bg: string; hint: string }> = {
+  high: { jp: "高", color: "var(--moss)", bg: "rgba(94, 138, 102, 0.14)", hint: "読みやすい" },
+  mid: { jp: "中", color: "var(--brass)", bg: "var(--brassSoft)", hint: "普通" },
+  low: { jp: "低", color: "var(--danger)", bg: "rgba(199, 64, 42, 0.14)", hint: "読みにくい" },
+};
+
 // ゲート出目（floors.json gate_result_table のキー）。
 export const GATE_OUTCOME: Record<string, { jp: string; color: string }> = {
   unhurt: { jp: "無傷で通過", color: "var(--moss)" },

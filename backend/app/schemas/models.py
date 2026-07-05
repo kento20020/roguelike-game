@@ -126,6 +126,8 @@ class Battle:
     log: list[dict] = field(default_factory=list)  # 表示専用・使い捨て
     side_bet_total: int = 0              # サイドベット『読み宣言』累計額（per_battle_cap 判定用）
     side_bet_result: Optional[dict] = None  # 直近ターンの的中/払戻（表示専用・次ターンでクリア）
+    last_action: Optional[str] = None    # 直近ターンで実現した敵の行動（ログ表示済みの公開結果・表示契約用）
+    last_guard: Optional[bool] = None    # 直近ターンに受けを選んだか（表示契約用）
 
     def add_log(self, text: str, kind: str = "info") -> None:
         self.log.append({"t": text, "k": kind})

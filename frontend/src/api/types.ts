@@ -90,6 +90,13 @@ export interface Battle {
   log: LogLine[];
   side_bet_total?: number; // サイドベット『読み宣言』の戦闘あたり累計額（per_battle_cap 可視化用）
   side_bet_result?: { hit: boolean; payout: number } | null; // サイドベット直近ターン結果（次ターンでクリア）
+  last_turn?: { action: string; guard: boolean } | null; // 直近ターンの実現結果（ログ表示済みの公開情報のみ）
+  side_bet?: {
+    min_amount: number;
+    max_amount: number;
+    payout_multiplier: number;
+    per_battle_cap: number;
+  } | null; // サイドベット表示規則（正本 config.json side_bet。フロントで定数を複製しない）
 }
 
 // サイドベット『読み宣言』: 次の敵行動(behavior)への任意ベット（stream2の既存ロールで判定・新規RNG消費なし）。

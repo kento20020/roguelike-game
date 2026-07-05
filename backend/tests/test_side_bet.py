@@ -138,3 +138,25 @@ def test_side_bet_insufficient_chips_raises(data):
     eng.player.chips = 3  # min_amount(5) 未満
     with pytest.raises(InvalidMove):
         eng.attack(side_bet={"behavior": "counter", "amount": 5})
+
+
+def test_snapshot_exposes_side_bet_rules_and_last_turn(data):
+    """表示契約: フロントが config.json の数値(payout/cap等)を複製せずに済むよう
+    snapshot の battle に side_bet 規則を載せる。last_turn は直近ターンの実現結果
+    （ログ表示済みの公開情報のみ）で、UIがログ文言を文字列解析せず演出分岐するための構造化契約。"""
+    eng = _enter_battle(data, seed=1)
+    s = eng.snapshot()
+    cfg = data.config["side_bet"]
+    assert s["battle"]["side_bet"] == {
+        k: cfg[k] for k in ("min_amount", "max_amount", "payout_multiplier", "per_battle_cap")
+    }
+    assert s["battle"]["last_turn"] is None  # ターン解決前は無し
+
+    s2 = eng.attack()
+    if s2["phase"] == "battle":
+        lt = s2["battle"]["last_turn"]
+        assert lt["guard"] is False
+        assert lt["action"] in {"counter", "heavy_blow", "evade", "ramp_hit", "none"}
+        s3 = eng.guard()
+        if s3["phase"] == "battle":
+            assert s3["battle"]["last_turn"]["guard"] is True

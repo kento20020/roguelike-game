@@ -1,33 +1,20 @@
 import { useEffect, useRef, useState } from "react";
-import type { Battle, LogLine, Player } from "../api/types";
+import type { Battle, Player } from "../api/types";
 import { playGuard, playHeavy, playHit } from "../lib/sfx";
 
 // ─────────────────────────────────────────────────────────────────
 // 演出原則（カンニング防止）:
 // このフックは「直前レンダーの GameState」と「今回の GameState」の差分
-// ―― battle.enemy.hp / player.hp / battle.log 末尾要素の kind ――
+// ―― battle.enemy.hp / player.hp / battle.log の伸び / battle.last_turn ――
 // だけを見て演出（シェイク・ダメージポップ・SE）を決める。
 // これらはすべてバックエンドが確定させ、既に画面に表示している「実現結果」。
 // 確率・重み・敵の内部AI状態など非表示のデータには一切アクセスしない。
-// ログの文言も CombatLog に既に表示済みの公開テキストのみを見る（新規の非公開情報は見ない）。
+// 受け/強打の判別は last_turn（構造化された公開結果）を使い、ログの日本語文言には依存しない。
 // ─────────────────────────────────────────────────────────────────
 
 const SHAKE_MS = 320; // index.css の hitShake アニメーション長と合わせる
 const CRIT_MS = 280; // index.css の critFlash アニメーション長と合わせる
 const GUARD_FLASH_MS = 300; // index.css の guardFlash アニメーション長と合わせる
-
-// 「受け」ターンかどうかは combat_resolver が付与する "受け · " 接頭辞（既に log に表示済み）で判定する。
-function isGuardTurn(entries: LogLine[]): boolean {
-  return entries.some((e) => e.k === "hit" && e.t.startsWith("受け"));
-}
-
-// GDD §15.1: 「被弾」(全ヒット共通=揺れ+ダメージポップ)と「強打を受けた」(それに加え
-// 通常より強い赤の光)は別の段の演出。backend は反撃/強打/蓄積の一撃を全て kind="hurt" で
-// 一括ログするため、ログ文言の "強打" 接頭辞だけを見て強打の一撃かどうかを判別する
-// (反撃・蓄積の一撃は揺れ+ポップに留め、強打フラッシュを出さない＝強打の重さを際立たせる)。
-function isHeavyBlowHit(entries: LogLine[]): boolean {
-  return entries.some((entry) => entry.k === "hurt" && entry.t.startsWith("強打"));
-}
 
 export interface DamagePopup {
   id: number; // 表示のたびに変わる値。React key に使い、毎回フェード演出をやり直させる。
@@ -86,7 +73,9 @@ export function useCombatFx(battle: Battle | null, player: Player | null): Comba
       const playerDelta = prev.playerHp - snapshot.playerHp;
       const newEntries = battle.log.slice(prev.logLen);
       const lastKind = newEntries.length > 0 ? newEntries[newEntries.length - 1].k : null;
-      const guardTurn = isGuardTurn(newEntries);
+      // last_turn は戦闘中保持されるため、実際にターンが進んだ（=ログが伸びた）ときだけ参照する。
+      const lastTurn = newEntries.length > 0 ? (battle.last_turn ?? null) : null;
+      const guardTurn = lastTurn?.guard === true;
 
       // SE: 受けたターンは常に playGuard（低音）。それ以外はログ末尾の kind で分岐する。
       if (guardTurn) playGuard();
@@ -115,7 +104,8 @@ export function useCombatFx(battle: Battle | null, player: Player | null): Comba
           setPlayerGuardFlash(true);
           window.clearTimeout(timersRef.current.guard);
           timersRef.current.guard = window.setTimeout(() => setPlayerGuardFlash(false), GUARD_FLASH_MS);
-        } else if (isHeavyBlowHit(newEntries)) {
+        } else if (lastTurn?.action === "heavy_blow") {
+          // GDD §15.1: 強打だけは基本演出（揺れ+ポップ）に加えて強い赤の光を重ねる。
           setPlayerCritFlash(true);
           window.clearTimeout(timersRef.current.crit);
           timersRef.current.crit = window.setTimeout(() => setPlayerCritFlash(false), CRIT_MS);
