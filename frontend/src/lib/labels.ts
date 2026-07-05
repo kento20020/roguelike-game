@@ -102,3 +102,21 @@ export const GATE_OUTCOME: Record<string, { jp: string; color: string }> = {
 export function gateOutcome(key: string) {
   return GATE_OUTCOME[key] ?? { jp: key, color: "var(--ink2)" };
 }
+
+// death_cause（機械語）の日本語化（GDD §15.1: 死亡原因は必須表示＝学習を促すため生の機械語を出さない）。
+// 形式は backend/_die 準拠: "gate:{outcome}" ＝関門死／"{enemy_id}:{action}" ＝戦闘死。
+// 敵名は /catalog/enemies の id→name マップを呼び出し側が供給（未取得・未知idは素通しフォールバック）。
+const GATE_DEATH_JP: Record<string, string> = {
+  minor: "関門の小ダメージ",
+  major: "関門の大ダメージ",
+};
+export function deathCauseLabel(cause: string, enemyNames: Record<string, string>): string {
+  const i = cause.indexOf(":");
+  if (i < 0) return cause;
+  const head = cause.slice(0, i);
+  const tail = cause.slice(i + 1);
+  if (head === "gate") return GATE_DEATH_JP[tail] ?? `関門・${gateOutcome(tail).jp}`;
+  const name = enemyNames[head] ?? head;
+  const behavior = behaviorMeta(tail)?.jp ?? tail;
+  return `${name}（${behavior}）`;
+}

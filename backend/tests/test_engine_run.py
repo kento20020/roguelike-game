@@ -107,6 +107,8 @@ def test_full_run_terminates(data):
     assert rr["total_turns"] > 0
     assert rr["floor_reached"] >= 1
     assert len(rr["enemies_defeated"]) >= 1
+    # 死亡/クリア画面の「強敵撃破数」表示用（GDD §15.1）: 各撃破記録は is_strong を持つ
+    assert all("is_strong" in d for d in rr["enemies_defeated"])
 
 
 def test_snapshot_completeness(data):

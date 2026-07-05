@@ -5,7 +5,7 @@ import { gameApi, ApiError } from "../api/gameApi";
 import CenterStage from "../components/common/CenterStage";
 import ResultSummary from "../components/result/ResultSummary";
 import Icon from "../components/common/Icon";
-import { floorName, behaviorMeta } from "../lib/labels";
+import { floorName, behaviorMeta, deathCauseLabel } from "../lib/labels";
 
 // 3分類の視覚トーン（CLAUDE.md: 既存CSS変数のみ使用）。
 // unavoidable=落ち着いた色調／avoidable系=警告色／mutual_kill=惜しかった(真鍮)だが
@@ -17,7 +17,7 @@ const CATEGORY_META: Record<
   unavoidable: { tone: "var(--ink2)", bg: "var(--paper2)", border: "var(--rule2)", icon: "lock", badge: "回避不能だった" },
   avoidable_guard: { tone: "var(--danger)", bg: "var(--dangerSoft)", border: "var(--danger)", icon: "warn", badge: "回避可能だった" },
   avoidable_attack: { tone: "var(--danger)", bg: "var(--dangerSoft)", border: "var(--danger)", icon: "warn", badge: "回避可能だった" },
-  mutual_kill_victory: { tone: "var(--brass)", bg: "var(--brassSoft)", border: "var(--brass)", icon: "star", badge: "刺し違い勝利だった" },
+  mutual_kill_victory: { tone: "var(--brass)", bg: "var(--brassSoft)", border: "var(--brass)", icon: "star", badge: "相打ち勝利だった" },
 };
 const DEFAULT_CATEGORY_META = { tone: "var(--ink2)", bg: "var(--paper2)", border: "var(--rule2)", icon: "check", badge: "" };
 
@@ -222,6 +222,7 @@ function ReplayDisclosure({ pm }: { pm: PostmortemResponse }) {
     >
       <button
         onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
         className="flex items-center gap-2 font-sans"
         style={{
           width: "100%",
@@ -241,7 +242,16 @@ function ReplayDisclosure({ pm }: { pm: PostmortemResponse }) {
         <span>ターンごとの記録を見る（全{pm.turn_history.length}手）</span>
       </button>
       {!open && fatalEntry && (
-        <div style={{ padding: "0 12px 12px", textAlign: "left" }}>
+        <div
+          role="button"
+          tabIndex={0}
+          onClick={() => setOpen(true)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") setOpen(true);
+          }}
+          title="クリックで全ターンを展開"
+          style={{ padding: "0 12px 12px", textAlign: "left", cursor: "pointer" }}
+        >
           <TurnRow entry={fatalEntry} index={pm.fatal_turn_index} isFatal />
         </div>
       )}
@@ -273,6 +283,21 @@ export default function DeadPage({ state }: { state: GameState }) {
   const [pmLoading, setPmLoading] = useState(true);
   const [pmUnavailable, setPmUnavailable] = useState(false);
   const [pmError, setPmError] = useState<string | null>(null);
+  // death_cause の敵id→敵名変換用（GDD §15.1: 死亡原因は日本語で必須表示）。取得失敗時はid素通し。
+  const [enemyNames, setEnemyNames] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    let cancelled = false;
+    gameApi
+      .enemiesCatalog()
+      .then((list) => {
+        if (!cancelled) setEnemyNames(Object.fromEntries(list.map((e) => [e.id, e.name])));
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -307,8 +332,9 @@ export default function DeadPage({ state }: { state: GameState }) {
       </h1>
       {rec?.death_floor != null && (
         <p className="font-sans" style={{ fontSize: 14, color: "var(--ink)" }}>
-          {floorName(rec.death_floor)} で倒れた
-          {rec.death_cause ? `（${rec.death_cause}）` : ""}
+          {rec.death_cause
+            ? `${floorName(rec.death_floor)} で ${deathCauseLabel(rec.death_cause, enemyNames)} に倒れた`
+            : `${floorName(rec.death_floor)} で倒れた`}
         </p>
       )}
       {!pmLoading && pmUnavailable && (

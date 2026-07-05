@@ -251,6 +251,7 @@ class GameEngine:
         self.run.gold_earned += gold
         self.run.enemies_defeated.append({
             "enemy_id": e.id, "experience": e.experience, "floor": self.current_floor, "turns": b.turns,
+            "is_strong": e.is_strong,
         })
         self.resolved[b.node_id] = True
         self.battle = None
