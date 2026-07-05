@@ -1,6 +1,8 @@
 import type { GameState } from "../api/types";
 import { useGameStore } from "../store/gameStore";
 import CenterStage from "../components/common/CenterStage";
+import FloorProgressDots from "../components/common/FloorProgressDots";
+import GlowTitle from "../components/common/GlowTitle";
 import { floorName, gateOutcome } from "../lib/labels";
 
 // フロア遷移（next_floor）。ゲート結果＋登った一拍。GDD では gate 結果表示＋遷移演出。
@@ -18,9 +20,9 @@ export default function NextFloorPage({ state }: { state: GameState }) {
           {out.jp}
         </span>
       )}
-      <div className="font-serif" style={{ fontSize: 44 }}>
-        {floorName(to)}
-      </div>
+      {/* 縦ドットで「タワーを登った」実感を出す（到達済みだけ真鍮に灯る） */}
+      <FloorProgressDots current={to} orientation="vertical" withLabel />
+      <GlowTitle size={44}>{floorName(to)}</GlowTitle>
       <p className="font-sans" style={{ fontSize: 12.5, color: "var(--ink2)" }}>
         関門を抜けた。さらに上へ。
       </p>

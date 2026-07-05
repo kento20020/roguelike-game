@@ -51,7 +51,7 @@ export default function EnemyPortraitCard({
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          boxShadow: `inset 0 0 0 1px var(--rule2), 0 0 ${size === "md" ? 22 : 12}px ${exp.color}55`,
+          boxShadow: `inset 0 0 0 1px var(--rule2), 0 0 ${size === "md" ? 22 : 12}px color-mix(in srgb, ${exp.color} 33%, transparent)`,
         }}
       >
         <span style={{ color: exp.color, display: "flex" }}>

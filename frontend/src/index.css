@@ -27,6 +27,12 @@
   --glowBrass: rgba(201, 162, 75, 0.55);
   --glowBrassStrong: rgba(201, 162, 75, 0.85);
   --ease: cubic-bezier(0.2, 0, 0, 1);
+  /* フォントトークン: tailwind.config.js の fontFamily と同一スタック。
+     コンポーネント各所の var(--serif)/var(--sans)/var(--mono) 参照はこれが正本
+     （未定義のまま放置すると serif/mono 指定が全て body の sans に落ちる）。 */
+  --serif: "Instrument Serif", "Noto Serif JP", serif;
+  --sans: "Geist", "Noto Sans JP", system-ui, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, monospace;
 }
 
 * {
@@ -207,6 +213,16 @@ body {
   }
   100% {
     transform: translateY(0);
+  }
+}
+/* CombatPanel の蓄積ダメージ表示ドットが参照(未定義のままだと点滅しない) */
+@keyframes pulseDot {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
   }
 }
 /* ── A案「ネオン・マーキー」（design/preview/components-glow-marquee.html 由来） ── */
