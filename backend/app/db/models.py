@@ -111,6 +111,27 @@ class RunActionsRow(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
 
+class ActiveSessionRow(Base):
+    """進行中ラン（未終局）の再現に必要な最小情報。GameEngine の全状態はスナップショット
+    せず、「seed + 初期upgrades + 適用したアクション列」だけを保持する（アクションログ再生方式）。
+
+    キャッシュミス時（サーバ再起動・LRU追い出し後の初回アクセス）に
+    app.engine.replay.rebuild_engine() で GameEngine を再構築するための入力。
+    終局（cleared/dead）後も TTL 掃除まではあえて残す（RunRecordRow/RunActionsRow が
+    正の記録として既に確定しているため実害は無く、削除すると「クリア直後の再起動で
+    GET /run/{id} が404になる」退行を生むため）。
+    """
+    __tablename__ = "active_sessions"
+
+    session_id: Mapped[str] = mapped_column(String, primary_key=True)
+    seed: Mapped[int] = mapped_column(Integer)
+    bot_type: Mapped[str] = mapped_column(String, default="human")
+    upgrades_json: Mapped[dict] = mapped_column(JSON)
+    actions_json: Mapped[list] = mapped_column(JSON, default=list)
+    last_seen_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+
 class ProfileRow(Base):
     """単一プレイヤーの恒久強化プロファイル（id=1 固定）。"""
     __tablename__ = "profiles"
