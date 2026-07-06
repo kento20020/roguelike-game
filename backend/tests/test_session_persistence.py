@@ -17,6 +17,17 @@ def _strip_session_id(state: dict) -> dict:
     return {k: v for k, v in state.items() if k != "session_id"}
 
 
+def _get_live_then_replayed(client, sid: str) -> tuple[dict, dict]:
+    """現在のGETを記録した後 store.clear() で復元を強制し、再度GETした結果を返す。
+
+    (live, replayed) の等価性が「決定論的リプレイ」不変条件そのもの（観点1/6）。
+    """
+    live = client.get(f"/api/run/{sid}").json()
+    store.clear()
+    replayed = client.get(f"/api/run/{sid}").json()
+    return live, replayed
+
+
 # ── active_sessions の記録そのもの ──
 def test_active_session_row_created_and_records_actions(api):
     client, TestSession = api
@@ -169,9 +180,7 @@ def test_rejected_side_bet_does_not_diverge_live_from_replay(api):
                     json={"side_bet": {"behavior": "counter", "amount": 999}})
     assert r.status_code == 400
 
-    live = client.get(f"/api/run/{sid}").json()
-    store.clear()
-    replayed = client.get(f"/api/run/{sid}").json()
+    live, replayed = _get_live_then_replayed(client, sid)
     assert replayed == live  # 400 のリクエストは live 側も一切進んでいないこと
 
 
@@ -200,9 +209,8 @@ def test_valid_side_bet_replays_identically(api):
                     json={"side_bet": {"behavior": "none", "amount": 5}})
     assert r.status_code == 200
 
-    live = client.get(f"/api/run/{sid}").json()
-    store.clear()
-    assert client.get(f"/api/run/{sid}").json() == live
+    live, replayed = _get_live_then_replayed(client, sid)
+    assert replayed == live
 
 
 # ── 復元後の調書観測の二重計上防止（観点4/5） ──

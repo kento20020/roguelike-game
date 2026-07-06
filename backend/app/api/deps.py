@@ -1,4 +1,12 @@
-"""依存性: アクティブランの取得（404）。DB は app.db.session.get_db を直接使う。"""
+"""依存性モジュール。routes.py と共有する2つの責務を置く。
+
+- get_engine_or_404: アクティブランの取得（無ければ404・キャッシュミスなら再生で復元）
+- finalize_run: 終局ランを確定する保存本体（ライブ経路 routes._finalize_if_ended と
+  復元経路 get_engine_or_404 の双方から呼ばれる。routes.py に置くと復元経路からの
+  呼び出しが循環importになるため、両方の呼び出し元より下位のここに置く）
+
+DB は app.db.session.get_db を直接使う。
+"""
 from __future__ import annotations
 
 import logging
@@ -16,6 +24,7 @@ from app.simulation.bots import STRATEGY_VERSION
 logger = logging.getLogger("casino_tower.deps")
 
 
+# ── 保存責務: 終局ランの確定 ──
 def finalize_run(db: Session, session_id: str, eng: GameEngine) -> None:
     """終局ランを RunRecord 等へ確定する保存本体（ガードは呼び出し側の責務）。
 
@@ -38,6 +47,7 @@ def finalize_run(db: Session, session_id: str, eng: GameEngine) -> None:
     store.mark_finalized(session_id)
 
 
+# ── 取得責務: アクティブランの取得（無ければ404） ──
 def get_engine_or_404(session_id: str, db: Session = Depends(get_db)) -> GameEngine:
     # 永続の正本は ActiveSessionRow。行が無い（TTL掃除済み等）セッションは、エンジンが
     # インメモリに残っていても「存在しない」扱いにする。キャッシュヒットで進めてしまうと

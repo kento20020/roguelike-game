@@ -52,6 +52,27 @@ def _finalize_if_ended(db: Session, session_id: str, eng: GameEngine) -> None:
         finalize_run(db, session_id, eng)
 
 
+def _drain_observations(db: Session, eng: GameEngine) -> None:
+    """戦闘ターンで蓄積された (enemy_id, behavior) 観測をディーラー調書に反映する。"""
+    for enemy_id, behavior in eng.drain_observations():
+        crud.increment_observation(db, enemy_id, behavior, data_version=DOSSIER_DATA_VERSION)
+
+
+def _record_and_finalize(db: Session, session_id: str, eng: GameEngine, action: dict, *,
+                          drain: bool = False) -> None:
+    """action を再生ログへ追記 → (戦闘ターンのみ)調書観測をdrain → 終局判定、の定型をまとめる。
+
+    select_node/attack/guard/gate_resolve の4ハンドラで共通の並び。record→drain→finalize の
+    順序は変えられない: drain は「ライブ時に反映した観測」を確定させる操作なので finalize より
+    前でなければならず、record は再生ログの完全性のため一番先でなければならない
+    （各処理の詳細は record_action/_drain_observations/_finalize_if_ended の docstring 参照）。
+    """
+    crud.record_action(db, session_id, action)
+    if drain:
+        _drain_observations(db, eng)
+    _finalize_if_ended(db, session_id, eng)
+
+
 # ── catalog（静的データ・効果文の正本）──
 @router.get("/catalog/mods", response_model=list[ModCatalogItem])
 def catalog_mods() -> list[dict]:
@@ -91,15 +112,8 @@ def get_run(session_id: str, db: Session = Depends(get_db)) -> GameStateResponse
 def select_node(session_id: str, req: SelectNodeRequest, db: Session = Depends(get_db)) -> GameStateResponse:
     eng = get_engine_or_404(session_id, db)
     eng.select_node(req.node_id)
-    crud.record_action(db, session_id, {"type": "select_node", "node_id": req.node_id})
-    _finalize_if_ended(db, session_id, eng)
+    _record_and_finalize(db, session_id, eng, {"type": "select_node", "node_id": req.node_id})
     return _state(session_id, eng)
-
-
-def _drain_observations(db: Session, eng: GameEngine) -> None:
-    """戦闘ターンで蓄積された (enemy_id, behavior) 観測をディーラー調書に反映する。"""
-    for enemy_id, behavior in eng.drain_observations():
-        crud.increment_observation(db, enemy_id, behavior, data_version=DOSSIER_DATA_VERSION)
 
 
 @router.post("/run/{session_id}/attack", response_model=GameStateResponse)
@@ -108,9 +122,7 @@ def attack(session_id: str, req: CombatActionRequest = CombatActionRequest(),
     eng = get_engine_or_404(session_id, db)
     side_bet = req.side_bet.model_dump() if req.side_bet else None
     eng.attack(side_bet=side_bet)
-    crud.record_action(db, session_id, {"type": "attack", "side_bet": side_bet})
-    _drain_observations(db, eng)
-    _finalize_if_ended(db, session_id, eng)
+    _record_and_finalize(db, session_id, eng, {"type": "attack", "side_bet": side_bet}, drain=True)
     return _state(session_id, eng)
 
 
@@ -120,9 +132,7 @@ def guard(session_id: str, req: CombatActionRequest = CombatActionRequest(),
     eng = get_engine_or_404(session_id, db)
     side_bet = req.side_bet.model_dump() if req.side_bet else None
     eng.guard(side_bet=side_bet)
-    crud.record_action(db, session_id, {"type": "guard", "side_bet": side_bet})
-    _drain_observations(db, eng)
-    _finalize_if_ended(db, session_id, eng)
+    _record_and_finalize(db, session_id, eng, {"type": "guard", "side_bet": side_bet}, drain=True)
     return _state(session_id, eng)
 
 
@@ -154,8 +164,7 @@ def treasure_reroll(session_id: str, db: Session = Depends(get_db)) -> GameState
 def gate_resolve(session_id: str, db: Session = Depends(get_db)) -> GameStateResponse:
     eng = get_engine_or_404(session_id, db)
     eng.gate_resolve()
-    crud.record_action(db, session_id, {"type": "gate_resolve"})
-    _finalize_if_ended(db, session_id, eng)
+    _record_and_finalize(db, session_id, eng, {"type": "gate_resolve"})
     return _state(session_id, eng)
 
 
