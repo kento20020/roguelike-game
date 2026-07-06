@@ -348,6 +348,8 @@ def test_gate_guarantee_stacks_recorded(data):
             break
     assert eng is not None, "20 seed 内で gate_preview に到達できるはず"
     eng.player.chips = 99999
+    # OPEN-016: major=0 到達後は重ねがけ不可のため、2回積める major を持つテーブルに差し替える
+    eng.floor.gate_result_table = {"unhurt": 0.10, "minor": 0.25, "major": 0.60, "special": 0.05}
     assert eng.run.gate_guarantee_stacks == 0
     eng.use_sink("gate_guarantee")
     eng.use_sink("gate_guarantee")

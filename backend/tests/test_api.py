@@ -48,11 +48,18 @@ def _drive(client, state, max_steps=3000):
         if ph == "battle":
             p = state["player"]
             sinks = [a["sink"] for a in state["available_actions"] if a["type"] == "use_sink"]
-            if p["hp"] < p["max_hp"] * 0.5 and "heal_large" in sinks:
+            # OPEN-020 で戦闘中回復は1ターン消費するため、緊急時（35%未満）のみ回復する
+            if p["hp"] < p["max_hp"] * 0.35 and "heal_large" in sinks:
                 state = client.post(f"/api/run/{sid}/sink", json={"sink_type": "heal_large"}).json()
                 continue
             state = client.post(f"/api/run/{sid}/attack").json()
         elif ph == "exploring":
+            p = state["player"]
+            sinks = [a["sink"] for a in state["available_actions"] if a["type"] == "use_sink"]
+            # 探索中の回復はターン消費なし（OPEN-020 の battle 中とは違う）ので積極的に使う
+            if p["hp"] < p["max_hp"] * 0.7 and "heal_large" in sinks:
+                state = client.post(f"/api/run/{sid}/sink", json={"sink_type": "heal_large"}).json()
+                continue
             nodes = state["floor"]["nodes"]
             avail = [nid for nid, n in nodes.items() if n["state"] == "available"]
             free = [n for n in avail if nodes[n]["kind"] in ("treasure", "heal", "gate_route")]

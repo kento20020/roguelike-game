@@ -163,10 +163,16 @@ class GameEngine:
 
     def _combat_turn(self, guard: bool, side_bet: Optional[dict] = None) -> dict:
         self._require(PHASE_BATTLE)
+        return self._resolve_battle_turn(guard=guard, side_bet=side_bet, player_attacks=True,
+                                         player_move="guard" if guard else "attack")
+
+    def _resolve_battle_turn(self, *, guard: bool, side_bet: Optional[dict],
+                             player_attacks: bool, player_move: str) -> dict:
         b, p = self.battle, self.player
         pre_snapshot = self._pre_turn_snapshot()
         b.side_bet_result = None  # 前ターン分の表示をクリア
-        res = cr.resolve_turn(b, p, self.data, self.rng.stream(STREAM_BEHAVIOR), guard=guard)
+        res = cr.resolve_turn(b, p, self.data, self.rng.stream(STREAM_BEHAVIOR),
+                              guard=guard, player_attacks=player_attacks)
         # 表示契約: 直近ターンの実現結果（この時点でログにも出力済みの公開情報）。
         # UIがログ文言を解析して演出分岐する文字列依存をさせないための構造化フィールド。
         b.last_action, b.last_guard = res["action"], guard
@@ -175,6 +181,7 @@ class GameEngine:
         self.run.turn_history.append({
             "node_id": b.node_id, "enemy_id": b.enemy.id, "guard": guard,
             "action": res["action"], "dealt": res["dealt"], "incoming": res["incoming"],
+            "player_move": player_move,
             "player_hp_before": pre_snapshot["player"]["hp"], "player_hp_after": p.hp,
             "enemy_hp_before": pre_snapshot["enemy"]["hp"], "enemy_hp_after": b.enemy.hp,
             "ramp_value": res["ramp_value"], "kouki_cooldown": b.kouki_cooldown,
@@ -355,6 +362,9 @@ class GameEngine:
 
     def treasure_reroll(self) -> dict:
         self._require(PHASE_TREASURE_PREVIEW)
+        node = self.floor.nodes[self.pending["node"]]
+        if node.fixed_mod:
+            raise InvalidMove("fixed-mod treasure cannot be rerolled")  # OPEN-017: 30G空費防止
         cost = self._sink_cost(self.data.config["sinks"]["treasure_reroll"])
         if self.player.chips < cost:
             raise InvalidMove("not enough chips for reroll")
@@ -420,7 +430,8 @@ class GameEngine:
     # ─────────────────────────── sinks ───────────────────────────
     def _sink_cost(self, base: float) -> int:
         disc = -self.data.config["permanent_upgrades"]["items"]["sink_cost"]["per_level"] * self._upgrades["sink_cost"]
-        return max(0, round(base - disc))
+        # OPEN-019: 割引で 0G（無料スパム）にしない。下限1。
+        return max(1, round(base - disc))
 
     def use_sink(self, sink_type: str) -> dict:
         p = self.data.config
@@ -431,6 +442,8 @@ class GameEngine:
             self.battle.scout_hint = cr.scout_hint_for(self.battle.enemy)
         elif sink_type == "attack_boost":
             self._require_in(PHASE_BATTLE)
+            if self.player.attack_boost_pending:
+                raise InvalidMove("attack boost already pending")  # OPEN-021: 二重課金防止
             cost = self._sink_cost(p["attack_boost"]["cost"])
             self._spend(cost, "attack_boost")
             self.player.attack_boost_pending = True
@@ -446,8 +459,17 @@ class GameEngine:
             # 回復量は固定値（GDD §13.2 v0.9確定）: 小回復 +15固定 / 大回復 +30固定。
             amt = p["heal"]["node_small" if small else "node_large"]
             self.player.hp = min(self.player.max_hp, self.player.hp + amt)
+            # OPEN-020: battle 中の回復は1ターン消費（敵行動のみが解決される）。
+            if self.phase == PHASE_BATTLE:
+                return self._resolve_battle_turn(guard=False, side_bet=None,
+                                                 player_attacks=False, player_move=sink_type)
         elif sink_type == "gate_guarantee":
             self._require(PHASE_GATE_PREVIEW)
+            # OPEN-016: 大ダメ0%到達後の重ねがけは効果ゼロの課金なので拒否。
+            eff = gr.apply_guarantee(dict(self.floor.gate_result_table),
+                                     self.gate_guarantee_uses, self.data)
+            if eff["major"] <= 1e-9:
+                raise InvalidMove("gate guarantee has no effect: major already 0")
             self.gate_guarantee_uses += 1
             cost = gr.guarantee_cost(self.gate_guarantee_uses, self.data)
             cost = self._sink_cost(cost)
@@ -519,15 +541,20 @@ class GameEngine:
             self._add_heal_boost_sinks(acts, boost=True)
         elif self.phase == PHASE_TREASURE_PREVIEW:
             acts.append({"type": "treasure_open"})
+            node = self.floor.nodes.get(self.pending.get("node", ""))
             reroll_cost = self._sink_cost(self.data.config["sinks"]["treasure_reroll"])
-            if pl.chips >= reroll_cost:
+            # OPEN-017: 確定mod宝箱にはリロールを提示しない
+            if (node is None or not node.fixed_mod) and pl.chips >= reroll_cost:
                 acts.append({"type": "treasure_reroll", "cost": reroll_cost})
         elif self.phase in (PHASE_TREASURE_OPENED, PHASE_HEAL, PHASE_NEXT_FLOOR):
             acts.append({"type": "dismiss"})
         elif self.phase == PHASE_GATE_PREVIEW:
             acts.append({"type": "gate_resolve"})
+            # OPEN-016: major=0 到達後は保証を提示しない
+            eff = gr.apply_guarantee(dict(self.floor.gate_result_table),
+                                     self.gate_guarantee_uses, self.data)
             nxt = self._sink_cost(gr.guarantee_cost(self.gate_guarantee_uses + 1, self.data))
-            if pl.chips >= nxt:
+            if eff["major"] > 1e-9 and pl.chips >= nxt:
                 acts.append({"type": "use_sink", "sink": "gate_guarantee", "cost": nxt})
         return acts
 
