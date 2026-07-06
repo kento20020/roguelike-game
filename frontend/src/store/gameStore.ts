@@ -56,6 +56,18 @@ interface GameStore {
   reset: () => void;
 }
 
+// ApiError はメッセージをそのまま、それ以外の例外は Error.message を使う（3箇所で重複していた抽出処理を共通化）。
+function errorMessage(e: unknown): string {
+  return e instanceof ApiError ? e.message : (e as Error).message;
+}
+
+// カタログ配列を id→要素の Record に変換する（loadCatalog/loadEnemyCatalog で重複していた組み立て処理を共通化）。
+function keyById<T extends { id: string }>(items: T[]): Record<string, T> {
+  const map: Record<string, T> = {};
+  for (const it of items) map[it.id] = it;
+  return map;
+}
+
 export const useGameStore = create<GameStore>((set, get) => {
   // 任意の API 呼び出しを busy/error 管理つきで実行し、状態を置換する共通ラッパ。
   async function run(fn: (sid: string) => Promise<GameState>) {
@@ -66,8 +78,7 @@ export const useGameStore = create<GameStore>((set, get) => {
       const next = await fn(cur.session_id);
       set({ state: next, busy: false });
     } catch (e) {
-      const msg = e instanceof ApiError ? e.message : (e as Error).message;
-      set({ busy: false, error: msg });
+      set({ busy: false, error: errorMessage(e) });
     }
   }
 
@@ -117,9 +128,7 @@ export const useGameStore = create<GameStore>((set, get) => {
       if (Object.keys(get().enemyCatalog).length > 0) return;
       try {
         const items = await gameApi.enemiesCatalog();
-        const map: Record<string, EnemyCatalogItem> = {};
-        for (const it of items) map[it.id] = it;
-        set({ enemyCatalog: map });
+        set({ enemyCatalog: keyById(items) });
       } catch {
         /* 取得失敗は致命ではない（敵名の代わりにidが出るだけ） */
       }
@@ -129,9 +138,7 @@ export const useGameStore = create<GameStore>((set, get) => {
       if (Object.keys(get().catalog).length > 0) return;
       try {
         const items = await gameApi.modsCatalog();
-        const map: Record<string, ModCatalogItem> = {};
-        for (const it of items) map[it.id] = it;
-        set({ catalog: map });
+        set({ catalog: keyById(items) });
       } catch {
         /* カタログ取得失敗は致命ではない（効果文が出ないだけ） */
       }
@@ -143,8 +150,7 @@ export const useGameStore = create<GameStore>((set, get) => {
         const next = await gameApi.newRun(seed);
         set({ state: next, busy: false });
       } catch (e) {
-        const msg = e instanceof ApiError ? e.message : (e as Error).message;
-        set({ busy: false, error: msg });
+        set({ busy: false, error: errorMessage(e) });
       }
     },
 
@@ -164,8 +170,7 @@ export const useGameStore = create<GameStore>((set, get) => {
         const up = await gameApi.upgrade(cur.session_id, upgradeType);
         set({ upgrade: up, busy: false });
       } catch (e) {
-        const msg = e instanceof ApiError ? e.message : (e as Error).message;
-        set({ busy: false, error: msg });
+        set({ busy: false, error: errorMessage(e) });
       }
     },
 
