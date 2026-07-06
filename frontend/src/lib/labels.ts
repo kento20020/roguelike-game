@@ -2,7 +2,7 @@
 // 色・傾向は design の EXP/MOD/sink 定義を踏襲。
 import type { NodeKind, SinkType } from "../api/types";
 
-// 体験タイプ（enemies.json の experience は日本語）。color/tend は design 由来。
+// 体験タイプ（enemies.json の experience は romaji 正準キー・OPEN-012）。表示名はここで日本語化。
 export interface ExpMeta {
   jp: string;
   en: string;
@@ -12,11 +12,11 @@ export interface ExpMeta {
 }
 
 export const EXPERIENCE: Record<string, ExpMeta> = {
-  削り合い: { jp: "削り合い", en: "Attrition", iconType: "grind", color: "#6E93B8", tend: "じわじわ削る・堅実" },
-  賭け: { jp: "賭け", en: "Wager", iconType: "gamble", color: "#C2493B", tend: "大当たりか空振り" },
-  レース: { jp: "レース", en: "Ramp", iconType: "race", color: "#C9A24B", tend: "長引くほど重い" },
-  ずれ: { jp: "ずれ", en: "Slip", iconType: "evade", color: "#5E9A78", tend: "攻撃を空振りさせる" },
-  カオス: { jp: "カオス", en: "Chaos", iconType: "chaos", color: "#9C79BC", tend: "予測不能" },
+  grind: { jp: "削り合い", en: "Attrition", iconType: "grind", color: "#6E93B8", tend: "じわじわ削る・堅実" },
+  gamble: { jp: "賭け", en: "Wager", iconType: "gamble", color: "#C2493B", tend: "大当たりか空振り" },
+  race: { jp: "レース", en: "Ramp", iconType: "race", color: "#C9A24B", tend: "長引くほど重い" },
+  dodge: { jp: "ずれ", en: "Slip", iconType: "evade", color: "#5E9A78", tend: "攻撃を空振りさせる" },
+  chaos: { jp: "カオス", en: "Chaos", iconType: "chaos", color: "#9C79BC", tend: "予測不能" },
 };
 
 export function experienceMeta(exp: string | null | undefined): ExpMeta {

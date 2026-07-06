@@ -33,7 +33,7 @@ def test_chaos_enemies_empty_and_flagged(data: GameData):
     assert len(chaos) == 4  # f3_r2_e, f4_r2_e, f5_r2_d, f5_r3_c
     for e in chaos:
         assert e["behaviors"] == []
-        assert e["experience"] == "カオス"
+        assert e["experience"] == "chaos"
 
 
 def test_race_enemies_have_ramp_increment(data: GameData):

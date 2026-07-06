@@ -9,7 +9,7 @@ from app.schemas.models import Battle, EnemyInstance, Player
 def make_enemy(hp=50, attack=10, behaviors=None, heavy_factor=1.8,
                counter_factor=1.0, ramp_increment=0, chaos=False):
     return EnemyInstance(
-        id="t", name="敵", experience="削り合い", max_hp=hp, hp=hp, attack=attack,
+        id="t", name="敵", experience="grind", max_hp=hp, hp=hp, attack=attack,
         difficulty=2, gold_base=10, chaos=chaos,
         behaviors=behaviors if behaviors is not None else [("counter", 100)],
         ramp_increment=ramp_increment, heavy_factor=heavy_factor,

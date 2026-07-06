@@ -9,7 +9,7 @@
     "difficulty": "int 1-5 (>=4で強敵)",
     "tier_range": "[min, max]",
     "row": "row1|row2|row3",
-    "experience": "削り合い|賭け|レース|ずれ|カオス",
+    "experience": "grind|gamble|race|dodge|chaos",
     "behaviors": "[{type, weight}] 合計100。カオスはchaos:trueで空",
     "ramp_increment": "int (レース系のみ)",
     "chaos": "bool (カオス系のみtrue)",
@@ -20,223 +20,223 @@
   "enemies": [
     {
       "id": "f1_fixed_a", "name": "試練の用心棒", "hp": 35, "attack": 8, "difficulty": 1,
-      "tier_range": [1, 1], "row": "row1", "experience": "削り合い",
+      "tier_range": [1, 1], "row": "row1", "experience": "grind",
       "behaviors": [{"type": "counter", "weight": 60}, {"type": "none", "weight": 40}],
       "gold_base": 6
     },
     {
       "id": "f1_fixed_b", "name": "跳ね返り屋", "hp": 35, "attack": 10, "difficulty": 2,
-      "tier_range": [1, 1], "row": "row1", "experience": "賭け",
+      "tier_range": [1, 1], "row": "row1", "experience": "gamble",
       "behaviors": [{"type": "heavy_blow", "weight": 30}, {"type": "counter", "weight": 20}, {"type": "none", "weight": 50}],
       "gold_base": 7
     },
     {
       "id": "f1_fixed_c", "name": "乱れ打ちの賭博師", "hp": 30, "attack": 12, "difficulty": 2,
-      "tier_range": [1, 1], "row": "row1", "experience": "賭け",
+      "tier_range": [1, 1], "row": "row1", "experience": "gamble",
       "behaviors": [{"type": "heavy_blow", "weight": 50}, {"type": "none", "weight": 50}],
       "gold_base": 7
     },
 
     {
       "id": "f2_r1_a", "name": "カジノの用心棒", "hp": 45, "attack": 10, "difficulty": 2,
-      "tier_range": [2, 2], "row": "row1", "experience": "削り合い",
+      "tier_range": [2, 2], "row": "row1", "experience": "grind",
       "behaviors": [{"type": "counter", "weight": 70}, {"type": "none", "weight": 30}],
       "gold_base": 10
     },
     {
       "id": "f2_r1_b", "name": "博打狂", "hp": 40, "attack": 14, "difficulty": 2,
-      "tier_range": [2, 2], "row": "row1", "experience": "賭け",
+      "tier_range": [2, 2], "row": "row1", "experience": "gamble",
       "behaviors": [{"type": "heavy_blow", "weight": 40}, {"type": "none", "weight": 60}],
       "gold_base": 10
     },
     {
       "id": "f2_r1_c", "name": "時計仕掛けのディーラー", "hp": 38, "attack": 8, "difficulty": 3,
-      "tier_range": [2, 2], "row": "row1", "experience": "レース",
+      "tier_range": [2, 2], "row": "row1", "experience": "race",
       "behaviors": [{"type": "ramp_hit", "weight": 60}, {"type": "counter", "weight": 30}, {"type": "none", "weight": 10}],
       "ramp_increment": 2, "gold_base": 12
     },
 
     {
       "id": "f2_r2_a", "name": "用心棒長", "hp": 55, "attack": 11, "difficulty": 3,
-      "tier_range": [2, 2], "row": "row2", "experience": "削り合い",
+      "tier_range": [2, 2], "row": "row2", "experience": "grind",
       "behaviors": [{"type": "counter", "weight": 60}, {"type": "heavy_blow", "weight": 10}, {"type": "none", "weight": 30}],
       "gold_base": 12
     },
     {
       "id": "f2_r2_b", "name": "怒涛の博徒", "hp": 50, "attack": 16, "difficulty": 3,
-      "tier_range": [2, 2], "row": "row2", "experience": "賭け",
+      "tier_range": [2, 2], "row": "row2", "experience": "gamble",
       "behaviors": [{"type": "heavy_blow", "weight": 50}, {"type": "none", "weight": 50}],
       "gold_base": 12
     },
     {
       "id": "f2_r2_c", "name": "追跡式ディーラー", "hp": 48, "attack": 9, "difficulty": 3,
-      "tier_range": [2, 2], "row": "row2", "experience": "レース",
+      "tier_range": [2, 2], "row": "row2", "experience": "race",
       "behaviors": [{"type": "ramp_hit", "weight": 60}, {"type": "counter", "weight": 30}, {"type": "none", "weight": 10}],
       "ramp_increment": 3, "gold_base": 13
     },
     {
       "id": "f2_r2_d", "name": "幻影の手品師", "hp": 42, "attack": 12, "difficulty": 3,
-      "tier_range": [2, 2], "row": "row2", "experience": "ずれ",
+      "tier_range": [2, 2], "row": "row2", "experience": "dodge",
       "behaviors": [{"type": "evade", "weight": 50}, {"type": "counter", "weight": 30}, {"type": "none", "weight": 20}],
       "gold_base": 13
     },
 
     {
       "id": "f3_r1_a", "name": "石壁の門番", "hp": 60, "attack": 12, "difficulty": 2,
-      "tier_range": [3, 3], "row": "row1", "experience": "削り合い",
+      "tier_range": [3, 3], "row": "row1", "experience": "grind",
       "behaviors": [{"type": "counter", "weight": 65}, {"type": "heavy_blow", "weight": 5}, {"type": "none", "weight": 30}],
       "gold_base": 15
     },
     {
       "id": "f3_r1_b", "name": "影撃ちの賭博師", "hp": 55, "attack": 18, "difficulty": 3,
-      "tier_range": [3, 3], "row": "row1", "experience": "賭け",
+      "tier_range": [3, 3], "row": "row1", "experience": "gamble",
       "behaviors": [{"type": "heavy_blow", "weight": 45}, {"type": "none", "weight": 55}],
       "gold_base": 15
     },
     {
       "id": "f3_r1_c", "name": "疾風の手品師", "hp": 50, "attack": 11, "difficulty": 3,
-      "tier_range": [3, 3], "row": "row1", "experience": "ずれ",
+      "tier_range": [3, 3], "row": "row1", "experience": "dodge",
       "behaviors": [{"type": "evade", "weight": 55}, {"type": "counter", "weight": 25}, {"type": "none", "weight": 20}],
       "gold_base": 15
     },
 
     {
       "id": "f3_r2_a", "name": "鉄塔の門番", "hp": 72, "attack": 13, "difficulty": 3,
-      "tier_range": [3, 3], "row": "row2", "experience": "削り合い",
+      "tier_range": [3, 3], "row": "row2", "experience": "grind",
       "behaviors": [{"type": "counter", "weight": 55}, {"type": "heavy_blow", "weight": 15}, {"type": "none", "weight": 30}],
       "gold_base": 17
     },
     {
       "id": "f3_r2_b", "name": "死闘の博徒", "hp": 65, "attack": 20, "difficulty": 4,
-      "tier_range": [3, 3], "row": "row2", "experience": "賭け",
+      "tier_range": [3, 3], "row": "row2", "experience": "gamble",
       "behaviors": [{"type": "heavy_blow", "weight": 55}, {"type": "none", "weight": 45}],
       "gold_base": 18
     },
     {
       "id": "f3_r2_c", "name": "雷式ディーラー", "hp": 60, "attack": 10, "difficulty": 4,
-      "tier_range": [3, 3], "row": "row2", "experience": "レース",
+      "tier_range": [3, 3], "row": "row2", "experience": "race",
       "behaviors": [{"type": "ramp_hit", "weight": 60}, {"type": "counter", "weight": 30}, {"type": "none", "weight": 10}],
       "ramp_increment": 4, "gold_base": 18
     },
     {
       "id": "f3_r2_d", "name": "残影の手品師", "hp": 58, "attack": 14, "difficulty": 4,
-      "tier_range": [3, 3], "row": "row2", "experience": "ずれ",
+      "tier_range": [3, 3], "row": "row2", "experience": "dodge",
       "behaviors": [{"type": "evade", "weight": 60}, {"type": "counter", "weight": 20}, {"type": "none", "weight": 20}],
       "gold_base": 18
     },
     {
       "id": "f3_r2_e", "name": "嵐の胴元", "hp": 62, "attack": 15, "difficulty": 4,
-      "tier_range": [3, 3], "row": "row2", "experience": "カオス",
+      "tier_range": [3, 3], "row": "row2", "experience": "chaos",
       "behaviors": [], "chaos": true, "gold_base": 18
     },
 
     {
       "id": "f4_r1_a", "name": "黄金の騎士", "hp": 80, "attack": 15, "difficulty": 3,
-      "tier_range": [4, 4], "row": "row1", "experience": "削り合い",
+      "tier_range": [4, 4], "row": "row1", "experience": "grind",
       "behaviors": [{"type": "counter", "weight": 60}, {"type": "heavy_blow", "weight": 10}, {"type": "none", "weight": 30}],
       "gold_base": 20
     },
     {
       "id": "f4_r1_b", "name": "炎の賭博師", "hp": 72, "attack": 22, "difficulty": 4,
-      "tier_range": [4, 4], "row": "row1", "experience": "賭け",
+      "tier_range": [4, 4], "row": "row1", "experience": "gamble",
       "behaviors": [{"type": "heavy_blow", "weight": 60}, {"type": "none", "weight": 40}],
       "gold_base": 22
     },
     {
       "id": "f4_r1_c", "name": "大時計のディーラー", "hp": 70, "attack": 12, "difficulty": 4,
-      "tier_range": [4, 4], "row": "row1", "experience": "レース",
+      "tier_range": [4, 4], "row": "row1", "experience": "race",
       "behaviors": [{"type": "ramp_hit", "weight": 60}, {"type": "counter", "weight": 30}, {"type": "none", "weight": 10}],
       "ramp_increment": 5, "gold_base": 22
     },
 
     {
       "id": "f4_r2_a", "name": "氷の用心棒", "hp": 90, "attack": 14, "difficulty": 4,
-      "tier_range": [4, 4], "row": "row2", "experience": "削り合い",
+      "tier_range": [4, 4], "row": "row2", "experience": "grind",
       "behaviors": [{"type": "counter", "weight": 50}, {"type": "heavy_blow", "weight": 15}, {"type": "none", "weight": 35}],
       "gold_base": 24
     },
     {
       "id": "f4_r2_b", "name": "毒の賭博師", "hp": 85, "attack": 24, "difficulty": 4,
-      "tier_range": [4, 4], "row": "row2", "experience": "賭け",
+      "tier_range": [4, 4], "row": "row2", "experience": "gamble",
       "behaviors": [{"type": "heavy_blow", "weight": 60}, {"type": "none", "weight": 40}],
       "gold_base": 24
     },
     {
       "id": "f4_r2_c", "name": "爆走ディーラー", "hp": 80, "attack": 13, "difficulty": 4,
-      "tier_range": [4, 4], "row": "row2", "experience": "レース",
+      "tier_range": [4, 4], "row": "row2", "experience": "race",
       "behaviors": [{"type": "ramp_hit", "weight": 60}, {"type": "counter", "weight": 30}, {"type": "none", "weight": 10}],
       "ramp_increment": 6, "gold_base": 25
     },
     {
       "id": "f4_r2_d", "name": "幻霧の手品師", "hp": 78, "attack": 16, "difficulty": 4,
-      "tier_range": [4, 4], "row": "row2", "experience": "ずれ",
+      "tier_range": [4, 4], "row": "row2", "experience": "dodge",
       "behaviors": [{"type": "evade", "weight": 65}, {"type": "counter", "weight": 15}, {"type": "none", "weight": 20}],
       "gold_base": 25
     },
     {
       "id": "f4_r2_e", "name": "混沌の胴元", "hp": 82, "attack": 17, "difficulty": 5,
-      "tier_range": [4, 4], "row": "row2", "experience": "カオス",
+      "tier_range": [4, 4], "row": "row2", "experience": "chaos",
       "behaviors": [], "chaos": true, "gold_base": 26
     },
 
     {
       "id": "f5_r1_a", "name": "鋼鉄の巨人", "hp": 100, "attack": 17, "difficulty": 4,
-      "tier_range": [5, 5], "row": "row1", "experience": "削り合い",
+      "tier_range": [5, 5], "row": "row1", "experience": "grind",
       "behaviors": [{"type": "counter", "weight": 55}, {"type": "heavy_blow", "weight": 15}, {"type": "none", "weight": 30}],
       "gold_base": 28
     },
     {
       "id": "f5_r1_b", "name": "絶望の賭博師", "hp": 90, "attack": 28, "difficulty": 5,
-      "tier_range": [5, 5], "row": "row1", "experience": "賭け",
+      "tier_range": [5, 5], "row": "row1", "experience": "gamble",
       "behaviors": [{"type": "heavy_blow", "weight": 65}, {"type": "none", "weight": 35}],
       "gold_base": 30
     },
     {
       "id": "f5_r1_c", "name": "溶岩式ディーラー", "hp": 88, "attack": 14, "difficulty": 5,
-      "tier_range": [5, 5], "row": "row1", "experience": "レース",
+      "tier_range": [5, 5], "row": "row1", "experience": "race",
       "behaviors": [{"type": "ramp_hit", "weight": 60}, {"type": "counter", "weight": 30}, {"type": "none", "weight": 10}],
       "ramp_increment": 7, "gold_base": 30
     },
 
     {
       "id": "f5_r2_a", "name": "永遠の用心棒", "hp": 115, "attack": 18, "difficulty": 4,
-      "tier_range": [5, 5], "row": "row2", "experience": "削り合い",
+      "tier_range": [5, 5], "row": "row2", "experience": "grind",
       "behaviors": [{"type": "counter", "weight": 50}, {"type": "heavy_blow", "weight": 20}, {"type": "none", "weight": 30}],
       "gold_base": 32
     },
     {
       "id": "f5_r2_b", "name": "毒霧の賭博師", "hp": 105, "attack": 26, "difficulty": 5,
-      "tier_range": [5, 5], "row": "row2", "experience": "賭け",
+      "tier_range": [5, 5], "row": "row2", "experience": "gamble",
       "behaviors": [{"type": "heavy_blow", "weight": 65}, {"type": "none", "weight": 35}],
       "gold_base": 33
     },
     {
       "id": "f5_r2_c", "name": "加速の悪魔ディーラー", "hp": 100, "attack": 15, "difficulty": 5,
-      "tier_range": [5, 5], "row": "row2", "experience": "レース",
+      "tier_range": [5, 5], "row": "row2", "experience": "race",
       "behaviors": [{"type": "ramp_hit", "weight": 60}, {"type": "counter", "weight": 30}, {"type": "none", "weight": 10}],
       "ramp_increment": 8, "gold_base": 34
     },
     {
       "id": "f5_r2_d", "name": "万象の胴元", "hp": 108, "attack": 20, "difficulty": 5,
-      "tier_range": [5, 5], "row": "row2", "experience": "カオス",
+      "tier_range": [5, 5], "row": "row2", "experience": "chaos",
       "behaviors": [], "chaos": true, "gold_base": 35
     },
 
     {
       "id": "f5_r3_a", "name": "頂上の守護者", "hp": 130, "attack": 20, "difficulty": 5,
-      "tier_range": [5, 5], "row": "row3", "experience": "削り合い",
+      "tier_range": [5, 5], "row": "row3", "experience": "grind",
       "behaviors": [{"type": "counter", "weight": 45}, {"type": "heavy_blow", "weight": 20}, {"type": "none", "weight": 35}],
       "gold_base": 40
     },
     {
       "id": "f5_r3_b", "name": "地獄の大博徒", "hp": 120, "attack": 32, "difficulty": 5,
-      "tier_range": [5, 5], "row": "row3", "experience": "賭け",
+      "tier_range": [5, 5], "row": "row3", "experience": "gamble",
       "behaviors": [{"type": "heavy_blow", "weight": 70}, {"type": "none", "weight": 30}],
       "gold_base": 42
     },
     {
       "id": "f5_r3_c", "name": "頂上の胴元", "hp": 125, "attack": 22, "difficulty": 5,
-      "tier_range": [5, 5], "row": "row3", "experience": "カオス",
+      "tier_range": [5, 5], "row": "row3", "experience": "chaos",
       "behaviors": [], "chaos": true, "gold_base": 45
     }
   ]

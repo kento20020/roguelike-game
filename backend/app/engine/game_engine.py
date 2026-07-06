@@ -576,15 +576,20 @@ class GameEngine:
 
     # ─────────────────────────── snapshot ───────────────────────────
     def _node_view(self, node) -> dict:
-        """ノードの表示用 dict。敵ノードには L2/L3 開示（体験タイプ・強敵・名前・最大HP）を付す。
+        """ノードの表示用 dict。敵ノードは L2（体験タイプ・強敵）を常時開示し、
+        L3（名前・最大HP）はインタラクト後（resolved／戦闘中の当該ノード）のみ付す（§5・OPEN-015）。
         確率テーブルの数値は出さない（暗黙知型・GDD §5）。"""
-        d = node.snapshot(self.node_state(node))
+        state = self.node_state(node)
+        d = node.snapshot(state)
         if node.kind == "enemy" and node.enemy_id:
             e = self.data.enemy(node.enemy_id)
             d["experience"] = e["experience"]
-            d["name"] = e["name"]
             d["is_strong"] = self.data.is_strong(e)
-            d["max_hp"] = self.data.scaled_hp(e, self.current_floor)
+            interacted = state == "resolved" or (
+                self.battle is not None and self.battle.node_id == node.id)
+            if interacted:
+                d["name"] = e["name"]
+                d["max_hp"] = self.data.scaled_hp(e, self.current_floor)
         return d
 
     def snapshot(self) -> dict:

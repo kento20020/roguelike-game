@@ -135,7 +135,8 @@ def test_progression_and_termination(data):
 
 
 def test_snapshot_exposes_enemy_preview(data):
-    """探索マップの L2/L3 開示: 敵ノードは体験タイプ・強敵・名前・最大HPを持つ（確率は持たない）。"""
+    """L2（体験タイプ・強敵）は常時開示、L3（名前・最大HP）はインタラクト後のみ（§5・OPEN-015）。
+    確率（behaviors weight）は常に非公開。"""
     eng = GameEngine(data)
     eng.new_run(7)
     nodes = eng.snapshot()["floor"]["nodes"]
@@ -144,11 +145,19 @@ def test_snapshot_exposes_enemy_preview(data):
     for n in enemies:
         assert isinstance(n["experience"], str) and n["experience"]
         assert isinstance(n["is_strong"], bool)
-        assert n["name"]
-        assert n["max_hp"] > 0
+        assert "name" not in n and "max_hp" not in n       # L3 は未インタラクトでは伏せる
         assert "behaviors" not in n and "weight" not in n  # 確率は伏せる
     for n in [n for n in nodes.values() if n["kind"] != "enemy"]:
         assert n.get("experience") is None
+    # 戦闘コミット（インタラクト）で L3 開示
+    eng.select_node("L")
+    view = eng.snapshot()["floor"]["nodes"]["L"]
+    assert view["name"] and view["max_hp"] > 0
+    # 撃破後（resolved）も開示継続
+    while eng.phase == "battle":
+        eng.attack()
+    view2 = eng.snapshot()["floor"]["nodes"]["L"]
+    assert view2["name"] and view2["max_hp"] > 0
 
 
 def test_gate_preview_pending_has_table_and_damage(data):
