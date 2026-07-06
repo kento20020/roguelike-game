@@ -214,10 +214,12 @@ def resolve_turn(battle: Battle, player: Player, data: GameData,
     if not kouki_fired and battle.kouki_cooldown > 0:
         battle.kouki_cooldown -= 1
 
-    # 6. 判定（敵が先に死ねば勝利優先）
+    # 6. 判定（敵が先に死ねば勝利優先。OPEN-010: 勝利時 hp=max(1,hp) でHP0生存を禁止）
     if enemy.hp < 0:
         enemy.hp = 0
     player_dead = player.hp <= 0 and not enemy_dead
+    if enemy_dead and player.hp < 1:
+        player.hp = 1
     if player.hp < 0:
         player.hp = 0
 

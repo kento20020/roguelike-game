@@ -352,7 +352,8 @@ def test_gate_guarantee_stacks_recorded(data):
     eng.use_sink("gate_guarantee")
     eng.use_sink("gate_guarantee")
     assert eng.run.gate_guarantee_stacks == 2
-    assert eng.snapshot()["run_record"]["gate_guarantee_stacks"] == 2
+    # 進行中 snapshot は run_record 非露出（§17.3）のため内部 RunRecord 側で確認する
+    assert eng.run.snapshot()["gate_guarantee_stacks"] == 2
 
 
 def test_yomi_exposes_next_action_in_snapshot(data):

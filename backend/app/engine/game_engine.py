@@ -602,5 +602,7 @@ class GameEngine:
             "battle": battle_state,
             "pending": dict(self.pending),
             "available_actions": self.available_actions(),
-            "run_record": self.run.snapshot() if self.run else None,
+            # §17.3 seed非露出: RunRecord は seed を含むため終端（dead/cleared）でのみ開示（seed-scum防止）。
+            "run_record": (self.run.snapshot()
+                           if self.run and self.phase in (PHASE_DEAD, PHASE_CLEARED) else None),
         }
