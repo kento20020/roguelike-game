@@ -86,21 +86,24 @@ def catalog_enemies() -> list[dict]:
 def new_run(req: NewRunRequest, db: Session = Depends(get_db)) -> GameStateResponse:
     seed = req.seed if req.seed is not None else secrets.randbits(32)
     profile = crud.get_or_create_profile(db)
+    upgrades = crud.profile_levels(profile)
     eng = GameEngine()
-    eng.new_run(seed, upgrades=crud.profile_levels(profile), bot_type=req.bot_type)
+    eng.new_run(seed, upgrades=upgrades, bot_type=req.bot_type)
     session_id = store.create(eng)
+    crud.create_active_session(db, session_id, seed, req.bot_type, upgrades)
     return _state(session_id, eng)
 
 
 @router.get("/run/{session_id}", response_model=GameStateResponse)
-def get_run(session_id: str) -> GameStateResponse:
-    return _state(session_id, get_engine_or_404(session_id))
+def get_run(session_id: str, db: Session = Depends(get_db)) -> GameStateResponse:
+    return _state(session_id, get_engine_or_404(session_id, db))
 
 
 @router.post("/run/{session_id}/select-node", response_model=GameStateResponse)
 def select_node(session_id: str, req: SelectNodeRequest, db: Session = Depends(get_db)) -> GameStateResponse:
-    eng = get_engine_or_404(session_id)
+    eng = get_engine_or_404(session_id, db)
     eng.select_node(req.node_id)
+    crud.record_action(db, session_id, {"type": "select_node", "node_id": req.node_id})
     _finalize_if_ended(db, session_id, eng)
     return _state(session_id, eng)
 
@@ -114,8 +117,10 @@ def _drain_observations(db: Session, eng: GameEngine) -> None:
 @router.post("/run/{session_id}/attack", response_model=GameStateResponse)
 def attack(session_id: str, req: CombatActionRequest = CombatActionRequest(),
            db: Session = Depends(get_db)) -> GameStateResponse:
-    eng = get_engine_or_404(session_id)
-    eng.attack(side_bet=req.side_bet.model_dump() if req.side_bet else None)
+    eng = get_engine_or_404(session_id, db)
+    side_bet = req.side_bet.model_dump() if req.side_bet else None
+    eng.attack(side_bet=side_bet)
+    crud.record_action(db, session_id, {"type": "attack", "side_bet": side_bet})
     _drain_observations(db, eng)
     _finalize_if_ended(db, session_id, eng)
     return _state(session_id, eng)
@@ -124,54 +129,61 @@ def attack(session_id: str, req: CombatActionRequest = CombatActionRequest(),
 @router.post("/run/{session_id}/guard", response_model=GameStateResponse)
 def guard(session_id: str, req: CombatActionRequest = CombatActionRequest(),
           db: Session = Depends(get_db)) -> GameStateResponse:
-    eng = get_engine_or_404(session_id)
-    eng.guard(side_bet=req.side_bet.model_dump() if req.side_bet else None)
+    eng = get_engine_or_404(session_id, db)
+    side_bet = req.side_bet.model_dump() if req.side_bet else None
+    eng.guard(side_bet=side_bet)
+    crud.record_action(db, session_id, {"type": "guard", "side_bet": side_bet})
     _drain_observations(db, eng)
     _finalize_if_ended(db, session_id, eng)
     return _state(session_id, eng)
 
 
 @router.post("/run/{session_id}/sink", response_model=GameStateResponse)
-def sink(session_id: str, req: SinkRequest) -> GameStateResponse:
-    eng = get_engine_or_404(session_id)
+def sink(session_id: str, req: SinkRequest, db: Session = Depends(get_db)) -> GameStateResponse:
+    eng = get_engine_or_404(session_id, db)
     eng.use_sink(req.sink_type)
+    crud.record_action(db, session_id, {"type": "use_sink", "sink_type": req.sink_type})
     return _state(session_id, eng)
 
 
 @router.post("/run/{session_id}/treasure/open", response_model=GameStateResponse)
-def treasure_open(session_id: str) -> GameStateResponse:
-    eng = get_engine_or_404(session_id)
+def treasure_open(session_id: str, db: Session = Depends(get_db)) -> GameStateResponse:
+    eng = get_engine_or_404(session_id, db)
     eng.treasure_open()
+    crud.record_action(db, session_id, {"type": "treasure_open"})
     return _state(session_id, eng)
 
 
 @router.post("/run/{session_id}/treasure/reroll", response_model=GameStateResponse)
-def treasure_reroll(session_id: str) -> GameStateResponse:
-    eng = get_engine_or_404(session_id)
+def treasure_reroll(session_id: str, db: Session = Depends(get_db)) -> GameStateResponse:
+    eng = get_engine_or_404(session_id, db)
     eng.treasure_reroll()
+    crud.record_action(db, session_id, {"type": "treasure_reroll"})
     return _state(session_id, eng)
 
 
 @router.post("/run/{session_id}/gate/resolve", response_model=GameStateResponse)
 def gate_resolve(session_id: str, db: Session = Depends(get_db)) -> GameStateResponse:
-    eng = get_engine_or_404(session_id)
+    eng = get_engine_or_404(session_id, db)
     eng.gate_resolve()
+    crud.record_action(db, session_id, {"type": "gate_resolve"})
     _finalize_if_ended(db, session_id, eng)
     return _state(session_id, eng)
 
 
 @router.post("/run/{session_id}/continue", response_model=GameStateResponse)
-def continue_(session_id: str) -> GameStateResponse:
+def continue_(session_id: str, db: Session = Depends(get_db)) -> GameStateResponse:
     """モーダルphase（treasure_opened/heal）を閉じて exploring へ（§25補完）。"""
-    eng = get_engine_or_404(session_id)
+    eng = get_engine_or_404(session_id, db)
     eng.dismiss()
+    crud.record_action(db, session_id, {"type": "dismiss"})
     return _state(session_id, eng)
 
 
 @router.get("/run/{session_id}/postmortem", response_model=PostmortemResponse)
 def postmortem(session_id: str, db: Session = Depends(get_db)) -> PostmortemResponse:
     """検死レポート＋リプレイ（戦闘死のみ。ゲート死は致命ターンが無いため対象外）。"""
-    eng = get_engine_or_404(session_id)
+    eng = get_engine_or_404(session_id, db)
     row = crud.get_postmortem(db, eng.run.run_id)
     if row is None:
         raise HTTPException(status_code=404, detail="postmortem not available for this run")
@@ -189,7 +201,7 @@ def profile_upgrades(db: Session = Depends(get_db)) -> UpgradeStateResponse:
 
 @router.post("/run/{session_id}/upgrade", response_model=UpgradeStateResponse)
 def upgrade(session_id: str, req: UpgradeRequest, db: Session = Depends(get_db)) -> UpgradeStateResponse:
-    get_engine_or_404(session_id)  # session 妥当性のみ確認
+    get_engine_or_404(session_id, db)  # session 妥当性のみ確認
     p = crud.allocate_upgrade(db, req.upgrade_type)  # UpgradeError -> 400
     return UpgradeStateResponse(
         points=p.points, levels=crud.profile_levels(p), maxes=crud.upgrade_maxes())

@@ -1,13 +1,21 @@
 """DB操作。生SQLは書かない（SQLAlchemy経由）。"""
 from __future__ import annotations
 
+from datetime import datetime, timedelta, timezone
 from typing import TypeVar
 
-from sqlalchemy import desc, select
+from sqlalchemy import delete, desc, select
 from sqlalchemy.orm import Session
 
 from app.data.loader import get_data
-from app.db.models import ObservationRow, PostmortemRow, ProfileRow, RunActionsRow, RunRecordRow
+from app.db.models import (
+    ActiveSessionRow,
+    ObservationRow,
+    PostmortemRow,
+    ProfileRow,
+    RunActionsRow,
+    RunRecordRow,
+)
 
 UPGRADE_ITEMS = ["max_hp", "attack", "init_gold", "gold_drop", "sink_cost"]
 
@@ -58,6 +66,46 @@ def list_run_records(db: Session, limit: int = 50) -> list[RunRecordRow]:
     return list(db.execute(
         select(RunRecordRow).order_by(desc(RunRecordRow.id)).limit(limit)
     ).scalars())
+
+
+# ── ActiveSession（進行中ランの再現用・アクションログ再生方式・OPEN-007）──
+def create_active_session(db: Session, session_id: str, seed: int, bot_type: str,
+                           upgrades: dict) -> ActiveSessionRow:
+    row = ActiveSessionRow(
+        session_id=session_id, seed=seed, bot_type=bot_type,
+        upgrades_json=upgrades, actions_json=[],
+    )
+    db.add(row)
+    return _commit(db, row)
+
+
+def record_action(db: Session, session_id: str, action: dict) -> ActiveSessionRow | None:
+    """actions_json に1件追記する。JSON列の変更検知のため必ず再代入する
+    （list.append の in-place 変更は SQLAlchemy に検知されない）。
+    last_seen_at はモデルの onupdate=func.now() に任せる（このUPDATEで自動更新される）。"""
+    row = db.get(ActiveSessionRow, session_id)
+    if row is None:
+        return None
+    row.actions_json = [*row.actions_json, action]
+    return _commit(db, row)
+
+
+def load_active_session(db: Session, session_id: str) -> ActiveSessionRow | None:
+    return db.get(ActiveSessionRow, session_id)
+
+
+def _naive_utc_now() -> datetime:
+    """SQLite の func.now()（CURRENT_TIMESTAMP=UTC・naive文字列）と比較可能な形式で現在時刻を返す。"""
+    return datetime.now(timezone.utc).replace(tzinfo=None)
+
+
+def delete_stale_active_sessions(db: Session, max_age_hours: int = 24 * 7) -> int:
+    """TTL超過分の掃除。終局後の行もここでいずれ消える
+    （RunRecordRow/RunActionsRowが正の記録として既に確定しているため実害なし）。"""
+    cutoff = _naive_utc_now() - timedelta(hours=max_age_hours)
+    result = db.execute(delete(ActiveSessionRow).where(ActiveSessionRow.last_seen_at < cutoff))
+    db.commit()
+    return result.rowcount or 0
 
 
 # ── Postmortem（検死レポート＋リプレイ）──

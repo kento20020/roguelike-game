@@ -208,8 +208,8 @@ game-roguelike3/
     └── app/
         ├── api/
         │   ├── routes.py                # エンドポイント定義（§25）
-        │   └── deps.py                  # 依存性注入（セッション取得等）
-        ├── session_store.py             # セッション管理
+        │   └── deps.py                  # 依存性注入（セッション取得。キャッシュミス時はDB再生にフォールバック）
+        ├── session_store.py             # セッション管理（LRU上限つきホットキャッシュ。真の永続はactive_sessions）
         ├── engine/
         │   ├── game_engine.py           # ゲーム状態の中核（phase遷移・アクション受付）
         │   ├── snapshot.py              # APIスナップショット/ノードビュー構築（表示層）
@@ -218,6 +218,7 @@ game-roguelike3/
         │   ├── gate_resolver.py         # ゲートイベント
         │   ├── postmortem.py            # 検死レポート（致命ターンの反実仮想解析）
         │   ├── tells.py                 # テル（気配）の判定
+        │   ├── replay.py                # アクションログ再生（OPEN-007・進行中ラン復元）
         │   ├── chaos_weights.py         # カオス敵のラン別比率決定
         │   └── rng.py                   # SFC32（9ストリーム）
         ├── data/
@@ -227,8 +228,8 @@ game-roguelike3/
         │   ├── floors.json              # フロア構成・アンロックルール
         │   └── config.json              # 数値パラメータ（データ駆動調整対象）
         ├── db/
-        │   ├── models.py                # SQLAlchemyモデル（RunRecord等）
-        │   ├── session.py               # DB接続（SQLite→PostgreSQL切り替え点）
+        │   ├── models.py                # SQLAlchemyモデル（RunRecord/ActiveSession等）
+        │   ├── session.py               # DB接続（SQLite・WAL mode／PostgreSQL切り替え点）
         │   └── crud.py                  # DB操作
         ├── schemas/
         │   ├── api_schemas.py           # Pydanticモデル（リクエスト/レスポンス）
