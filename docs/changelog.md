@@ -2,6 +2,14 @@
 
 各版で確定した内容の経緯。現行仕様は本文を正本とし、ここは時系列の記録。
 
+- **v1.4**（2026-07-06）：**設計書準拠のベストプラクティス書き換え（コード＋docs同時改訂）**。健康診断（設計-実装一致度監査）で確認した乖離を、docs に方針が明記済みの項目からコード側で解消し、実装が先行していた機能を正本へ昇格させた。
+  - **不変条件回復**：seed非露出（§17.3・進行中 run_record=null＋スナップショットテスト）、OPEN-010（勝利時 hp=max(1,hp)）。
+  - **異常系ガード**：OPEN-016（保証の削減0で400）・OPEN-017の1F分（確定mod宝箱のリロール400）・OPEN-019（sinkコスト下限1）・OPEN-021（boost持越し＋二重課金400）。
+  - **挙動変更**：OPEN-020（battle中healの1ターン消費）・OPEN-015（L2/L3のstate別マスク）・OPEN-012（experienceのromaji enum化）。
+  - **テレメトリ/DB**：Alembic導入（0001_baseline/0002_telemetry）、RunRecordへ data_version・strategy_version・sink_use_counts・gate_results・action_counts、run_actions（全ラン操作履歴）新設（OPEN-024/025解消）。OPEN-013 のデータ検査を loader.validate／validate_floor／テストへ実装。
+  - **フロア可変深度化＋あみだくじ型接続生成（proposals/floor_depth_randomization.md 採用・クラスS昇格）**：§4を「固定形状の列挙」から「生成規則」へ全面改訂。深度カーブ 2/3/4/5/6・統合enemy_pool・格子ランタイム生成（stream6転用）・depth_scaling。**maxed強botクリア 18/120→6/120（数値調整はデザイナーレビュー待ち・§18.2注記）**。
+  - **運用/セキュリティ**：CORSのALLOWED_ORIGINS化・ログ＋X-Request-ID・.env.example・seed/limit入力検証・BattleOut.tell_reliability契約修復・eslint導入・DeadPageのstore集約。
+  - **正本昇格**：実装済みの検死リプレイ（§15.2）・ディーラー調書（§15.3）・サイドベット（§15.4）・テル試作（§15.5）を api_contract/data_model/architecture/frontend_design に反映。runbook を実手順化。改善提案アイディア4/6/7/8 は詳細仕様待ちで見送り。
 - **v1.3**：**分割後の横断整合レビュー（シニアSE・3巡目）反映・ドキュメントのみ改訂**（コード/JSON/バランス数値は不変）。
   - **矛盾訂正**：§4.1 1Fゲート経路 1本→**2本**（B/C・経路数の定義を新設）、§6.1 battle→**treasure_preview**（撃破ドロップ有）遷移を追加、phase数表記を **10（+pause予約）** に統一（§20.4/§22.2）、§24.6 GatePage の担当を gate_preview のみに訂正（gate_resolve=瞬間phase・§26.4に演出の実体を注記）、§25.3 例の heal_small cost を 2F実値25に訂正、§20.1 `heal_node_config`→実データの `heal_node`/`heal_node_position` に訂正、§5 L4 スカウトを「最頻行動の示唆」（yomi=確定先引きと別商品）に訂正、snapshot非出力テストの「担保する」を**未実装（OPEN-013）**と明示、§4.3 回復ノードを「dead-end 置換」の正確な表現へ。
   - **明文化**：§8.2 **同時解決制**（致死打でも敵行動ロールは実行）、§10.1 反射/好機の発動条件=行動タイプ（実被ダメ0でも発動）・効果量の正本は mods.json、§7.2 空宝箱（kind=treasure のまま・`empty_treasure` 演出）、§11.2 強敵閾値4の終盤退化（4F 7/8・5F 10/10）、§12.3 +max_hp×ゲート被ダメの相互作用・バンク消化導線の未定義、§13.1 期待値の前提未定義、§22.3 **workers=1 制約**、§23 models.py 命名衝突、§18.1 効果量閾値（X/Y/Z/W）の**事前登録**・確定帯は guard 無し測定、§18.2 CI実態（docs-ciのみ稼働）、§20.8 empty_treasure/victory の dismiss 対応未確定、§25.4 400/409 の具体例。

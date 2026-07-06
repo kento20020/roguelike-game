@@ -80,17 +80,21 @@
 
 | Page | 対応phase | 主な子コンポーネント |
 |------|----------|------------------|
-| `StartPage` | （phase外・session未生成） | 新規ラン開始（`POST /run/new`）。GameState/phase 不在の初期画面 |
+| `StartPage` | （phase外・session未生成） | 新規ラン開始（`POST /run/new`）。GameState/phase 不在の初期画面＋[調書を見る]（DossierPage へ） |
+| `DossierPage` | （phase外・ラン中は不可） | ディーラー調書（§15.3）。`/profile/dossier`＋`/catalog/enemies` を store 経由で取得し、観測頻度＋Wilson CI をカード表示。「テーブルへのメモ持ち込み禁止」の世界観でラン中は閲覧不可 |
 | `ExploringPage` | exploring | TreeCanvas, NodeCard, SinkMenu, ModInventory |
-| `BattlePage` | battle | CombatPanel（攻撃/受けボタン）, CombatLog, RampIndicator, SinkMenu |
+| `BattlePage` | battle | CombatPanel（攻撃/受け/サイドベット『読み宣言』ベットスポット・§15.4／テル気配表示・§15.5）, CombatLog, RampIndicator, SinkMenu |
 | `TreasurePage` | treasure_preview / treasure_opened | TreasurePreview, ModReveal |
 | `HealPage` | heal | HpBar（回復演出）＋[確認]（`/continue`） |
 | `NextFloorPage` | next_floor | 次フロア演出＋[次の階層へ]（`/continue`） |
 | `GatePage` | gate_preview | ゲート保証sink（**gate_resolve は瞬間phaseで滞在しない**・§6.1。結果は `pending.gate_outcome` を NextFloorPage / ClearedPage / DeadPage 側で表示・§20.8） |
-| `DeadPage` | dead | ResultSummary |
+| `DeadPage` | dead | ResultSummary＋**検死レポート（PostmortemCard）＋リプレイ（ReplayDisclosure/TurnRow）**（§15.2・`GET /run/{sid}/postmortem`。関門死は404=非表示。データ取得は gameStore に集約） |
 | `ClearedPage` | cleared | ResultSummary, UpgradeAllocator（`/profile/upgrades`・`/upgrade`） |
 
-> **App.tsx の描画分岐**：通常は `phase` で Page を切り替えるが、**session 未生成時は phase 不在**のため `StartPage` を phase 外の前段ルートとして扱う（session 生成後は phase 駆動）。`next_floor` の演出 Page（NextFloorPage）は §6.1 の現役 phase で、[次の階層へ]=`/continue`。
+> **App.tsx の描画分岐**：通常は `phase` で Page を切り替えるが、**session 未生成時は phase 不在**のため `StartPage` を phase 外の前段ルートとして扱う（session 生成後は phase 駆動。`dossierOpen` 時は DossierPage）。`next_floor` の演出 Page（NextFloorPage）は §6.1 の現役 phase で、[次の階層へ]=`/continue`。
+> **§24 表の粒度（v1.4 注記）**：上記は設計時のコア構成。実装では共通部品（Header/ErrorToast/Icon/Motif/GlowTitle/FloorProgressDots/CenterStage/EnemyPortraitCard/BehaviorGlossary/EmberBackground/MuteToggle）・hooks（useChipFx/useCombatFx）・lib（labels/sfx）が追加されている（`design/spec_*.md` 由来の視覚拡張。網羅列挙は実装を正とする）。
+> **L3マスク（v1.4・OPEN-015）**：未インタラクトの敵ノードには `name`/`max_hp` が来ない。NodeCard は名前を「賭博者」でフォールバック表示する。
+> **lint（v1.4）**：eslint（flat config・typescript-eslint＋react-hooks）を導入済み。`npm run lint` を PR 前チェックに含める。
 
 ---
 
