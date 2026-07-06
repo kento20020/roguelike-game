@@ -1,6 +1,8 @@
 """DB操作。生SQLは書かない（SQLAlchemy経由）。"""
 from __future__ import annotations
 
+from typing import TypeVar
+
 from sqlalchemy import desc, select
 from sqlalchemy.orm import Session
 
@@ -9,9 +11,18 @@ from app.db.models import ObservationRow, PostmortemRow, ProfileRow, RunActionsR
 
 UPGRADE_ITEMS = ["max_hp", "attack", "init_gold", "gold_drop", "sink_cost"]
 
+_Row = TypeVar("_Row")
+
 
 class UpgradeError(ValueError):
     """ポイント不足 / 上限到達 / 不正項目。route で 400 に対応。"""
+
+
+def _commit(db: Session, row: _Row) -> _Row:
+    """commit→refresh の定型シーケンス（生成/更新後にDB確定値を積み直して返す）。"""
+    db.commit()
+    db.refresh(row)
+    return row
 
 
 # ── RunRecord ──
@@ -33,18 +44,14 @@ def save_run_record(db: Session, snap: dict, *, strategy_version: str | None = N
         action_counts=snap.get("action_counts", {}),
     )
     db.add(row)
-    db.commit()
-    db.refresh(row)
-    return row
+    return _commit(db, row)
 
 
 def save_run_actions(db: Session, run_id: str, turn_history: list) -> RunActionsRow:
     """全ラン共通の操作履歴を終局時に一括保存（improvement_ideas アイディア1 の基盤）。"""
     row = RunActionsRow(run_id=run_id, actions_json=turn_history)
     db.add(row)
-    db.commit()
-    db.refresh(row)
-    return row
+    return _commit(db, row)
 
 
 def list_run_records(db: Session, limit: int = 50) -> list[RunRecordRow]:
@@ -61,9 +68,7 @@ def save_postmortem(db: Session, run_id: str, turn_history: list, fatal_turn_ind
         fatal_turn_index=fatal_turn_index, counterfactual_json=counterfactual,
     )
     db.add(row)
-    db.commit()
-    db.refresh(row)
-    return row
+    return _commit(db, row)
 
 
 def get_postmortem(db: Session, run_id: str) -> PostmortemRow | None:
@@ -78,8 +83,7 @@ def get_or_create_profile(db: Session) -> ProfileRow:
     if p is None:
         p = ProfileRow(id=1, points=0, max_hp=0, attack=0, init_gold=0, gold_drop=0, sink_cost=0)
         db.add(p)
-        db.commit()
-        db.refresh(p)
+        p = _commit(db, p)
     return p
 
 
@@ -95,9 +99,7 @@ def upgrade_maxes() -> dict[str, int]:
 def award_points(db: Session, n: int = 1) -> ProfileRow:
     p = get_or_create_profile(db)
     p.points += n
-    db.commit()
-    db.refresh(p)
-    return p
+    return _commit(db, p)
 
 
 def increment_observation(db: Session, enemy_id: str, behavior: str, data_version: str) -> ObservationRow:
@@ -113,9 +115,7 @@ def increment_observation(db: Session, enemy_id: str, behavior: str, data_versio
         row = ObservationRow(enemy_id=enemy_id, behavior=behavior, data_version=data_version, count=0)
         db.add(row)
     row.count += 1
-    db.commit()
-    db.refresh(row)
-    return row
+    return _commit(db, row)
 
 
 def get_dossier(db: Session, data_version: str) -> list[ObservationRow]:
@@ -136,6 +136,4 @@ def allocate_upgrade(db: Session, item: str) -> ProfileRow:
         raise UpgradeError(f"{item} already at max level {max_lv}")
     setattr(p, item, getattr(p, item) + 1)
     p.points -= 1
-    db.commit()
-    db.refresh(p)
-    return p
+    return _commit(db, p)

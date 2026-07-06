@@ -12,7 +12,7 @@ from app.engine import gate_resolver as gr
 from app.engine.floor_generator import build_enemy_instance
 from app.engine.game_engine import GameEngine
 from app.engine.rng import Sfc32
-from app.schemas.models import JUSO
+from app.schemas.models import JUSO, EnemyInstance
 
 MAX_STEPS = 8000
 
@@ -30,7 +30,7 @@ def _juso_reduction(eng: GameEngine) -> int:
     return int(m["value_1"] if c == 1 else m["value_stack"])
 
 
-def _expected_incoming(e, eng: GameEngine, ttk: int) -> float:
+def _expected_incoming(e: EnemyInstance, eng: GameEngine, ttk: int) -> float:
     total = sum(w for _, w in e.behaviors) or 1
     red = _juso_reduction(eng)
     acc = 0.0

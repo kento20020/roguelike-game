@@ -66,7 +66,7 @@ def _finalize_if_ended(db: Session, session_id: str, eng: GameEngine) -> None:
 
 # ── catalog（静的データ・効果文の正本）──
 @router.get("/catalog/mods", response_model=list[ModCatalogItem])
-def catalog_mods():
+def catalog_mods() -> list[dict]:
     data = get_data()
     return [
         {"id": m["id"], "name": m["name"], "effect_1": m["effect_1"], "effect_stack": m["effect_stack"]}
@@ -75,7 +75,7 @@ def catalog_mods():
 
 
 @router.get("/catalog/enemies", response_model=list[EnemyCatalogItem])
-def catalog_enemies():
+def catalog_enemies() -> list[dict]:
     """敵名表示用の軽量カタログ。weight/behaviorsなど生データは含めない（開示不変条件）。"""
     data = get_data()
     return [{"id": e["id"], "name": e["name"], "experience": e["experience"]} for e in data.enemies]
@@ -83,7 +83,7 @@ def catalog_enemies():
 
 # ── run lifecycle ──
 @router.post("/run/new", response_model=GameStateResponse)
-def new_run(req: NewRunRequest, db: Session = Depends(get_db)):
+def new_run(req: NewRunRequest, db: Session = Depends(get_db)) -> GameStateResponse:
     seed = req.seed if req.seed is not None else secrets.randbits(32)
     profile = crud.get_or_create_profile(db)
     eng = GameEngine()
@@ -93,12 +93,12 @@ def new_run(req: NewRunRequest, db: Session = Depends(get_db)):
 
 
 @router.get("/run/{session_id}", response_model=GameStateResponse)
-def get_run(session_id: str):
+def get_run(session_id: str) -> GameStateResponse:
     return _state(session_id, get_engine_or_404(session_id))
 
 
 @router.post("/run/{session_id}/select-node", response_model=GameStateResponse)
-def select_node(session_id: str, req: SelectNodeRequest, db: Session = Depends(get_db)):
+def select_node(session_id: str, req: SelectNodeRequest, db: Session = Depends(get_db)) -> GameStateResponse:
     eng = get_engine_or_404(session_id)
     eng.select_node(req.node_id)
     _finalize_if_ended(db, session_id, eng)
@@ -112,7 +112,8 @@ def _drain_observations(db: Session, eng: GameEngine) -> None:
 
 
 @router.post("/run/{session_id}/attack", response_model=GameStateResponse)
-def attack(session_id: str, req: CombatActionRequest = CombatActionRequest(), db: Session = Depends(get_db)):
+def attack(session_id: str, req: CombatActionRequest = CombatActionRequest(),
+           db: Session = Depends(get_db)) -> GameStateResponse:
     eng = get_engine_or_404(session_id)
     eng.attack(side_bet=req.side_bet.model_dump() if req.side_bet else None)
     _drain_observations(db, eng)
@@ -121,7 +122,8 @@ def attack(session_id: str, req: CombatActionRequest = CombatActionRequest(), db
 
 
 @router.post("/run/{session_id}/guard", response_model=GameStateResponse)
-def guard(session_id: str, req: CombatActionRequest = CombatActionRequest(), db: Session = Depends(get_db)):
+def guard(session_id: str, req: CombatActionRequest = CombatActionRequest(),
+          db: Session = Depends(get_db)) -> GameStateResponse:
     eng = get_engine_or_404(session_id)
     eng.guard(side_bet=req.side_bet.model_dump() if req.side_bet else None)
     _drain_observations(db, eng)
@@ -130,28 +132,28 @@ def guard(session_id: str, req: CombatActionRequest = CombatActionRequest(), db:
 
 
 @router.post("/run/{session_id}/sink", response_model=GameStateResponse)
-def sink(session_id: str, req: SinkRequest):
+def sink(session_id: str, req: SinkRequest) -> GameStateResponse:
     eng = get_engine_or_404(session_id)
     eng.use_sink(req.sink_type)
     return _state(session_id, eng)
 
 
 @router.post("/run/{session_id}/treasure/open", response_model=GameStateResponse)
-def treasure_open(session_id: str):
+def treasure_open(session_id: str) -> GameStateResponse:
     eng = get_engine_or_404(session_id)
     eng.treasure_open()
     return _state(session_id, eng)
 
 
 @router.post("/run/{session_id}/treasure/reroll", response_model=GameStateResponse)
-def treasure_reroll(session_id: str):
+def treasure_reroll(session_id: str) -> GameStateResponse:
     eng = get_engine_or_404(session_id)
     eng.treasure_reroll()
     return _state(session_id, eng)
 
 
 @router.post("/run/{session_id}/gate/resolve", response_model=GameStateResponse)
-def gate_resolve(session_id: str, db: Session = Depends(get_db)):
+def gate_resolve(session_id: str, db: Session = Depends(get_db)) -> GameStateResponse:
     eng = get_engine_or_404(session_id)
     eng.gate_resolve()
     _finalize_if_ended(db, session_id, eng)
@@ -159,7 +161,7 @@ def gate_resolve(session_id: str, db: Session = Depends(get_db)):
 
 
 @router.post("/run/{session_id}/continue", response_model=GameStateResponse)
-def continue_(session_id: str):
+def continue_(session_id: str) -> GameStateResponse:
     """モーダルphase（treasure_opened/heal）を閉じて exploring へ（§25補完）。"""
     eng = get_engine_or_404(session_id)
     eng.dismiss()
@@ -167,7 +169,7 @@ def continue_(session_id: str):
 
 
 @router.get("/run/{session_id}/postmortem", response_model=PostmortemResponse)
-def postmortem(session_id: str, db: Session = Depends(get_db)):
+def postmortem(session_id: str, db: Session = Depends(get_db)) -> PostmortemResponse:
     """検死レポート＋リプレイ（戦闘死のみ。ゲート死は致命ターンが無いため対象外）。"""
     eng = get_engine_or_404(session_id)
     row = crud.get_postmortem(db, eng.run.run_id)
@@ -178,7 +180,7 @@ def postmortem(session_id: str, db: Session = Depends(get_db)):
 
 # ── meta progression ──
 @router.get("/profile/upgrades", response_model=UpgradeStateResponse)
-def profile_upgrades(db: Session = Depends(get_db)):
+def profile_upgrades(db: Session = Depends(get_db)) -> UpgradeStateResponse:
     """現在の恒久強化状態（残ポイント・各Lv・上限）。ClearedPage の初期表示用。"""
     p = crud.get_or_create_profile(db)
     return UpgradeStateResponse(
@@ -186,7 +188,7 @@ def profile_upgrades(db: Session = Depends(get_db)):
 
 
 @router.post("/run/{session_id}/upgrade", response_model=UpgradeStateResponse)
-def upgrade(session_id: str, req: UpgradeRequest, db: Session = Depends(get_db)):
+def upgrade(session_id: str, req: UpgradeRequest, db: Session = Depends(get_db)) -> UpgradeStateResponse:
     get_engine_or_404(session_id)  # session 妥当性のみ確認
     p = crud.allocate_upgrade(db, req.upgrade_type)  # UpgradeError -> 400
     return UpgradeStateResponse(
@@ -194,7 +196,7 @@ def upgrade(session_id: str, req: UpgradeRequest, db: Session = Depends(get_db))
 
 
 @router.get("/profile/dossier", response_model=list[DossierEnemyOut])
-def profile_dossier(data_version: str = DOSSIER_DATA_VERSION, db: Session = Depends(get_db)):
+def profile_dossier(data_version: str = DOSSIER_DATA_VERSION, db: Session = Depends(get_db)) -> list[DossierEnemyOut]:
     """ディーラー調書: 自分が観測した行動頻度のみをWilson信頼区間つきで返す。
 
     真のweight/確率・enemies.jsonの生データは一切含めない（開示不変条件）。
