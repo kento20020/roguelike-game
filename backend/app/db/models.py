@@ -32,6 +32,12 @@ class RunRecordRow(Base):
     death_floor: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     permanent_upgrades_state: Mapped[dict] = mapped_column(JSON)
     gate_guarantee_stacks: Mapped[int] = mapped_column(Integer, default=0)
+    # ── OPEN-024/025: 統計の世代札とテレメトリ（旧行は NULL のまま＝マイグレーション 0002 で追加）──
+    data_version: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    strategy_version: Mapped[Optional[str]] = mapped_column(String, nullable=True)  # bot方策版。human は NULL
+    sink_use_counts: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+    gate_results: Mapped[Optional[list]] = mapped_column(JSON, nullable=True)
+    action_counts: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
     def to_dict(self) -> dict:
@@ -44,6 +50,11 @@ class RunRecordRow(Base):
             "death_cause": self.death_cause, "death_floor": self.death_floor,
             "permanent_upgrades_state": self.permanent_upgrades_state,
             "gate_guarantee_stacks": self.gate_guarantee_stacks,
+            "data_version": self.data_version or "",
+            "strategy_version": self.strategy_version,
+            "sink_use_counts": self.sink_use_counts or {},
+            "gate_results": self.gate_results or [],
+            "action_counts": self.action_counts or {},
             "created_at": self.created_at.isoformat() if self.created_at else None,
         }
 
@@ -85,6 +96,19 @@ class ObservationRow(Base):
     behavior: Mapped[str] = mapped_column(String)
     data_version: Mapped[str] = mapped_column(String)
     count: Mapped[int] = mapped_column(Integer, default=0)
+
+
+class RunActionsRow(Base):
+    """全ラン共通の操作履歴（improvement_ideas アイディア1 の run_actions 基盤）。
+
+    終局時に turn_history を一括保存する。PostmortemRow は戦闘死の検死専用で別物。
+    """
+    __tablename__ = "run_actions"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    run_id: Mapped[str] = mapped_column(String, index=True)
+    actions_json: Mapped[list] = mapped_column(JSON)
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
 
 class ProfileRow(Base):

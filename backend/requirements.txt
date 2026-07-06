@@ -5,6 +5,8 @@ fastapi>=0.110
 uvicorn[standard]>=0.29
 pydantic>=2.6
 sqlalchemy>=2.0
+# DBスキーマ移行（OPEN-027 の一部前倒し。手順は docs/runbook.md）
+alembic>=1.13
 pytest>=8.0
 httpx>=0.27
 # バランス検証フレームワーク(§18 balance_stats/analysis)のe-value計算用。エンジン本体は依存しない。

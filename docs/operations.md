@@ -35,7 +35,8 @@
 | Phase 4 | 経済・sink ROI・hoarder | balance_analysis.py |
 | Phase 5 | 回帰テスト（CI） | GitHub Actions |
 
-> **注記**：Phase0「バグゼロ」は検証不能のため「全テストgreen／既知P0=0」に置換。`fun_metrics.py` は特定Phaseに紐づかない**探索的ツール（合格条件外）**。Phase3 の e-BH は `balance_stats.py`、mod アブレーションは `balance_analysis.py`（旧記述は balance_analysis 単独に見えたため訂正）。guard（§8.4）を正式化する場合は bot 戦略に guard を含めて Phase1-4 を再測定（OPEN-018）。Phase5 の GitHub Actions は現状 **docs-ci（docs整合チェック）のみ稼働**——バランス回帰・pytest のワークフローは未整備（OPEN-027）。
+> **注記**：Phase0「バグゼロ」は検証不能のため「全テストgreen／既知P0=0」に置換。`fun_metrics.py` は特定Phaseに紐づかない**探索的ツール（合格条件外）**。Phase3 の e-BH は `balance_stats.py`、mod アブレーションは `balance_analysis.py`（旧記述は balance_analysis 単独に見えたため訂正）。guard（§8.4）を正式化する場合は bot 戦略に guard を含めて Phase1-4 を再測定（OPEN-018）。Phase5 の GitHub Actions は **docs-ci に加えて balance.yml（pytest＋バランス回帰 `test_balance_regression`）が稼働済み**（旧記述「未整備」は古い）。回帰基準の再生成は `python -m app.simulation.gen_baseline`（意図的変更の承認手順）。
+> **v1.4 の基準値変化（要デザイナーレビュー）**：フロア可変深度化（§4.1）と heal 1ターン消費（OPEN-020）により、maxed 強bot のクリア数は 18/120 → **6/120（5%）** に低下した（ベースライン再生成済み）。確定帯 25〜40% は未強化パネル基準のため直接比較ではないが、**深度カーブ・depth_scaling・回復経済の数値調整（デザイナー）を Phase1 前に行う**こと。調整ノブ: floors.json `depth`・config `depth_scaling`・heal コスト・OPEN-018 guard 係数。
 
 ### 18.3 ツール群
 
@@ -69,8 +70,8 @@
 
 **データ（§20.5 機械検証）**
 - config/enemies/mods/floors のロード成功
-- 全非カオス敵の behaviors weight 合計＝100／全フロアのゲート確率合計＝1.0
-- アンロック整合（多親=親2／単親=親1）・存在しないノード参照なし
+- 全非カオス敵の behaviors weight 合計＝100／全フロアのゲート確率合計＝1.0（loader.validate・v1.4）
+- アンロック整合（多親=親2／単親=親1・生成フロアは `validate_floor` が生成毎に検証）・存在しないノード参照なし
 
 **API**
 - 全エンドポイントが正常系/異常系テストを通過
@@ -107,9 +108,9 @@
 | 受け（guard・§8.4） | 実装済み・**数値未確定（支配戦略リスク）** | OPEN-018（高・Phase1前） |
 | メタ進行の永続（ProfileRow・§20.6） | **確定** | 実装一致 |
 | 進行中状態の永続（メモリ・再起動で喪失・§25.1） | 暫定 | OPEN-007 / OPEN-026 |
-| experience の正準キー（日本語・§20.7） | 現状維持 | OPEN-012 |
-| アンロック連鎖・ツリー形状（§4） | **確定** | floors.json・機械検証済 |
-| 強プレイのクリア率帯（25〜40%） | **確定** | §18.1 |
+| experience の正準キー（romaji enum・§20.7） | **確定（v1.4）** | OPEN-012 解消 |
+| アンロック連鎖・生成規則（§4・可変深度＋格子ランタイム生成） | **確定（v1.4・規則として）** | 深度カーブ/depth_scaling の数値は叩き台（要デザイナーレビュー）・validate_floor で生成毎検証 |
+| 強プレイのクリア率帯（25〜40%） | **確定（帯）・実測は帯未達** | §18.1。v1.4 深度化後 maxed 6/120＝Phase1 前に数値調整（§18.2 注記） |
 | 敵HP/attack/gold_base（§11.3） | データ駆動調整中（叩き台） | Phase1〜 botで調整 |
 | ゴールド期待値（§13.1） | データ駆動調整中（叩き台） | Phase4 |
 | 恒久強化の効果値・上限 | データ駆動調整中（構造は確定） | OPEN-002 |
@@ -133,23 +134,23 @@
 | OPEN-007 | セーブ/ロード・進行中状態の永続 | ブラウザ離脱＋**サーバ再起動での喪失**（`session_store` はメモリ・単一プロセス） | 中 | 実装中盤 | GameState 全フィールド（rng含む）のシリアライズ仕様を定めDB/Redisへ。**session 上限（LRU破棄）・`DELETE /run/{sid}`（放棄）も本件で扱う**。受入=再起動を跨いで `GET /run/{id}` が成立 |
 | OPEN-008 | 演出・SE/BGM | オーディオ仕様 | 低 | 実装後期 | — |
 | OPEN-009 | アクセシビリティ | 色覚対応・キーボード操作 | 低 | 実装後期 | — |
-| OPEN-010 | 勝利優先時のHP | 同時死亡・勝利優先でHP0生存になる挙動。HP0で探索復帰→回復sink/次ノード/ゲートの扱いが曖昧＝**不変条件（HP0=ゲームオーバー）を壊す**公平性問題 | **高** | **実装前** | **コード変更要**。推奨=勝利時 `hp = max(1, hp)`。受入=HP0生存が発生しない |
+| OPEN-010 | 勝利優先時のHP | 同時死亡・勝利優先でHP0生存になる挙動 | — | **解消（v1.4）** | 勝利時 `hp = max(1, hp)` を実装・相打ちテストで担保（§8.2） |
 | OPEN-011 | ゲート特殊効果 | 特殊の追加効果（現状+40Gのみ・「次フロア強化等」未実装）（§7.4） | 低 | 実装後期 | 効果実装なら受入=効果定義＋発生率検証。当面は +40G 確定 |
-| OPEN-012 | experience の enum 化 | 日本語→romaji 正準キー（grind/gamble/race/dodge/chaos）（§20.7） | 中 | 実装中盤 | 統計キー・labels.ts・API を一括変更。受入=日本語が API/統計キーに出ない |
-| OPEN-013 | データCI検査の拡充 | gate合計1.0・kind整合・5F経路≥2・上限Lv=21・snapshot非出力（§20.5） | 中 | Phase0〜 | `loader.validate`/テストへ追加。受入=各検査が赤/緑を返す |
+| OPEN-012 | experience の enum 化 | 日本語→romaji 正準キー（grind/gamble/race/dodge/chaos）（§20.7） | — | **解消（v1.4）** | enemies.json・labels.ts・統計キーを一括変更。受入条件（日本語がAPI/統計キーに出ない）を loader.validate で強制 |
+| OPEN-013 | データCI検査の拡充 | gate合計1.0・kind整合・経路≥2・上限Lv=21・snapshot非出力（§20.5） | — | **解消（v1.4）** | loader.validate＋validate_floor（生成毎）＋テスト（snapshot非出力・上限Lv21）に分担して実装（§20.5） |
 | OPEN-014 | 体験タイプ最早出現の制約化 | 段階導入をCI検証（ずれ2F/カオス3F〜）（§4.4/§9.1） | 低 | Phase1後 | §9.1 制約をCIへ。受入=違反プールが fail |
-| OPEN-015 | L3情報の state別マスク | 未インタラクトノードの name/max_hp 非送出（§5） | 中 | 実装中盤 | `_node_view` を state別マスク化。受入=available で name/max_hp 非出力 |
-| OPEN-016 | ゲート保証の削減0停止 | 大ダメ0%到達後の重ねがけ拒否（§7.4） | 低 | Phase4 | `use_sink` に停止条件＋action非提示。受入=削減0で400 |
-| OPEN-017 | 宝箱リロールの判断材料/廃止 | 中身非公開で期待値改善0（Phase4判断）。**1F確定宝箱（fixed_mod）のリロール30G空費は分離して先行対応**（§7.2/§14.2・学習契約§3③違反） | 低（1F分離分は**高・実装前半**） | Phase4／1F分は実装前半 | 一般はヒント付与 or 廃止。1F分は `available_actions` から reroll 非提示（サーバ側1条件） |
+| OPEN-015 | L3情報の state別マスク | 未インタラクトノードの name/max_hp 非送出（§5） | — | **解消（v1.4）** | `_node_view` を state別マスク化（L2常時・L3はインタラクト後）。受入条件をテストで担保 |
+| OPEN-016 | ゲート保証の削減0停止 | 大ダメ0%到達後の重ねがけ拒否（§7.4） | — | **解消（v1.4）** | 400＋action非提示を実装 |
+| OPEN-017 | 宝箱リロールの判断材料/廃止 | 中身非公開で期待値改善0（Phase4判断）。1F確定宝箱分は解消済み | 低 | Phase4 | 一般はヒント付与 or 廃止を継続検討。**1F確定宝箱（fixed_mod）のリロールは v1.4 で 400＋非提示に解消** |
 | OPEN-018 | guard の正式化・数値是正 | 現数値（deal0.5/incoming0.25・無コスト・回数無制限）は非ランプ敵（ロスター約7割）に対し**総被ダメ半減の支配戦略**になり得る。体験タイプの差別化が潰れ、§18 の全計測（帯25-40%は guard 無し測定）の前提が崩れている（§8.4/§18.1） | **高** | **Phase1 前必須** | 数値是正（コスト付与 or 係数圧縮 0.6/0.5 等・データ駆動）→ bots.py へ guard 実装 → 再測定。**決着まで Phase1 を開始しない**。受入=bot 行動空間が UI と一致 |
-| OPEN-019 | -sinkコスト下限 | scout無料化（0G）防止（§13.2） | 低 | Phase4 | `max(1,…)` クランプ。受入=最安sink≥1G |
-| OPEN-020 | heal sink のターン消費 | battle中healで敵が反応するか（§13.2）。**guard と併用すると非ランプ敵戦の敗北条件が実質チップ切れに退化** | **高** | **Phase1 前必須（OPEN-018 と束ねて決着）** | 「1ターン消費」案を推奨。受入=heal後に敵ロール発火 |
-| OPEN-021 | 攻撃ブースト異常系 | evade巻戻し丸損・pending中二重課金（§13.2/§25.4） | 低 | Phase4 | 持越し/返金＋pending中400。受入=二重課金不可 |
+| OPEN-019 | -sinkコスト下限 | scout無料化（0G）防止（§13.2） | — | **解消（v1.4）** | `max(1,…)` クランプ実装。最安sink≥1G |
+| OPEN-020 | heal sink のターン消費 | battle中healで敵が反応するか（§13.2） | — | **解消（v1.4）** | 推奨の「1ターン消費」案を実装（heal後に敵ロール発火・§13.2）。guard 数値（OPEN-018）との複合再測定は Phase1 で実施 |
+| OPEN-021 | 攻撃ブースト異常系 | evade巻戻し丸損・pending中二重課金（§13.2/§25.4） | — | **解消（v1.4）** | evade時は boost 持越し＋pending中の再購入400 |
 | OPEN-022 | 反射チュートリアル確実化 | 1Fで反射の取得/発火を保証（§14.2） | 低 | 実装後半 | 必須経路配置 or A必須経由。受入=1F内で取得&発火 |
 | OPEN-023 | modペア交互作用ゲート | synergy寄与の統計ゲート（§18.1） | 中 | Phase3 | `balance_analysis` アブレーションをペア拡張（e-BH） |
-| OPEN-024 | RunRecord data_version | 版混在の統計汚染防止（§19.1） | 高 | 実装中盤（**Phase1 の初回データ取得前**） | 4JSONハッシュ追加＋版フィルタ。**`strategy_version`（bot戦略版・human は null）も同一マイグレーションで追加**。受入=版別集計可 |
-| OPEN-025 | sink use_count / gate_results / guard記録 | sink別使用回数・per-floorゲート結果・**guard使用回数**が無く ROI/寄与を逆算不能（§19.1） | 中 | Phase4前（Phase1 の初回データ取得前が望ましい） | 回数・ゲート結果・guard回数（`actions:{attack,guard}`）を記録。受入=ROI(回数,効果)算出可 |
+| OPEN-024 | RunRecord data_version | 版混在の統計汚染防止（§19.1） | — | **解消（v1.4）** | 4JSON sha256短縮ハッシュ＋strategy_version を Alembic `0002_telemetry` で追加（§19.1） |
+| OPEN-025 | sink use_count / gate_results / guard記録 | ROI/寄与の逆算用テレメトリ（§19.1） | — | **解消（v1.4）** | sink_use_counts・gate_results・action_counts（attack/guard/heal_*）を記録。全ランの操作履歴も run_actions へ永続化 |
 | OPEN-026 | 認証・冪等性・stats scope | 進行中DB永続・冪等キー・stats/history のスコープ（§25） | 中 | 実装後半 | 単一プレイヤーは非スコープ明記（§0.4）＋ stats scope＋全mutating POSTに冪等キー |
-| OPEN-027 | 運用基盤の整備 | Alembic・Docker・game.dbバックアップ・構造化ログ+req_id・.env.example・CI・`/health`・RUNBOOK/ONBOARDING（§22/§23） | 中 | 実装中盤〜後半 | **GDD外の別タスク**。`docs/RUNBOOK.md` 等へ最小構成を整備。受入=別環境で再現可能な起動/デプロイ/バックアップ手順 |
+| OPEN-027 | 運用基盤の整備 | Alembic・Docker・game.dbバックアップ・構造化ログ+req_id・.env.example・CI・`/health`・RUNBOOK/ONBOARDING（§22/§23） | 低 | **大半解消（v1.4）** | 解消済み: Alembic・ログ＋X-Request-ID・.env.example・`/health`・CI（balance.yml/pytest）・runbook更新・CORS限定。残: Docker・バックアップ自動化・ONBOARDING |
 | OPEN-028 | カオスの ramp_hit 空砲 | カオスは increment=0 のため ramp_hit 被ダメ常時5。ramp偏重（最大85%）を引いた個体はほぼ無害＝実効強度の分散が極端（§9.2） | 低 | Phase1後 | 「意図的な当たり枠」と明記 or カオス専用の小 increment 付与（データ変更のみ）。受入=§9.2 に評価を明文化 |
 | OPEN-029 | 初クリアまでの体験曲線 | win-to-progress は初クリアまでメタ進行ゼロ（§2.1）。人間相当の弱めbotでの初クリア期待ラン数が長すぎると離脱点になる | 低 | Phase2 | §18.1 の観測指標で監視（閾値なし）。超過が見えた場合のみ救済（到達フロア別微小ポイント等）を検討 |

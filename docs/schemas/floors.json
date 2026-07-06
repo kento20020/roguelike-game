@@ -1,5 +1,5 @@
 {
-  "_comment": "5フロア構成。テーマ=カジノタワーを登り詰める。描画は下から上（row1が画面下、gateが画面上）。データ構造はrow1→row2→gateの順で進行。アンロックはハイブリッド型（多親=隣接2体/単親=1体）。",
+  "_comment": "5フロア構成。テーマ=カジノタワーを登り詰める。描画は下から上（row1が画面下、gateが画面上）。2F以降の接続はランタイム生成（あみだくじ型格子・stream6）で、本ファイルは敵プール・深度・生成パラメータのみを定義する。1Fはチュートリアルとして固定レイアウト。",
 
   "_render_direction": {
     "vertical": "bottom_to_top",
@@ -8,8 +8,12 @@
 
   "_unlock_pattern": {
     "type": "hybrid",
-    "multi_parent": "隣接2体の上位ノードから解放（ゲートルート）",
+    "multi_parent": "格子内の隣接2ノードから解放（ゲートルート・ランタイム生成）",
     "single_parent": "1体のみから解放（dead-end・宝箱/回復のみ）"
+  },
+
+  "_generation_rules": {
+    "_comment": "row1幅=3固定。row2以降は main_width_min..max（前rowとの差≤1・最終rowは≥2）。接続は単調ステアケースの長さ2窓＝多親は必ず隣接2親・全親に子が付く（到達可能性を構成的に保証）。dead-endは各row遷移で0..dead_ends_max_per_row個を単親で接続。深度カーブ(depth)は叩き台・要デザイナーレビュー（proposals/floor_depth_randomization.md §6）。"
   },
 
   "floors": [
@@ -32,81 +36,44 @@
       "gate_result_table": {"unhurt": 0.30, "minor": 0.50, "major": 0.15, "special": 0.05}
     },
     {
-      "floor_number": 2, "name": "2F", "tree_shape": [3, 4],
+      "floor_number": 2, "name": "2F", "depth": 3,
       "fixed_layout": false,
-      "row1_pool": ["f2_r1_a", "f2_r1_b", "f2_r1_c"],
-      "row2_pool": ["f2_r2_a", "f2_r2_b", "f2_r2_c", "f2_r2_d"],
-      "unlock_map": {
-        "A": {"parents": ["L"], "type": "single"},
-        "B": {"parents": ["L", "M"], "type": "multi"},
-        "C": {"parents": ["M", "R"], "type": "multi"},
-        "D": {"parents": ["R"], "type": "single"}
-      },
+      "enemy_pool": ["f2_r1_a", "f2_r1_b", "f2_r1_c", "f2_r2_a", "f2_r2_b", "f2_r2_c", "f2_r2_d"],
+      "generation": {"main_width_min": 2, "main_width_max": 3, "dead_ends_max_per_row": 2},
       "floor_multiplier": 1.25,
       "heal_node": true,
-      "heal_node_position": "row2_single_dead_end",
-      "row2_experience_constraint": "同一体験タイプ最大2体",
+      "row_experience_constraint": "同一体験タイプ最大2体（全rowに適用）",
       "gate_result_table": {"unhurt": 0.25, "minor": 0.45, "major": 0.25, "special": 0.05}
     },
     {
-      "floor_number": 3, "name": "3F", "tree_shape": [3, 5],
+      "floor_number": 3, "name": "3F", "depth": 4,
       "fixed_layout": false,
-      "row1_pool": ["f3_r1_a", "f3_r1_b", "f3_r1_c"],
-      "row2_pool": ["f3_r2_a", "f3_r2_b", "f3_r2_c", "f3_r2_d", "f3_r2_e"],
-      "unlock_map": {
-        "A": {"parents": ["L"], "type": "single"},
-        "B": {"parents": ["L", "M"], "type": "multi"},
-        "C": {"parents": ["M"], "type": "single"},
-        "D": {"parents": ["M", "R"], "type": "multi"},
-        "E": {"parents": ["R"], "type": "single"}
-      },
+      "enemy_pool": ["f3_r1_a", "f3_r1_b", "f3_r1_c", "f3_r2_a", "f3_r2_b", "f3_r2_c", "f3_r2_d", "f3_r2_e"],
+      "generation": {"main_width_min": 2, "main_width_max": 3, "dead_ends_max_per_row": 2},
       "floor_multiplier": 1.5,
       "heal_node": true,
-      "heal_node_position": "row2_single_dead_end",
-      "row2_experience_constraint": "同一体験タイプ最大2体",
+      "row_experience_constraint": "同一体験タイプ最大2体（全rowに適用）",
       "gate_result_table": {"unhurt": 0.20, "minor": 0.40, "major": 0.30, "special": 0.10}
     },
     {
-      "floor_number": 4, "name": "4F", "tree_shape": [3, 5],
+      "floor_number": 4, "name": "4F", "depth": 5,
       "fixed_layout": false,
-      "row1_pool": ["f4_r1_a", "f4_r1_b", "f4_r1_c"],
-      "row2_pool": ["f4_r2_a", "f4_r2_b", "f4_r2_c", "f4_r2_d", "f4_r2_e"],
-      "unlock_map": {
-        "A": {"parents": ["L"], "type": "single"},
-        "B": {"parents": ["L", "M"], "type": "multi"},
-        "C": {"parents": ["M"], "type": "single"},
-        "D": {"parents": ["M", "R"], "type": "multi"},
-        "E": {"parents": ["R"], "type": "single"}
-      },
+      "enemy_pool": ["f4_r1_a", "f4_r1_b", "f4_r1_c", "f4_r2_a", "f4_r2_b", "f4_r2_c", "f4_r2_d", "f4_r2_e"],
+      "generation": {"main_width_min": 2, "main_width_max": 3, "dead_ends_max_per_row": 2},
       "floor_multiplier": 1.75,
       "heal_node": true,
-      "heal_node_position": "row2_single_dead_end",
-      "row2_experience_constraint": "同一体験タイプ最大2体",
+      "row_experience_constraint": "同一体験タイプ最大2体（全rowに適用）",
       "gate_result_table": {"unhurt": 0.15, "minor": 0.35, "major": 0.35, "special": 0.15}
     },
     {
-      "floor_number": 5, "name": "5F 頂上", "tree_shape": [3, 4, 3],
+      "floor_number": 5, "name": "5F 頂上", "depth": 6,
       "fixed_layout": false,
-      "row1_pool": ["f5_r1_a", "f5_r1_b", "f5_r1_c"],
-      "row2_pool": ["f5_r2_a", "f5_r2_b", "f5_r2_c", "f5_r2_d"],
-      "row3_pool": ["f5_r3_a", "f5_r3_b", "f5_r3_c"],
-      "unlock_map": {
-        "row1_to_row2": {
-          "A": {"parents": ["L"], "type": "single"},
-          "B": {"parents": ["L", "M"], "type": "multi"},
-          "C": {"parents": ["M", "R"], "type": "multi"},
-          "D": {"parents": ["R"], "type": "single"}
-        },
-        "row2_to_row3": {
-          "X": {"parents": ["A", "B"], "type": "multi"},
-          "Y": {"parents": ["B", "C"], "type": "multi"},
-          "Z": {"parents": ["C", "D"], "type": "multi"}
-        }
-      },
-      "row3_constraint": "カオス以外を最低1体含める。X/Y/Zのうち最低2本がゲートへ接続",
+      "enemy_pool": ["f5_r1_a", "f5_r1_b", "f5_r1_c", "f5_r2_a", "f5_r2_b", "f5_r2_c", "f5_r2_d", "f5_r3_a", "f5_r3_b", "f5_r3_c"],
+      "generation": {"main_width_min": 2, "main_width_max": 3, "dead_ends_max_per_row": 2},
+      "final_row_constraint": "カオス以外を最低1体含める（validate_floorで全フロア共通に強制）",
       "floor_multiplier": 2.0,
       "heal_node": false,
-      "row2_experience_constraint": "同一体験タイプ最大2体",
+      "row_experience_constraint": "同一体験タイプ最大2体（全rowに適用）",
       "gate_result_table": {"unhurt": 0.10, "minor": 0.30, "major": 0.40, "special": 0.20}
     }
   ],
@@ -120,7 +87,7 @@
   },
 
   "gate_guarantee_rule": {
-    "_comment": "n回目: コスト=50*1.5^(n-1)、大ダメ削減=0.25*0.5^(n-1)。削減分は無傷・小ダメへ半々(split 0.5/0.5)。特殊は維持。重ねがけ可。",
+    "_comment": "n回目: コスト=50*1.5^(n-1)、大ダメ削減=0.25*0.5^(n-1)。削減分は無傷・小ダメへ半々(split 0.5/0.5)。特殊は維持。重ねがけ可（大ダメ0%到達後は不可・OPEN-016）。",
     "split_to_unhurt": 0.5,
     "split_to_minor": 0.5,
     "preserve_special": true

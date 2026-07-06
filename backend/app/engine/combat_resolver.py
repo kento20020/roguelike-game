@@ -109,11 +109,12 @@ def prepare_preview(battle: Battle, player: Player, data: GameData, stream: Sfc3
 
 def resolve_turn(battle: Battle, player: Player, data: GameData,
                  behavior_stream: Sfc32, *, forced_action: Optional[str] = None,
-                 guard: bool = False) -> dict:
+                 guard: bool = False, player_attacks: bool = True) -> dict:
     """1ターン解決。battle/player を破壊的更新し、結果 dict を返す。
 
     guard=True（受け）: 与ダメ ×guard.deal_factor（boost は消費しない）、
     被ダメ ×guard.incoming_factor（重装甲の軽減後にさらに乗算）。先読みを活かす攻防の選択。
+    player_attacks=False（OPEN-020）: 行動を sink（回復）に使ったターン。与ダメ0で敵行動のみ解決。
     """
     enemy = battle.enemy
     cfg = data.config
@@ -127,7 +128,11 @@ def resolve_turn(battle: Battle, player: Player, data: GameData,
         battle.ramp_value = round(base_initial + eff_inc * (n - 1))
 
     # 2. 与ダメ = attack × multiplier（stance × boost）。受けは deal_factor 倍・boost 非消費。
-    if guard:
+    boost_consumed = False
+    if not player_attacks:
+        dealt = 0
+        battle.add_log("回復に専念した — このターンは攻撃なし", "calm")
+    elif guard:
         gcfg = cfg["combat"]["guard"]
         dealt = round(player.attack * player.stance_multiplier * gcfg["deal_factor"])
     else:
@@ -136,8 +141,10 @@ def resolve_turn(battle: Battle, player: Player, data: GameData,
         dealt = round(player.attack * multiplier)
         if player.attack_boost_pending:
             player.attack_boost_pending = False
-    enemy.hp -= dealt
-    battle.add_log(f"{'受け · ' if guard else ''}{enemy.name} に {dealt} ダメージ", "hit")
+            boost_consumed = True
+    if player_attacks:
+        enemy.hp -= dealt
+        battle.add_log(f"{'受け · ' if guard else ''}{enemy.name} に {dealt} ダメージ", "hit")
     enemy_dead = enemy.hp <= 0
 
     # 3. 行動ロール（先読みで先引き済みなら消費）
@@ -161,10 +168,15 @@ def resolve_turn(battle: Battle, player: Player, data: GameData,
     elif action == RAMP_HIT:
         base_inc = battle.ramp_value
     elif action == EVADE:
-        # 与ダメを取り消す（空振り）
-        enemy.hp += dealt
-        enemy_dead = enemy.hp <= 0  # 戻したので基本 False
-        battle.add_log("見切られた — 攻撃が空を切った", "calm")
+        if player_attacks:
+            # 与ダメを取り消す（空振り）。OPEN-021: 消費した boost は持越し（30Gの丸損禁止）
+            enemy.hp += dealt
+            enemy_dead = enemy.hp <= 0  # 戻したので基本 False
+            if boost_consumed:
+                player.attack_boost_pending = True
+            battle.add_log("見切られた — 攻撃が空を切った", "calm")
+        else:
+            battle.add_log("相手は身構えた — 何も起きなかった", "calm")
 
     # 5. post_damage フック
     incoming = base_inc
@@ -214,10 +226,12 @@ def resolve_turn(battle: Battle, player: Player, data: GameData,
     if not kouki_fired and battle.kouki_cooldown > 0:
         battle.kouki_cooldown -= 1
 
-    # 6. 判定（敵が先に死ねば勝利優先）
+    # 6. 判定（敵が先に死ねば勝利優先。OPEN-010: 勝利時 hp=max(1,hp) でHP0生存を禁止）
     if enemy.hp < 0:
         enemy.hp = 0
     player_dead = player.hp <= 0 and not enemy_dead
+    if enemy_dead and player.hp < 1:
+        player.hp = 1
     if player.hp < 0:
         player.hp = 0
 

@@ -135,7 +135,8 @@ def test_progression_and_termination(data):
 
 
 def test_snapshot_exposes_enemy_preview(data):
-    """探索マップの L2/L3 開示: 敵ノードは体験タイプ・強敵・名前・最大HPを持つ（確率は持たない）。"""
+    """L2（体験タイプ・強敵）は常時開示、L3（名前・最大HP）はインタラクト後のみ（§5・OPEN-015）。
+    確率（behaviors weight）は常に非公開。"""
     eng = GameEngine(data)
     eng.new_run(7)
     nodes = eng.snapshot()["floor"]["nodes"]
@@ -144,11 +145,19 @@ def test_snapshot_exposes_enemy_preview(data):
     for n in enemies:
         assert isinstance(n["experience"], str) and n["experience"]
         assert isinstance(n["is_strong"], bool)
-        assert n["name"]
-        assert n["max_hp"] > 0
+        assert "name" not in n and "max_hp" not in n       # L3 は未インタラクトでは伏せる
         assert "behaviors" not in n and "weight" not in n  # 確率は伏せる
     for n in [n for n in nodes.values() if n["kind"] != "enemy"]:
         assert n.get("experience") is None
+    # 戦闘コミット（インタラクト）で L3 開示
+    eng.select_node("L")
+    view = eng.snapshot()["floor"]["nodes"]["L"]
+    assert view["name"] and view["max_hp"] > 0
+    # 撃破後（resolved）も開示継続
+    while eng.phase == "battle":
+        eng.attack()
+    view2 = eng.snapshot()["floor"]["nodes"]["L"]
+    assert view2["name"] and view2["max_hp"] > 0
 
 
 def test_gate_preview_pending_has_table_and_damage(data):
@@ -348,11 +357,14 @@ def test_gate_guarantee_stacks_recorded(data):
             break
     assert eng is not None, "20 seed 内で gate_preview に到達できるはず"
     eng.player.chips = 99999
+    # OPEN-016: major=0 到達後は重ねがけ不可のため、2回積める major を持つテーブルに差し替える
+    eng.floor.gate_result_table = {"unhurt": 0.10, "minor": 0.25, "major": 0.60, "special": 0.05}
     assert eng.run.gate_guarantee_stacks == 0
     eng.use_sink("gate_guarantee")
     eng.use_sink("gate_guarantee")
     assert eng.run.gate_guarantee_stacks == 2
-    assert eng.snapshot()["run_record"]["gate_guarantee_stacks"] == 2
+    # 進行中 snapshot は run_record 非露出（§17.3）のため内部 RunRecord 側で確認する
+    assert eng.run.snapshot()["gate_guarantee_stacks"] == 2
 
 
 def test_yomi_exposes_next_action_in_snapshot(data):

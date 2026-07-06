@@ -9,6 +9,7 @@ CLAUDE.md 原則:
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 from dataclasses import dataclass, field
@@ -43,6 +44,8 @@ class GameData:
     _enemies_by_id: dict[str, dict] = field(default_factory=dict)
     _mods_by_id: dict[str, dict] = field(default_factory=dict)
     _floors_by_num: dict[int, dict] = field(default_factory=dict)
+    # 4つの正本JSONの内容ハッシュ（12hex）。統計を数値世代でフィルタする札（OPEN-024）。
+    data_version: str = ""
 
     # ── construction ──────────────────────────────────────────────
     @classmethod
@@ -54,6 +57,10 @@ class GameData:
         enemies_by_id = {e["id"]: e for e in enemies_doc["enemies"]}
         mods_by_id = {m["id"]: m for m in mods_doc["mods"]}
         floors_by_num = {f["floor_number"]: f for f in floors_doc["floors"]}
+        h = hashlib.sha256()
+        for name in ("config.json", "enemies.json", "floors.json", "mods.json"):
+            with open(os.path.join(_DATA_DIR, name), "rb") as f:
+                h.update(f.read())
         gd = cls(
             config=config,
             floors_doc=floors_doc,
@@ -62,6 +69,7 @@ class GameData:
             _enemies_by_id=enemies_by_id,
             _mods_by_id=mods_by_id,
             _floors_by_num=floors_by_num,
+            data_version=h.hexdigest()[:12],
         )
         if validate:
             gd.validate()
@@ -107,10 +115,14 @@ class GameData:
         return self.config["combat"][key]
 
     # ── derived helpers ───────────────────────────────────────────
-    def scaled_hp(self, enemy: dict, tier: int) -> int:
-        """tier 補正後の最大HP。 hp * (1 + factor*(tier-1))。"""
+    def scaled_hp(self, enemy: dict, tier: int, row: int = 1) -> int:
+        """tier補正＋row深度補正後の最大HP。
+        hp × (1 + tier_factor×(tier-1)) × (1 + hp_per_row×(row-1))。乗算合成（attack×multiplier と同形）。"""
         factor = self.config["scaling"]["enemy_hp_tier_factor"]
-        return round(enemy["hp"] * (1.0 + factor * (tier - 1)))
+        hp = enemy["hp"] * (1.0 + factor * (tier - 1))
+        ds = self.config.get("depth_scaling", {})
+        hp *= 1.0 + ds.get("hp_per_row", 0.0) * (row - 1)
+        return round(hp)
 
     def is_strong(self, enemy: dict) -> bool:
         return enemy["difficulty"] >= self.config["strong_enemy"]["difficulty_threshold"]
@@ -143,15 +155,15 @@ class GameData:
         if len(mod_ids) != len(set(mod_ids)):
             errs.append("duplicate mod ids")
 
-        # floors: pool ID が enemies に存在 / unlock の親整合
+        # floors: pool ID が enemies に存在 / レイアウト・生成パラメータの整合
         for fl in self.floors:
             pools = []
-            for key in ("row1_pool", "row2_pool", "row3_pool"):
+            for key in ("row1_pool", "row2_pool", "row3_pool", "enemy_pool"):
                 pools += fl.get(key, [])
             for eid in pools:
                 if eid not in self._enemies_by_id:
                     errs.append(f"floor {fl['floor_number']}: unknown enemy id {eid}")
-            self._validate_unlock(fl, errs)
+            self._validate_floor_def(fl, errs)
 
         # mod_interactions が実在 mod を参照
         for inter in self.mod_interactions:
@@ -159,33 +171,56 @@ class GameData:
                 if mid not in self._mods_by_id:
                     errs.append(f"mod_interaction references unknown mod {mid}")
 
+        # ゲート出目テーブル: キー4種・確率合計1.0（OPEN-013）
+        outcomes = {"unhurt", "minor", "major", "special"}
+        for fl in self.floors:
+            t = fl.get("gate_result_table", {})
+            if set(t) != outcomes:
+                errs.append(f"floor {fl['floor_number']}: gate_result_table keys {sorted(t)} != {sorted(outcomes)}")
+            elif abs(sum(t.values()) - 1.0) > 1e-9:
+                errs.append(f"floor {fl['floor_number']}: gate_result_table sum {sum(t.values())} != 1.0")
+
+        # experience は romaji 正準キーのみ（OPEN-012 受入条件: 日本語がAPI/統計キーに出ない）
+        exp_keys = {"grind", "gamble", "race", "dodge", "chaos"}
+        for e in self.enemies:
+            if e["experience"] not in exp_keys:
+                errs.append(f"{e['id']}: experience '{e['experience']}' not in {sorted(exp_keys)}")
+
         if errs:
             raise DataError("; ".join(errs))
 
-    def _validate_unlock(self, fl: dict, errs: list[str]) -> None:
-        """多親=2親 / 単親=1親 / dead-end は必ず単親、を検証。"""
-        def check_map(umap: dict, valid_parents: set[str], label: str) -> None:
-            for node_key, spec in umap.items():
-                parents = spec["parents"]
-                ntype = spec["type"]
-                if ntype == "multi" and len(parents) != 2:
-                    errs.append(f"floor {fl['floor_number']} {label} {node_key}: multi must have 2 parents")
-                if ntype == "single" and len(parents) != 1:
-                    errs.append(f"floor {fl['floor_number']} {label} {node_key}: single must have 1 parent")
-                for p in parents:
-                    if p not in valid_parents:
-                        errs.append(f"floor {fl['floor_number']} {label} {node_key}: unknown parent {p}")
-
+    def _validate_floor_def(self, fl: dict, errs: list[str]) -> None:
+        """フロア定義の検証。
+        fixed_layout: 静的レイアウトの多親=2/単親=1/親実在。
+        生成フロア: depth・enemy_pool・generation パラメータの妥当性
+        （接続そのものはランタイム生成なので floor_generator.validate_floor が生成毎に検証する）。"""
         fn = fl["floor_number"]
         if fl.get("fixed_layout"):
-            row2 = fl["nodes_layout"]["row2"]
-            check_map(row2, {"L", "M", "R"}, "row2")
-        elif fn == 5:
-            umap = fl["unlock_map"]
-            check_map(umap["row1_to_row2"], {"L", "M", "R"}, "r1->r2")
-            check_map(umap["row2_to_row3"], {"A", "B", "C", "D"}, "r2->r3")
-        else:
-            check_map(fl["unlock_map"], {"L", "M", "R"}, "row2")
+            for node_key, spec in fl["nodes_layout"]["row2"].items():
+                parents, ntype = spec["parents"], spec["type"]
+                if ntype == "multi" and len(parents) != 2:
+                    errs.append(f"floor {fn} row2 {node_key}: multi must have 2 parents")
+                if ntype == "single" and len(parents) != 1:
+                    errs.append(f"floor {fn} row2 {node_key}: single must have 1 parent")
+                for p in parents:
+                    if p not in {"L", "M", "R"}:
+                        errs.append(f"floor {fn} row2 {node_key}: unknown parent {p}")
+            return
+
+        depth = fl.get("depth")
+        if not isinstance(depth, int) or depth < 2:
+            errs.append(f"floor {fn}: depth must be int >= 2")
+        pool = fl.get("enemy_pool", [])
+        if not pool:
+            errs.append(f"floor {fn}: enemy_pool must not be empty")
+        elif all(self._enemies_by_id.get(e, {}).get("chaos") for e in pool if e in self._enemies_by_id):
+            errs.append(f"floor {fn}: enemy_pool needs at least one non-chaos enemy")
+        gen = fl.get("generation", {})
+        lo, hi = gen.get("main_width_min"), gen.get("main_width_max")
+        if not (isinstance(lo, int) and isinstance(hi, int) and 2 <= lo <= hi <= 3):
+            errs.append(f"floor {fn}: generation main_width must satisfy 2 <= min <= max <= 3")
+        if gen.get("dead_ends_max_per_row", 0) < 0:
+            errs.append(f"floor {fn}: dead_ends_max_per_row must be >= 0")
 
 
 # モジュールレベルのキャッシュ（プロセス内で1回ロード）

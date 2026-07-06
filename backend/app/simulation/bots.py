@@ -16,6 +16,10 @@ from app.schemas.models import JUSO
 
 MAX_STEPS = 8000
 
+# bot方策の版（OPEN-024: RunRecord.strategy_version に刻印し統計を方策世代でフィルタする）。
+# 方策ロジックを変えたらバンプする。human ランは NULL。
+STRATEGY_VERSION = "strong-v1"
+
 
 # ─────────────────────── threat estimation ───────────────────────
 def _juso_reduction(eng: GameEngine) -> int:
@@ -45,7 +49,8 @@ def _expected_incoming(e, eng: GameEngine, ttk: int) -> float:
 
 def _threat(eng: GameEngine, node_id: str) -> float:
     node = eng.floor.nodes[node_id]
-    e = build_enemy_instance(node.enemy_id, eng.current_floor, eng.data, eng.chaos_weights)
+    e = build_enemy_instance(node.enemy_id, eng.current_floor, eng.data, eng.chaos_weights,
+                             row=node.row)
     ttk = max(1, math.ceil(e.max_hp / max(1, eng.player.attack)))
     return ttk * _expected_incoming(e, eng, ttk)
 

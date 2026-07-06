@@ -55,14 +55,14 @@ def test_gate_guarantee_dependence():
 
 def test_race_avg_turns():
     recs = [rec(True, 50, ["a"], enemies=[
-        {"experience": "レース", "turns": 6}, {"experience": "削り合い", "turns": 3}])]
+        {"experience": "race", "turns": 6}, {"experience": "grind", "turns": 3}])]
     r = fm.race_avg_turns(recs)
     assert r["avg_turns"] == 6.0 and r["n"] == 1
     assert fm.race_avg_turns([])["avg_turns"] is None
 
 
 def test_compute_returns_all_keys():
-    recs = [rec(True, 10, ["a", "b"], stacks=1, enemies=[{"experience": "レース", "turns": 5}])]
+    recs = [rec(True, 10, ["a", "b"], stacks=1, enemies=[{"experience": "race", "turns": 5}])]
     out = fm.compute(recs)
     for k in ("close_win_rate", "clear_turns", "mod_diversity",
               "mod_marginal_clear_rates", "gate_guarantee_dependence", "race_avg_turns"):

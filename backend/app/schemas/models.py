@@ -155,6 +155,10 @@ class RunRecord:
     permanent_upgrades_state: dict[str, int] = field(default_factory=dict)
     gate_guarantee_stacks: int = 0  # ゲート保証の重ねがけ回数（ラン合計・GDD §19.1 v0.9追加）
     turn_history: list[dict] = field(default_factory=list)  # 検死/リプレイ用（ターン開始前スナップショット付き）。snapshot()には含めない（内部専用）。
+    # ── OPEN-025 テレメトリ: sink別使用回数 / フロア別ゲート結果 / 行動種別ターン数 ──
+    sink_use_counts: dict[str, int] = field(default_factory=dict)
+    gate_results: list[dict] = field(default_factory=list)   # [{"floor": int, "outcome": str}]
+    action_counts: dict[str, int] = field(default_factory=dict)  # player_move(attack/guard/heal_*)別
 
     def snapshot(self) -> dict[str, Any]:
         return {
@@ -167,6 +171,9 @@ class RunRecord:
             "death_cause": self.death_cause, "death_floor": self.death_floor,
             "permanent_upgrades_state": dict(self.permanent_upgrades_state),
             "gate_guarantee_stacks": self.gate_guarantee_stacks,
+            "sink_use_counts": dict(self.sink_use_counts),
+            "gate_results": list(self.gate_results),
+            "action_counts": dict(self.action_counts),
         }
 
 

@@ -44,7 +44,7 @@ def run_cohort(play, n: int, **kw) -> dict:
 PROFILES = {
     "base (fresh acct)": {},
     "mid (~6 clears)": {"max_hp": 2, "attack": 2, "init_gold": 2, "gold_drop": 1, "sink_cost": 1},
-    "maxed (26 clears)": {"max_hp": 5, "attack": 5, "init_gold": 5, "gold_drop": 3, "sink_cost": 3},
+    "maxed (21 clears)": {"max_hp": 5, "attack": 5, "init_gold": 5, "gold_drop": 3, "sink_cost": 3},
 }
 
 
