@@ -11,7 +11,10 @@
 
 - 死活: `GET /health` → `{"status":"ok"}`。
 - 進行中ランの状態は `GET /api/run/{session_id}`（§25.1）。
-- 進行中の GameState は `session_store`（メモリ保持・単一プロセス）にあり、**サーバ再起動で消失**する（§25.1 / OPEN-007）。永続化は未実装のため再起動を跨ぐ復旧はできない。
+- `session_store` はLRU上限（既定500）つきのインメモリキャッシュ。**サーバ再起動・LRU追い出しでキャッシュミスしても、`active_sessions`（SQLite）に記録した「seed＋初期upgrades＋適用アクション列」から `app.engine.replay.rebuild_engine` が透過的に再構築する**ため、進行中ランは失われない（OPEN-007解消・v1.5）。
+  - Redis 等の新規インフラは導入していない（既存 SQLite で十分と判断。将来スケールが必要になった場合の検討事項として残す）。
+  - `active_sessions` は終局（cleared/dead）後も即削除しない（`RunRecordRow`/`RunActionsRow` が正の記録として既に確定しているため実害なし）。TTL超過分は `crud.delete_stale_active_sessions` で掃除できる（既定7日・現状は明示呼び出しのみ・自動cronは未整備）。
+  - 既知の限界: 同一 `session_id` への複数ワーカー間の真の同時書き込み競合はハードニングしていない（小規模実利用では稀という前提）。
 
 ## 2. 追跡・ログ
 

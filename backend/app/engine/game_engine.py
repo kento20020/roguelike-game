@@ -11,19 +11,18 @@ from app.data.loader import GameData, get_data
 from app.engine import chaos_weights as cw
 from app.engine import combat_resolver as cr
 from app.engine import gate_resolver as gr
-from app.engine import tells
+from app.engine import postmortem as pm
+from app.engine import snapshot as snap
 from app.engine.floor_generator import build_enemy_instance, generate_floor
 from app.engine.rng import (
     STREAM_CHAOS,
     STREAM_GATE,
-    STREAM_GENERAL,
     STREAM_HEAL,
     STREAM_TREASURE,
     STREAM_BEHAVIOR,
     GameRNG,
 )
 from app.schemas.models import (
-    HANSHA,
     PHASE_BATTLE,
     PHASE_CLEARED,
     PHASE_DEAD,
@@ -34,7 +33,6 @@ from app.schemas.models import (
     PHASE_TREASURE_OPENED,
     PHASE_TREASURE_PREVIEW,
     Battle,
-    EnemyInstance,
     Floor,
     Node,
     Player,
@@ -170,6 +168,12 @@ class GameEngine:
     def _resolve_battle_turn(self, *, guard: bool, side_bet: Optional[dict],
                              player_attacks: bool, player_move: str) -> dict:
         b, p = self.battle, self.player
+        # サイドベット検証はターン解決の前（原子性）。解決後に InvalidMove を投げると
+        # 「HTTP 400 なのに live エンジンは1ターン進んでいる」状態になり、アクションログに
+        # 記録されないターンが生まれて再生（OPEN-007）が live と乖離する。
+        # 拒否されるリクエストは状態を一切進めない（RNGも消費しない）。
+        if side_bet is not None:
+            self._validate_side_bet(b, p, side_bet)
         pre_snapshot = self._pre_turn_snapshot()
         b.side_bet_result = None  # 前ターン分の表示をクリア
         res = cr.resolve_turn(b, p, self.data, self.rng.stream(STREAM_BEHAVIOR),
@@ -228,15 +232,16 @@ class GameEngine:
             },
         }
 
-    def _settle_side_bet(self, battle: Battle, player: Player, side_bet: dict, action: str) -> dict:
-        """サイドベット『読み宣言』の検証＋判定。
+    def _validate_side_bet(self, battle: Battle, player: Player, side_bet: dict) -> None:
+        """サイドベット『読み宣言』の検証（ターン解決前に呼ぶ）。
 
         検証: 賭け額が min/max 範囲内・チップ足りているか・per_battle_cap 超過なし。
-        違反時は InvalidMove（HTTP 400）。的中は payout_multiplier 倍の差分を加算、外れは没収。
+        違反時は InvalidMove（HTTP 400）＝そのターンは解決されない（状態不変・RNG非消費）。
+        チップ検証がターン解決前になるため「このターンの撃破報酬を当てにしたベット」はできない
+        （賭けは配られる前に置くのが筋であり、再生の原子性にも必須）。
         """
         cfg = self.data.config["side_bet"]
         amount = side_bet.get("amount")
-        behavior = side_bet.get("behavior")
         if not isinstance(amount, int) or not (cfg["min_amount"] <= amount <= cfg["max_amount"]):
             raise InvalidMove(f"invalid side bet amount: {amount}")
         if player.chips < amount:
@@ -244,6 +249,14 @@ class GameEngine:
         if battle.side_bet_total + amount > cfg["per_battle_cap"]:
             raise InvalidMove("side bet per-battle cap exceeded")
 
+    def _settle_side_bet(self, battle: Battle, player: Player, side_bet: dict, action: str) -> dict:
+        """サイドベット『読み宣言』の判定（検証は _validate_side_bet でターン解決前に済んでいる）。
+
+        的中は payout_multiplier 倍の差分を加算、外れは没収。
+        """
+        cfg = self.data.config["side_bet"]
+        amount = side_bet.get("amount")
+        behavior = side_bet.get("behavior")
         battle.side_bet_total += amount
         hit = behavior == action
         if hit:
@@ -287,66 +300,8 @@ class GameEngine:
         self._finalize(cleared=False, death_cause=cause)
 
     def _compute_postmortem(self) -> dict:
-        """致命ターン（turn_historyの最後）の反実仮想: guardを反転してforced_actionで再現。
-        forced_action指定によりroll_behaviorは呼ばれずRNGストリームは一切消費しない。"""
-        if not self.run.turn_history:
-            return {}
-        last = self.run.turn_history[-1]
-        snap = last["pre_turn_snapshot"]
-        p_snap, b_snap, e_snap = snap["player"], snap["battle"], snap["enemy"]
-
-        player = Player(
-            hp=p_snap["hp"], max_hp=p_snap["max_hp"], attack=p_snap["attack"], chips=p_snap["chips"],
-            mods=list(p_snap["mods"]), stance_multiplier=p_snap["stance_multiplier"],
-            attack_boost_pending=p_snap["attack_boost_pending"],
-        )
-        enemy = EnemyInstance(
-            id=e_snap["id"], name=e_snap["name"], experience=e_snap["experience"],
-            max_hp=e_snap["max_hp"], hp=e_snap["hp"], attack=e_snap["attack"],
-            difficulty=e_snap["difficulty"], gold_base=e_snap["gold_base"], chaos=e_snap["chaos"],
-            behaviors=list(e_snap["behaviors"]), ramp_increment=e_snap["ramp_increment"],
-            heavy_factor=e_snap["heavy_factor"], counter_factor=e_snap["counter_factor"],
-            is_strong=e_snap["is_strong"],
-        )
-        battle = Battle(
-            enemy=enemy, node_id=b_snap["node_id"], floor=b_snap["floor"],
-            turns=b_snap["turns"], ramp_value=b_snap["ramp_value"],
-            kouki_cooldown=b_snap["kouki_cooldown"],
-        )
-
-        original_guard = last["guard"]
-        flipped_guard = not original_guard
-        res = cr.resolve_turn(battle, player, self.data, self.rng.stream(STREAM_BEHAVIOR),
-                              forced_action=last["action"], guard=flipped_guard)
-
-        if res["player_dead"]:
-            category, avoidable = "unavoidable", False
-            message = "あれは避けられなかった"
-        elif not res["enemy_dead"]:
-            avoidable = True
-            if flipped_guard:  # 実際はguard=False致命 → 「ガードしていれば」
-                category = "avoidable_guard"
-                message = "ガードしていれば生存していた"
-            else:  # 実際はguard=True致命 → 「攻撃していれば」
-                category = "avoidable_attack"
-                message = "ガードせず攻撃していれば生存していた"
-        else:
-            category, avoidable = "mutual_kill_victory", True
-            message = "相打ちで敵を先に倒せていた"
-
-        return {
-            "fatal_turn_index": len(self.run.turn_history) - 1,
-            "original_guard": original_guard,
-            "counterfactual_guard": flipped_guard,
-            "category": category,
-            "avoidable": avoidable,
-            "message": message,
-            "counterfactual_result": {
-                "action": res["action"], "dealt": res["dealt"], "incoming": res["incoming"],
-                "player_hp": player.hp, "enemy_hp": enemy.hp,
-                "enemy_dead": res["enemy_dead"], "player_dead": res["player_dead"],
-            },
-        }
+        """致命ターン（turn_historyの最後）の反実仮想。詳細は postmortem.compute_postmortem。"""
+        return pm.compute_postmortem(self)
 
     # ─────────────────────────── treasure ───────────────────────────
     def treasure_open(self) -> dict:
@@ -439,6 +394,17 @@ class GameEngine:
         # OPEN-019: 割引で 0G（無料スパム）にしない。下限1。
         return max(1, round(base - disc))
 
+    def _heal_sink_cost(self, small: bool) -> int:
+        """回復 sink（小/大）の実コスト。基礎額×フロア倍率に恒久割引を適用（use_sink と提示側で共用）。"""
+        h = self.data.config["heal"]
+        base = h["sink_small_base"] if small else h["sink_large_base"]
+        mult = h["sink_floor_multiplier"][str(self.current_floor)]
+        return self._sink_cost(base * mult)
+
+    def _guarantee_table(self) -> dict[str, float]:
+        """現在の重ねがけ回数（gate_guarantee_uses）を適用した実効ゲート確率テーブル（判定・表示で共用）。"""
+        return gr.apply_guarantee(dict(self.floor.gate_result_table), self.gate_guarantee_uses, self.data)
+
     def use_sink(self, sink_type: str) -> dict:
         p = self.data.config
         if sink_type == "scout":
@@ -456,9 +422,7 @@ class GameEngine:
         elif sink_type in ("heal_small", "heal_large"):
             self._require_in(PHASE_EXPLORING, PHASE_BATTLE)
             small = sink_type == "heal_small"
-            base = p["heal"]["sink_small_base"] if small else p["heal"]["sink_large_base"]
-            mult = p["heal"]["sink_floor_multiplier"][str(self.current_floor)]
-            cost = self._sink_cost(base * mult)
+            cost = self._heal_sink_cost(small)
             if self.player.hp >= self.player.max_hp:
                 raise InvalidMove("already full hp")
             self._spend(cost, sink_type)
@@ -472,9 +436,7 @@ class GameEngine:
         elif sink_type == "gate_guarantee":
             self._require(PHASE_GATE_PREVIEW)
             # OPEN-016: 大ダメ0%到達後の重ねがけは効果ゼロの課金なので拒否。
-            eff = gr.apply_guarantee(dict(self.floor.gate_result_table),
-                                     self.gate_guarantee_uses, self.data)
-            if eff["major"] <= 1e-9:
+            if self._guarantee_table()["major"] <= 1e-9:
                 raise InvalidMove("gate guarantee has no effect: major already 0")
             self.gate_guarantee_uses += 1
             cost = gr.guarantee_cost(self.gate_guarantee_uses, self.data)
@@ -487,8 +449,7 @@ class GameEngine:
             self._record_sink_use("gate_guarantee")
             # ラン合計の重ねがけ回数（GDD §19.1）。gate_guarantee_uses は L266 でフロア毎にリセットされるため別管理。
             self.run.gate_guarantee_stacks += 1
-            self.pending["table"] = gr.apply_guarantee(dict(self.floor.gate_result_table),
-                                                       self.gate_guarantee_uses, self.data)
+            self.pending["table"] = self._guarantee_table()
         else:
             raise InvalidMove(f"unknown sink {sink_type}")
         return self.snapshot()
@@ -563,10 +524,8 @@ class GameEngine:
         elif self.phase == PHASE_GATE_PREVIEW:
             acts.append({"type": "gate_resolve"})
             # OPEN-016: major=0 到達後は保証を提示しない
-            eff = gr.apply_guarantee(dict(self.floor.gate_result_table),
-                                     self.gate_guarantee_uses, self.data)
             nxt = self._sink_cost(gr.guarantee_cost(self.gate_guarantee_uses + 1, self.data))
-            if eff["major"] > 1e-9 and pl.chips >= nxt:
+            if self._guarantee_table()["major"] > 1e-9 and pl.chips >= nxt:
                 acts.append({"type": "use_sink", "sink": "gate_guarantee", "cost": nxt})
         return acts
 
@@ -574,9 +533,8 @@ class GameEngine:
         pl = self.player
         cfg = self.data.config
         if pl.hp < pl.max_hp:
-            mult = cfg["heal"]["sink_floor_multiplier"][str(self.current_floor)]
-            small = self._sink_cost(cfg["heal"]["sink_small_base"] * mult)
-            large = self._sink_cost(cfg["heal"]["sink_large_base"] * mult)
+            small = self._heal_sink_cost(True)
+            large = self._heal_sink_cost(False)
             if pl.chips >= small:
                 acts.append({"type": "use_sink", "sink": "heal_small", "cost": small})
             if pl.chips >= large:
@@ -588,65 +546,7 @@ class GameEngine:
 
     # ─────────────────────────── snapshot ───────────────────────────
     def _node_view(self, node) -> dict:
-        """ノードの表示用 dict。敵ノードは L2（体験タイプ・強敵）を常時開示し、
-        L3（名前・最大HP）はインタラクト後（resolved／戦闘中の当該ノード）のみ付す（§5・OPEN-015）。
-        確率テーブルの数値は出さない（暗黙知型・GDD §5）。"""
-        state = self.node_state(node)
-        d = node.snapshot(state)
-        if node.kind == "enemy" and node.enemy_id:
-            e = self.data.enemy(node.enemy_id)
-            d["experience"] = e["experience"]
-            d["is_strong"] = self.data.is_strong(e)
-            interacted = state == "resolved" or (
-                self.battle is not None and self.battle.node_id == node.id)
-            if interacted:
-                d["name"] = e["name"]
-                d["max_hp"] = self.data.scaled_hp(e, self.current_floor, node.row)
-        return d
+        return snap.build_node_view(self, node)
 
     def snapshot(self) -> dict:
-        floor_state = None
-        if self.floor:
-            floor_state = {
-                "floor_number": self.current_floor,
-                "nodes": {nid: self._node_view(n) for nid, n in self.floor.nodes.items()},
-            }
-        battle_state = None
-        if self.battle:
-            b = self.battle
-            battle_state = {
-                "enemy": b.enemy.snapshot(),
-                "turns": b.turns, "ramp_value": b.ramp_value,
-                "scout_hint": b.scout_hint, "preview": b.preview,
-                # 先読み(yomi)が公開した「確定の次手」の種別（counter/heavy_blow/...）。未公開は None。
-                "next_action": b.pending_action,
-                "log": list(b.log),
-                # サイドベット『読み宣言』の戦闘あたり累計額（per_battle_cap 可視化用・UI表示専用）。
-                "side_bet_total": b.side_bet_total,
-                # サイドベット『読み宣言』の直近ターン結果（表示専用・次ターンでクリア）。
-                "side_bet_result": b.side_bet_result,
-                # 直近ターンの実現結果（ログに表示済みの公開情報のみ・非公開情報は含めない）。
-                "last_turn": ({"action": b.last_action, "guard": b.last_guard}
-                              if b.last_action is not None else None),
-                # サイドベットの表示規則（正本 config.json side_bet。フロントに定数を複製させない）。
-                "side_bet": {k: self.data.config["side_bet"][k]
-                             for k in ("min_amount", "max_amount", "payout_multiplier", "per_battle_cap")},
-            }
-            # テル（行動の前兆）システム試作: フラグON時のみ、次手が公開されているターンに
-            # 敵ごとの固定「気配信頼度」ラベルを添える（新規RNG消費なし・既存next_actionと同じ条件）。
-            if self.data.config.get("feature_flags", {}).get("tell_system") and b.pending_action is not None:
-                battle_state["tell_reliability"] = tells.tell_reliability(b.enemy.id)
-            else:
-                battle_state["tell_reliability"] = None
-        return {
-            "phase": self.phase,
-            "current_floor": self.current_floor,
-            "player": self.player.snapshot() if self.player else None,
-            "floor": floor_state,
-            "battle": battle_state,
-            "pending": dict(self.pending),
-            "available_actions": self.available_actions(),
-            # §17.3 seed非露出: RunRecord は seed を含むため終端（dead/cleared）でのみ開示（seed-scum防止）。
-            "run_record": (self.run.snapshot()
-                           if self.run and self.phase in (PHASE_DEAD, PHASE_CLEARED) else None),
-        }
+        return snap.build_snapshot(self)

@@ -155,7 +155,13 @@ game-roguelike3/
 │       │   └── gameStore.ts             # Zustand：ゲーム状態（RunRecord含む）
 │       │
 │       ├── lib/
-│       │   └── labels.ts                # 表示ラベル定義
+│       │   ├── labels.ts                # 表示ラベル定義
+│       │   └── sfx.ts                   # 効果音（ミュート設定の保存を内包）
+│       │
+│       ├── hooks/
+│       │   ├── useCombatFx.ts           # 被弾・強打などの戦闘演出
+│       │   ├── useChipFx.ts             # チップ増減演出
+│       │   └── useSideBet.ts            # サイドベットの状態・派生値
 │       │
 │       ├── pages/                       # phaseごとのフルスクリーン
 │       │   ├── StartPage.tsx
@@ -166,7 +172,8 @@ game-roguelike3/
 │       │   ├── GatePage.tsx             # gate_preview / gate_resolve
 │       │   ├── NextFloorPage.tsx
 │       │   ├── ClearedPage.tsx
-│       │   └── DeadPage.tsx
+│       │   ├── DeadPage.tsx             # 検死レポート/リプレイの2タブを内包
+│       │   └── DossierPage.tsx          # ディーラー調書（観測記録）
 │       │
 │       └── components/
 │           ├── common/                  # 複数phaseで再利用
@@ -183,8 +190,14 @@ game-roguelike3/
 │           │   ├── TreeCanvas.tsx       # ツリー構造の描画（nodes+parentsから辺を描画）
 │           │   └── NodeCard.tsx         # 敵/宝箱/回復/ゲートノード（強敵・体験タイプ表示を内包）
 │           ├── battle/
-│           │   ├── CombatPanel.tsx      # 敵HP・ramp値・攻撃ボタン（ramp警告表示を内包）
+│           │   ├── CombatPanel.tsx      # 戦闘画面のオーケストレーション
+│           │   ├── EnemyStage.tsx       # 敵肖像・HP・ramp蓄積バッジ
+│           │   ├── NextActionPreview.tsx# 先読み/テル/スカウト表示
+│           │   ├── PlayerStatusBar.tsx  # 自分パネル（HP・攻撃力・被弾演出）
+│           │   ├── SideBetPanel.tsx     # サイドベットUI
 │           │   └── CombatLog.tsx        # 全ログ保持・スクロール
+│           ├── dead/                    # 検死レポート/リプレイの部品
+│           ├── dossier/                 # 調書の部品（敵カード・ソート等）
 │           └── result/
 │               ├── ResultSummary.tsx    # 到達フロア・ターン数・mod一覧（死亡/クリア共通）
 │               └── UpgradeAllocator.tsx # 恒久強化割り振り
@@ -195,13 +208,17 @@ game-roguelike3/
     └── app/
         ├── api/
         │   ├── routes.py                # エンドポイント定義（§25）
-        │   └── deps.py                  # 依存性注入（セッション取得等）
-        ├── session_store.py             # セッション管理
+        │   └── deps.py                  # 依存性注入（セッション取得。キャッシュミス時はDB再生にフォールバック）
+        ├── session_store.py             # セッション管理（LRU上限つきホットキャッシュ。真の永続はactive_sessions）
         ├── engine/
-        │   ├── game_engine.py           # ゲーム状態の中核
-        │   ├── floor_generator.py       # ツリー生成・アンロック連鎖
+        │   ├── game_engine.py           # ゲーム状態の中核（phase遷移・アクション受付）
+        │   ├── snapshot.py              # APIスナップショット/ノードビュー構築（表示層）
+        │   ├── floor_generator.py       # あみだくじ格子生成（可変深度・§4.2）
         │   ├── combat_resolver.py       # 戦闘1ターンの解決
         │   ├── gate_resolver.py         # ゲートイベント
+        │   ├── postmortem.py            # 検死レポート（致命ターンの反実仮想解析）
+        │   ├── tells.py                 # テル（気配）の判定
+        │   ├── replay.py                # アクションログ再生（OPEN-007・進行中ラン復元）
         │   ├── chaos_weights.py         # カオス敵のラン別比率決定
         │   └── rng.py                   # SFC32（9ストリーム）
         ├── data/
@@ -211,8 +228,8 @@ game-roguelike3/
         │   ├── floors.json              # フロア構成・アンロックルール
         │   └── config.json              # 数値パラメータ（データ駆動調整対象）
         ├── db/
-        │   ├── models.py                # SQLAlchemyモデル（RunRecord等）
-        │   ├── session.py               # DB接続（SQLite→PostgreSQL切り替え点）
+        │   ├── models.py                # SQLAlchemyモデル（RunRecord/ActiveSession等）
+        │   ├── session.py               # DB接続（SQLite・WAL mode／PostgreSQL切り替え点）
         │   └── crud.py                  # DB操作
         ├── schemas/
         │   ├── api_schemas.py           # Pydanticモデル（リクエスト/レスポンス）
