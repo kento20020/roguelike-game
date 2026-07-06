@@ -5,7 +5,7 @@ from sqlalchemy import desc, select
 from sqlalchemy.orm import Session
 
 from app.data.loader import get_data
-from app.db.models import ObservationRow, PostmortemRow, ProfileRow, RunRecordRow
+from app.db.models import ObservationRow, PostmortemRow, ProfileRow, RunActionsRow, RunRecordRow
 
 UPGRADE_ITEMS = ["max_hp", "attack", "init_gold", "gold_drop", "sink_cost"]
 
@@ -15,7 +15,7 @@ class UpgradeError(ValueError):
 
 
 # ── RunRecord ──
-def save_run_record(db: Session, snap: dict) -> RunRecordRow:
+def save_run_record(db: Session, snap: dict, *, strategy_version: str | None = None) -> RunRecordRow:
     row = RunRecordRow(
         run_id=snap["run_id"], seed=snap["seed"], bot_type=snap["bot_type"],
         cleared=snap["cleared"], floor_reached=snap["floor_reached"],
@@ -25,7 +25,22 @@ def save_run_record(db: Session, snap: dict) -> RunRecordRow:
         death_cause=snap["death_cause"], death_floor=snap["death_floor"],
         permanent_upgrades_state=snap["permanent_upgrades_state"],
         gate_guarantee_stacks=snap.get("gate_guarantee_stacks", 0),
+        # OPEN-024: 保存時点の正本データ世代を刻印（全統計クエリの版フィルタ用）
+        data_version=get_data().data_version,
+        strategy_version=strategy_version,
+        sink_use_counts=snap.get("sink_use_counts", {}),
+        gate_results=snap.get("gate_results", []),
+        action_counts=snap.get("action_counts", {}),
     )
+    db.add(row)
+    db.commit()
+    db.refresh(row)
+    return row
+
+
+def save_run_actions(db: Session, run_id: str, turn_history: list) -> RunActionsRow:
+    """全ラン共通の操作履歴を終局時に一括保存（improvement_ideas アイディア1 の基盤）。"""
+    row = RunActionsRow(run_id=run_id, actions_json=turn_history)
     db.add(row)
     db.commit()
     db.refresh(row)

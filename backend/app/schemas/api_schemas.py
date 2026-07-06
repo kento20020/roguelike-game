@@ -125,6 +125,12 @@ class RunRecordOut(BaseModel):
     death_floor: Optional[int] = None
     permanent_upgrades_state: dict[str, int]
     gate_guarantee_stacks: int = 0
+    # OPEN-024/025 テレメトリ（旧レコードは既定値で埋まる）
+    data_version: str = ""
+    strategy_version: Optional[str] = None
+    sink_use_counts: dict[str, int] = {}
+    gate_results: list[dict] = []
+    action_counts: dict[str, int] = {}
 
 
 # ── responses ──

@@ -9,6 +9,7 @@ CLAUDE.md 原則:
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 from dataclasses import dataclass, field
@@ -43,6 +44,8 @@ class GameData:
     _enemies_by_id: dict[str, dict] = field(default_factory=dict)
     _mods_by_id: dict[str, dict] = field(default_factory=dict)
     _floors_by_num: dict[int, dict] = field(default_factory=dict)
+    # 4つの正本JSONの内容ハッシュ（12hex）。統計を数値世代でフィルタする札（OPEN-024）。
+    data_version: str = ""
 
     # ── construction ──────────────────────────────────────────────
     @classmethod
@@ -54,6 +57,10 @@ class GameData:
         enemies_by_id = {e["id"]: e for e in enemies_doc["enemies"]}
         mods_by_id = {m["id"]: m for m in mods_doc["mods"]}
         floors_by_num = {f["floor_number"]: f for f in floors_doc["floors"]}
+        h = hashlib.sha256()
+        for name in ("config.json", "enemies.json", "floors.json", "mods.json"):
+            with open(os.path.join(_DATA_DIR, name), "rb") as f:
+                h.update(f.read())
         gd = cls(
             config=config,
             floors_doc=floors_doc,
@@ -62,6 +69,7 @@ class GameData:
             _enemies_by_id=enemies_by_id,
             _mods_by_id=mods_by_id,
             _floors_by_num=floors_by_num,
+            data_version=h.hexdigest()[:12],
         )
         if validate:
             gd.validate()
@@ -158,6 +166,21 @@ class GameData:
             for mid in inter["mods"]:
                 if mid not in self._mods_by_id:
                     errs.append(f"mod_interaction references unknown mod {mid}")
+
+        # ゲート出目テーブル: キー4種・確率合計1.0（OPEN-013）
+        outcomes = {"unhurt", "minor", "major", "special"}
+        for fl in self.floors:
+            t = fl.get("gate_result_table", {})
+            if set(t) != outcomes:
+                errs.append(f"floor {fl['floor_number']}: gate_result_table keys {sorted(t)} != {sorted(outcomes)}")
+            elif abs(sum(t.values()) - 1.0) > 1e-9:
+                errs.append(f"floor {fl['floor_number']}: gate_result_table sum {sum(t.values())} != 1.0")
+
+        # experience は romaji 正準キーのみ（OPEN-012 受入条件: 日本語がAPI/統計キーに出ない）
+        exp_keys = {"grind", "gamble", "race", "dodge", "chaos"}
+        for e in self.enemies:
+            if e["experience"] not in exp_keys:
+                errs.append(f"{e['id']}: experience '{e['experience']}' not in {sorted(exp_keys)}")
 
         if errs:
             raise DataError("; ".join(errs))

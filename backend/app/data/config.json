@@ -84,7 +84,7 @@
       "gold_drop":  { "per_level": 0.10, "max_level": 3 },
       "sink_cost":  { "per_level": -5, "max_level": 3 }
     },
-    "_comment": "1クリア=1ポイント。全項目MAXは26点=26クリア。gold_dropは率(+10%/Lv)、sink_costは割引(-5G/Lv)。"
+    "_comment": "1クリア=1ポイント。全項目MAXは21点=21クリア(5+5+5+3+3)。gold_dropは率(+10%/Lv)、sink_costは割引(-5G/Lv)。"
   },
 
   "side_bet": {

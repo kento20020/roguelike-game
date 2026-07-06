@@ -178,6 +178,7 @@ class GameEngine:
         b.last_action, b.last_guard = res["action"], guard
         self._pending_observations.append((b.enemy.id, res["action"]))
         self.run.total_turns += 1
+        self.run.action_counts[player_move] = self.run.action_counts.get(player_move, 0) + 1
         self.run.turn_history.append({
             "node_id": b.node_id, "enemy_id": b.enemy.id, "guard": guard,
             "action": res["action"], "dealt": res["dealt"], "incoming": res["incoming"],
@@ -370,6 +371,7 @@ class GameEngine:
             raise InvalidMove("not enough chips for reroll")
         self.player.chips -= cost
         self.run.gold_spent["treasure_reroll"] += cost
+        self._record_sink_use("treasure_reroll")
         # 中身を引き直す（stream を1回進める＝次の open が変わる）
         self.rng.stream(STREAM_TREASURE).next_u32()
         return self.snapshot()
@@ -392,6 +394,7 @@ class GameEngine:
         if self.gate_guarantee_uses:
             table = gr.apply_guarantee(table, self.gate_guarantee_uses, self.data)
         outcome = gr.roll_gate(table, self.rng.stream(STREAM_GATE))
+        self.run.gate_results.append({"floor": self.current_floor, "outcome": outcome})
         dmg = gr.gate_damage(outcome, self.player.max_hp, self.data)
         self.player.hp = max(0, self.player.hp - dmg)
         gate_node = next(n for n in self.floor.nodes.values() if n.kind == "gate")
@@ -478,6 +481,7 @@ class GameEngine:
                 raise InvalidMove("not enough chips for guarantee")
             self.player.chips -= cost
             self.run.gold_spent["gate_guarantee"] += cost
+            self._record_sink_use("gate_guarantee")
             # ラン合計の重ねがけ回数（GDD §19.1）。gate_guarantee_uses は L266 でフロア毎にリセットされるため別管理。
             self.run.gate_guarantee_stacks += 1
             self.pending["table"] = gr.apply_guarantee(dict(self.floor.gate_result_table),
@@ -491,6 +495,11 @@ class GameEngine:
             raise InvalidMove(f"not enough chips for {key}")
         self.player.chips -= cost
         self.run.gold_spent[key] += cost
+        self._record_sink_use(key)
+
+    def _record_sink_use(self, key: str) -> None:
+        """sink別の使用回数（OPEN-025: 金額だけでなく回数もROI分析に使う）。"""
+        self.run.sink_use_counts[key] = self.run.sink_use_counts.get(key, 0) + 1
 
     # ─────────────────────────── dismiss modal ───────────────────────────
     def dismiss(self) -> dict:

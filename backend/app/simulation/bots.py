@@ -16,6 +16,10 @@ from app.schemas.models import JUSO
 
 MAX_STEPS = 8000
 
+# bot方策の版（OPEN-024: RunRecord.strategy_version に刻印し統計を方策世代でフィルタする）。
+# 方策ロジックを変えたらバンプする。human ランは NULL。
+STRATEGY_VERSION = "strong-v1"
+
 
 # ─────────────────────── threat estimation ───────────────────────
 def _juso_reduction(eng: GameEngine) -> int:

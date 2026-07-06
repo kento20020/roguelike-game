@@ -134,12 +134,21 @@ def test_select_locked_node_400(api):
 
 
 def test_full_run_persists_record_and_history(api):
-    client, _ = api
+    client, TestSession = api
     state = _drive(client, _new(client, seed=7))
     assert state["phase"] in ("cleared", "dead")
     hist = client.get("/api/stats/history").json()
     assert len(hist) >= 1
     assert hist[0]["total_turns"] > 0
+    # OPEN-024: 世代札が刻印される（human ランは strategy_version=NULL）
+    assert hist[0]["data_version"]
+    assert hist[0]["strategy_version"] is None
+    # 操作履歴（run_actions）が全ランで永続化される
+    from sqlalchemy import select
+    from app.db.models import RunActionsRow
+    with TestSession() as db:
+        rows = list(db.execute(select(RunActionsRow)).scalars())
+    assert len(rows) == 1 and len(rows[0].actions_json) > 0
 
 
 # ── meta progression ──

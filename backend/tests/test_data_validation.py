@@ -115,3 +115,17 @@ def test_tutorial_guaranteed_mod_is_hansha(data: GameData):
     tut = data.mods_doc["tutorial_guaranteed"]
     assert tut["mod_id"] == "hansha"
     assert tut["floor"] == 1
+
+
+def test_upgrade_max_levels_total_is_21(data: GameData):
+    """恒久強化の上限Lv合計=21（data_model.md §20 合格条件・OPEN-013）。意図的に変えるなら docs も更新。"""
+    items = data.config["permanent_upgrades"]["items"]
+    assert sum(v["max_level"] for v in items.values()) == 21
+
+
+def test_gate_result_tables_sum_to_one(data: GameData):
+    """全フロアのゲート出目テーブルはキー4種・合計1.0（OPEN-013。loader.validate でも強制）。"""
+    for fl in data.floors:
+        t = fl["gate_result_table"]
+        assert set(t) == {"unhurt", "minor", "major", "special"}
+        assert abs(sum(t.values()) - 1.0) < 1e-9

@@ -34,6 +34,7 @@ from app.schemas.api_schemas import (
 )
 from app.session_store import store
 from app.simulation.balance_stats import wilson
+from app.simulation.bots import STRATEGY_VERSION
 
 router = APIRouter(prefix="/api")
 
@@ -47,7 +48,11 @@ def _state(session_id: str, eng: GameEngine) -> GameStateResponse:
 
 def _finalize_if_ended(db: Session, session_id: str, eng: GameEngine) -> None:
     if eng.phase in (PHASE_CLEARED, PHASE_DEAD) and not store.is_finalized(session_id):
-        crud.save_run_record(db, eng.run.snapshot())
+        # strategy_version は bot 方策の版（OPEN-024）。human ランは NULL。
+        sv = None if eng.run.bot_type == "human" else STRATEGY_VERSION
+        crud.save_run_record(db, eng.run.snapshot(), strategy_version=sv)
+        # 全ラン共通の操作履歴（クリア時も保存＝検死専用の PostmortemRow とは別物）
+        crud.save_run_actions(db, eng.run.run_id, eng.run.turn_history)
         if eng.phase == PHASE_CLEARED:
             pts = eng.data.config["permanent_upgrades"]["points_per_clear"]
             crud.award_points(db, pts)
