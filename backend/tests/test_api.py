@@ -211,19 +211,23 @@ def test_upgrade_respects_max_level(api):
 
 
 def test_clear_awards_point(api):
+    """クリア到達時のポイント付与・履歴記録の API 経路を検証する。
+    クリア率そのもの（バランス）は bot ハーネス（§18）の管轄なので、
+    ここではエンジンを直接強化して決定的にクリアさせる。"""
     client, TestSession = api
-    # 生存しやすいよう恒久強化を maxed に
-    with TestSession() as db:
-        p = crud.get_or_create_profile(db)
-        p.max_hp, p.attack, p.init_gold, p.gold_drop, p.sink_cost = 5, 5, 5, 3, 3
-        db.commit()
-    cleared = None
-    for seed in range(40):
-        state = _drive(client, _new(client, seed=seed))
-        if state["phase"] == "cleared":
-            cleared = state
+    state = _new(client, seed=1)
+    sid = state["session_id"]
+    eng = store.get(sid)
+    eng.player.attack = 9999                      # 全戦闘を1ターンで終える
+    eng.player.max_hp = eng.player.hp = 99999     # 道中の被弾で死なない
+    for _ in range(3000):
+        if state["phase"] in ("cleared", "dead"):
             break
-    assert cleared is not None, "maxed 強化でいずれかの seed はクリアできるはず"
+        if state["phase"] == "gate_preview":
+            # ゲート死を排除（出目テーブルはフロア生成物なのでテスト内で無傷固定）
+            eng.floor.gate_result_table = {"unhurt": 1.0, "minor": 0.0, "major": 0.0, "special": 0.0}
+        state = _drive(client, state, max_steps=1)
+    assert state["phase"] == "cleared"
     # クリアで 1pt 付与
     with TestSession() as db:
         assert crud.get_or_create_profile(db).points >= 1

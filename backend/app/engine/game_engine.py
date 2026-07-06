@@ -147,7 +147,8 @@ class GameEngine:
 
     # ─────────────────────────── battle ───────────────────────────
     def _enter_battle(self, node: Node) -> None:
-        enemy = build_enemy_instance(node.enemy_id, self.current_floor, self.data, self.chaos_weights)
+        enemy = build_enemy_instance(node.enemy_id, self.current_floor, self.data,
+                                     self.chaos_weights, row=node.row)
         self.battle = Battle(enemy=enemy, node_id=node.id, floor=self.current_floor)
         self.battle.add_log(f"{enemy.name} が席についた。", "info")
         self.phase = PHASE_BATTLE
@@ -255,9 +256,12 @@ class GameEngine:
 
     def _victory(self, b: Battle) -> None:
         e = b.enemy
+        node = self.floor.nodes[b.node_id]
         bonus = self.data.config["strong_enemy"]["gold_bonus_multiplier"] if e.is_strong else 1.0
         gold_mult = 1.0 + self.data.config["permanent_upgrades"]["items"]["gold_drop"]["per_level"] * self._upgrades["gold_drop"]
-        gold = round(e.gold_base * self.floor.floor_multiplier * bonus * gold_mult)
+        # row深度傾斜（depth_scaling.gold_per_row・乗算合成）: 深い敵ほど報酬も増える
+        depth_mult = 1.0 + self.data.config.get("depth_scaling", {}).get("gold_per_row", 0.0) * (node.row - 1)
+        gold = round(e.gold_base * self.floor.floor_multiplier * bonus * gold_mult * depth_mult)
         self.player.chips += gold
         self.run.gold_earned += gold
         self.run.enemies_defeated.append({
@@ -268,7 +272,6 @@ class GameEngine:
         self.battle = None
         victory = {"enemy": e.name, "gold": gold, "turns": b.turns}
         # 撃破ドロップ（多親×enemy・GDD §11.4）: has_treasure なら宝箱を開く。
-        node = self.floor.nodes[b.node_id]
         if node.has_treasure:
             self.phase = PHASE_TREASURE_PREVIEW
             self.pending = {"node": b.node_id, "source": "enemy", "victory": victory}
@@ -598,7 +601,7 @@ class GameEngine:
                 self.battle is not None and self.battle.node_id == node.id)
             if interacted:
                 d["name"] = e["name"]
-                d["max_hp"] = self.data.scaled_hp(e, self.current_floor)
+                d["max_hp"] = self.data.scaled_hp(e, self.current_floor, node.row)
         return d
 
     def snapshot(self) -> dict:

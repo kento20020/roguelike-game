@@ -65,6 +65,12 @@
     "_comment": "enemy.hp = base_hp * (1.0 + 0.15*(tier-1))"
   },
 
+  "depth_scaling": {
+    "hp_per_row": 0.10,
+    "gold_per_row": 0.10,
+    "_comment": "フロア可変深度化のrow深度傾斜: hp = tier補正後 × (1 + hp_per_row×(row-1))、goldも同形。数値は叩き台・要デザイナーレビュー（docs/proposals/floor_depth_randomization.md §6）。"
+  },
+
   "gate_special": {
     "bonus_gold": 40,
     "_comment": "ゲート『特殊(special)』通過の当たり報酬（GDD §7.4）。無傷通過＋ボーナスチップ。数値は叩き台・bot再検証で調整。"
@@ -102,7 +108,7 @@
     "3": "treasure_mod",
     "4": "heal_node",
     "5": "gate_event",
-    "6": "stance_reserved",
+    "6": "floor_topology",
     "7": "general",
     "8": "chaos_weights"
   },

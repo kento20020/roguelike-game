@@ -49,7 +49,8 @@ def _expected_incoming(e, eng: GameEngine, ttk: int) -> float:
 
 def _threat(eng: GameEngine, node_id: str) -> float:
     node = eng.floor.nodes[node_id]
-    e = build_enemy_instance(node.enemy_id, eng.current_floor, eng.data, eng.chaos_weights)
+    e = build_enemy_instance(node.enemy_id, eng.current_floor, eng.data, eng.chaos_weights,
+                             row=node.row)
     ttk = max(1, math.ceil(e.max_hp / max(1, eng.player.attack)))
     return ttk * _expected_incoming(e, eng, ttk)
 
