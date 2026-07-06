@@ -21,9 +21,9 @@ _DATA_DIR = os.path.dirname(os.path.abspath(__file__))
 _COMBAT_FALLBACK_KEYS = ("counter_factor", "heavy_factor")
 
 
-def _read(name: str) -> dict[str, Any]:
-    with open(os.path.join(_DATA_DIR, name), encoding="utf-8") as f:
-        return json.load(f)
+def _read_bytes(name: str) -> bytes:
+    with open(os.path.join(_DATA_DIR, name), "rb") as f:
+        return f.read()
 
 
 class DataError(ValueError):
@@ -50,17 +50,18 @@ class GameData:
     # ── construction ──────────────────────────────────────────────
     @classmethod
     def load(cls, validate: bool = True) -> "GameData":
-        config = _read("config.json")
-        floors_doc = _read("floors.json")
-        mods_doc = _read("mods.json")
-        enemies_doc = _read("enemies.json")
+        names = ("config.json", "enemies.json", "floors.json", "mods.json")
+        raw = {name: _read_bytes(name) for name in names}
+        config = json.loads(raw["config.json"])
+        floors_doc = json.loads(raw["floors.json"])
+        mods_doc = json.loads(raw["mods.json"])
+        enemies_doc = json.loads(raw["enemies.json"])
         enemies_by_id = {e["id"]: e for e in enemies_doc["enemies"]}
         mods_by_id = {m["id"]: m for m in mods_doc["mods"]}
         floors_by_num = {f["floor_number"]: f for f in floors_doc["floors"]}
         h = hashlib.sha256()
-        for name in ("config.json", "enemies.json", "floors.json", "mods.json"):
-            with open(os.path.join(_DATA_DIR, name), "rb") as f:
-                h.update(f.read())
+        for name in names:
+            h.update(raw[name])
         gd = cls(
             config=config,
             floors_doc=floors_doc,

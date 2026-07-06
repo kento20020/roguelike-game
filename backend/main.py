@@ -60,19 +60,12 @@ async def _wrong_phase(_: Request, exc: WrongPhase):
     return JSONResponse(status_code=409, content={"detail": str(exc)})
 
 
+# InvalidMove（不正操作） / UpgradeError（強化不可） / IllegalAction（WrongPhase/InvalidMove に
+# 該当しない基底例外のフォールバック）はいずれも同じ 400 レスポンスを返す。
 @app.exception_handler(InvalidMove)
-async def _invalid_move(_: Request, exc: InvalidMove):
-    return JSONResponse(status_code=400, content={"detail": str(exc)})
-
-
 @app.exception_handler(UpgradeError)
-async def _upgrade_error(_: Request, exc: UpgradeError):
-    return JSONResponse(status_code=400, content={"detail": str(exc)})
-
-
 @app.exception_handler(IllegalAction)
-async def _illegal_action(_: Request, exc: IllegalAction):
-    # WrongPhase/InvalidMove に該当しない基底例外のフォールバック
+async def _bad_request(_: Request, exc: Exception):
     return JSONResponse(status_code=400, content={"detail": str(exc)})
 
 
