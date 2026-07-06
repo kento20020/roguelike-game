@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import type { GameState, PostmortemResponse, TurnHistoryEntry } from "../api/types";
 import { useGameStore } from "../store/gameStore";
-import { gameApi, ApiError } from "../api/gameApi";
 import CenterStage from "../components/common/CenterStage";
 import ResultSummary from "../components/result/ResultSummary";
 import Icon from "../components/common/Icon";
@@ -53,7 +52,7 @@ function ReplayHpBar({ before, after, max, color }: { before: number; after: num
   useEffect(() => {
     const id = requestAnimationFrame(() => setW({ before: targetBefore, after: targetAfter }));
     return () => cancelAnimationFrame(id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [targetBefore, targetAfter]);
 
   return (
@@ -266,61 +265,36 @@ function ReplayDisclosure({ pm }: { pm: PostmortemResponse }) {
   );
 }
 
-const GENERIC_FAIL_MESSAGE = "検死データの取得に失敗した。";
-
 // 敗北（dead）。パーマデス。コア表示＝到達/総ターン/取得mod（GDD §15.1）。
 // death_cause は機械語。日本語化辞書が無いので任意の補足表示に留める。
 // 決算(常時)→検死レポート(常時・最重要)→リプレイ(折りたたみ・任意)の順に縦積み。
 // 粒度の異なる3体験を並列タブで同格に扱わない（design/spec_postmortem_replay.md）。
-// 検死・リプレイは戦闘死のみ利用可(関門死はpostmortemが404＝pmUnavailable)。
+// 検死・リプレイは戦闘死のみ利用可(関門死はpostmortemが404＝unavailable)。
+// データ取得は gameStore に集約（コンポーネントから gameApi を直接呼ばない）。
 export default function DeadPage({ state }: { state: GameState }) {
   const newRun = useGameStore((s) => s.newRun);
   const reset = useGameStore((s) => s.reset);
   const busy = useGameStore((s) => s.busy);
   const rec = state.run_record;
 
-  const [pm, setPm] = useState<PostmortemResponse | null>(null);
-  const [pmLoading, setPmLoading] = useState(true);
-  const [pmUnavailable, setPmUnavailable] = useState(false);
-  const [pmError, setPmError] = useState<string | null>(null);
+  const pm = useGameStore((s) => s.postmortem);
+  const pmLoading = useGameStore((s) => s.postmortemLoading);
+  const pmUnavailable = useGameStore((s) => s.postmortemUnavailable);
+  const pmError = useGameStore((s) => s.postmortemError);
+  const loadPostmortem = useGameStore((s) => s.loadPostmortem);
   // death_cause の敵id→敵名変換用（GDD §15.1: 死亡原因は日本語で必須表示）。取得失敗時はid素通し。
-  const [enemyNames, setEnemyNames] = useState<Record<string, string>>({});
+  const enemyCatalog = useGameStore((s) => s.enemyCatalog);
+  const loadEnemyCatalog = useGameStore((s) => s.loadEnemyCatalog);
+  const enemyNames = Object.fromEntries(
+    Object.values(enemyCatalog).map((e) => [e.id, e.name]));
 
   useEffect(() => {
-    let cancelled = false;
-    gameApi
-      .enemiesCatalog()
-      .then((list) => {
-        if (!cancelled) setEnemyNames(Object.fromEntries(list.map((e) => [e.id, e.name])));
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+    loadEnemyCatalog();
+  }, [loadEnemyCatalog]);
 
   useEffect(() => {
-    let cancelled = false;
-    setPmLoading(true);
-    setPmUnavailable(false);
-    setPmError(null);
-    gameApi
-      .postmortem(state.session_id)
-      .then((res) => {
-        if (!cancelled) setPm(res);
-      })
-      .catch((e) => {
-        if (cancelled) return;
-        if (e instanceof ApiError && e.status === 404) setPmUnavailable(true);
-        else setPmError(GENERIC_FAIL_MESSAGE);
-      })
-      .finally(() => {
-        if (!cancelled) setPmLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [state.session_id]);
+    loadPostmortem(state.session_id);
+  }, [loadPostmortem, state.session_id]);
 
   return (
     <CenterStage tone="lose" maxWidth={660}>

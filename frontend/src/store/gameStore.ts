@@ -7,6 +7,7 @@ import type {
   EnemyCatalogItem,
   GameState,
   ModCatalogItem,
+  PostmortemResponse,
   SideBet,
   SinkType,
   UpgradeState,
@@ -32,6 +33,15 @@ interface GameStore {
   loadDossier: () => Promise<void>;
   enemyCatalog: Record<string, EnemyCatalogItem>; // 敵 id → 表示名（一度だけ取得）
   loadEnemyCatalog: () => Promise<void>;
+
+  // 検死レポート（DeadPage）。busy/error の集中管理に載せるため store で保持する。
+  // 404=関門死（致命ターンが無い）は unavailable、その他の失敗は postmortemError に入れて
+  // ページ内で表示する（操作エラー用の ErrorToast とは役割を分ける）。
+  postmortem: PostmortemResponse | null;
+  postmortemLoading: boolean;
+  postmortemUnavailable: boolean;
+  postmortemError: string | null;
+  loadPostmortem: (sessionId: string) => Promise<void>;
 
   newRun: (seed?: number) => Promise<void>;
   selectNode: (nodeId: string) => Promise<void>;
@@ -73,6 +83,24 @@ export const useGameStore = create<GameStore>((set, get) => {
     dossier: null,
     dossierLoading: false,
     enemyCatalog: {},
+    postmortem: null,
+    postmortemLoading: false,
+    postmortemUnavailable: false,
+    postmortemError: null,
+
+    loadPostmortem: async (sessionId) => {
+      set({ postmortem: null, postmortemLoading: true, postmortemUnavailable: false, postmortemError: null });
+      try {
+        const res = await gameApi.postmortem(sessionId);
+        set({ postmortem: res, postmortemLoading: false });
+      } catch (e) {
+        if (e instanceof ApiError && e.status === 404) {
+          set({ postmortemLoading: false, postmortemUnavailable: true });
+        } else {
+          set({ postmortemLoading: false, postmortemError: "検死データの取得に失敗した。" });
+        }
+      }
+    },
 
     loadDossier: async () => {
       set({ dossierLoading: true });
@@ -151,6 +179,9 @@ export const useGameStore = create<GameStore>((set, get) => {
     continueRun: () => run((sid) => gameApi.continueRun(sid)),
 
     clearError: () => set({ error: null }),
-    reset: () => set({ state: null, error: null, busy: false, upgrade: null }),
+    reset: () => set({
+      state: null, error: null, busy: false, upgrade: null,
+      postmortem: null, postmortemLoading: false, postmortemUnavailable: false, postmortemError: null,
+    }),
   };
 });

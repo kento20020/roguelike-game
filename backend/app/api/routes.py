@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import secrets
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_engine_or_404
@@ -220,5 +220,5 @@ def profile_dossier(data_version: str = DOSSIER_DATA_VERSION, db: Session = Depe
 
 # ── telemetry ──
 @router.get("/stats/history", response_model=list[RunRecordOut])
-def history(limit: int = 50, db: Session = Depends(get_db)):
+def history(limit: int = Query(default=50, ge=1, le=500), db: Session = Depends(get_db)):
     return [RunRecordOut(**r.to_dict()) for r in crud.list_run_records(db, limit)]

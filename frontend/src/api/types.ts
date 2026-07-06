@@ -127,6 +127,13 @@ export interface RunRecord {
   death_cause: string | null;
   death_floor: number | null;
   permanent_upgrades_state: Record<string, number>;
+  gate_guarantee_stacks?: number; // ゲート保証の重ねがけ回数（ラン累計・GDD §19.1）
+  // OPEN-024/025 テレメトリ（旧レコードは既定値）
+  data_version?: string;
+  strategy_version?: string | null;
+  sink_use_counts?: Record<string, number>;
+  gate_results?: Array<{ floor: number; outcome: string }>;
+  action_counts?: Record<string, number>;
   [extra: string]: unknown;
 }
 

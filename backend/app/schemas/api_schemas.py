@@ -6,12 +6,13 @@ from __future__ import annotations
 
 from typing import Any, Optional
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 # ── requests ──
 class NewRunRequest(BaseModel):
-    seed: Optional[int] = None
+    # seed は SFC32 の定義域 [0, 2^32-1] に制限（§17.3。範囲外の暗黙丸めを入口で拒否）
+    seed: Optional[int] = Field(default=None, ge=0, le=2**32 - 1)
     bot_type: str = "human"
 
 
@@ -99,6 +100,9 @@ class BattleOut(BaseModel):
     side_bet_result: Optional[dict[str, Any]] = None  # 直近ターンのサイドベット結果（次ターンでクリア）
     last_turn: Optional[dict[str, Any]] = None  # 直近ターンの実現結果 {action, guard}（ログ表示済みの公開情報のみ）
     side_bet: Optional[dict[str, Any]] = None  # サイドベット表示規則（正本 config.json side_bet の該当キーのみ）
+    # テル（行動の前兆）試作: 気配信頼度ラベル。フラグOFF/非公開ターンは None。
+    # engine.snapshot() は生成していたが本スキーマに無くレスポンスから欠落していた（型契約の破れを修復）。
+    tell_reliability: Optional[str] = None
 
 
 class ActionItem(BaseModel):
