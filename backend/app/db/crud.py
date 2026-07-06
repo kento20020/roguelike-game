@@ -1,6 +1,7 @@
 """DB操作。生SQLは書かない（SQLAlchemy経由）。"""
 from __future__ import annotations
 
+import logging
 from datetime import datetime, timedelta, timezone
 from typing import TypeVar
 
@@ -20,6 +21,8 @@ from app.db.models import (
 UPGRADE_ITEMS = ["max_hp", "attack", "init_gold", "gold_drop", "sink_cost"]
 
 _Row = TypeVar("_Row")
+
+logger = logging.getLogger("casino_tower.crud")
 
 
 class UpgradeError(ValueError):
@@ -68,6 +71,13 @@ def list_run_records(db: Session, limit: int = 50) -> list[RunRecordRow]:
     ).scalars())
 
 
+def run_record_exists(db: Session, run_id: str) -> bool:
+    """指定 run_id の RunRecord が既に確定済みか（復元経路での二重 finalize 防止・OPEN-007）。"""
+    return db.execute(
+        select(RunRecordRow.id).where(RunRecordRow.run_id == run_id).limit(1)
+    ).first() is not None
+
+
 # ── ActiveSession（進行中ランの再現用・アクションログ再生方式・OPEN-007）──
 def create_active_session(db: Session, session_id: str, seed: int, bot_type: str,
                            upgrades: dict) -> ActiveSessionRow:
@@ -85,6 +95,11 @@ def record_action(db: Session, session_id: str, action: dict) -> ActiveSessionRo
     last_seen_at はモデルの onupdate=func.now() に任せる（このUPDATEで自動更新される）。"""
     row = db.get(ActiveSessionRow, session_id)
     if row is None:
+        # 通常到達しない: get_engine_or_404 が行の存在をリクエスト冒頭で確認して404にするため。
+        # ここに来た場合はエンジンだけ進んでログが残らない乖離（再生不能化）なので必ず痕跡を残す。
+        logger.warning("record_action: active_sessions row missing for %s; "
+                       "action %r NOT recorded (live/replay divergence risk)",
+                       session_id, action.get("type"))
         return None
     row.actions_json = [*row.actions_json, action]
     return _commit(db, row)

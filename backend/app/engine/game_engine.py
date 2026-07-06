@@ -168,6 +168,12 @@ class GameEngine:
     def _resolve_battle_turn(self, *, guard: bool, side_bet: Optional[dict],
                              player_attacks: bool, player_move: str) -> dict:
         b, p = self.battle, self.player
+        # サイドベット検証はターン解決の前（原子性）。解決後に InvalidMove を投げると
+        # 「HTTP 400 なのに live エンジンは1ターン進んでいる」状態になり、アクションログに
+        # 記録されないターンが生まれて再生（OPEN-007）が live と乖離する。
+        # 拒否されるリクエストは状態を一切進めない（RNGも消費しない）。
+        if side_bet is not None:
+            self._validate_side_bet(b, p, side_bet)
         pre_snapshot = self._pre_turn_snapshot()
         b.side_bet_result = None  # 前ターン分の表示をクリア
         res = cr.resolve_turn(b, p, self.data, self.rng.stream(STREAM_BEHAVIOR),
@@ -226,15 +232,16 @@ class GameEngine:
             },
         }
 
-    def _settle_side_bet(self, battle: Battle, player: Player, side_bet: dict, action: str) -> dict:
-        """サイドベット『読み宣言』の検証＋判定。
+    def _validate_side_bet(self, battle: Battle, player: Player, side_bet: dict) -> None:
+        """サイドベット『読み宣言』の検証（ターン解決前に呼ぶ）。
 
         検証: 賭け額が min/max 範囲内・チップ足りているか・per_battle_cap 超過なし。
-        違反時は InvalidMove（HTTP 400）。的中は payout_multiplier 倍の差分を加算、外れは没収。
+        違反時は InvalidMove（HTTP 400）＝そのターンは解決されない（状態不変・RNG非消費）。
+        チップ検証がターン解決前になるため「このターンの撃破報酬を当てにしたベット」はできない
+        （賭けは配られる前に置くのが筋であり、再生の原子性にも必須）。
         """
         cfg = self.data.config["side_bet"]
         amount = side_bet.get("amount")
-        behavior = side_bet.get("behavior")
         if not isinstance(amount, int) or not (cfg["min_amount"] <= amount <= cfg["max_amount"]):
             raise InvalidMove(f"invalid side bet amount: {amount}")
         if player.chips < amount:
@@ -242,6 +249,14 @@ class GameEngine:
         if battle.side_bet_total + amount > cfg["per_battle_cap"]:
             raise InvalidMove("side bet per-battle cap exceeded")
 
+    def _settle_side_bet(self, battle: Battle, player: Player, side_bet: dict, action: str) -> dict:
+        """サイドベット『読み宣言』の判定（検証は _validate_side_bet でターン解決前に済んでいる）。
+
+        的中は payout_multiplier 倍の差分を加算、外れは没収。
+        """
+        cfg = self.data.config["side_bet"]
+        amount = side_bet.get("amount")
+        behavior = side_bet.get("behavior")
         battle.side_bet_total += amount
         hit = behavior == action
         if hit:

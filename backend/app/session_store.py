@@ -45,6 +45,11 @@ class SessionStore:
             self._engines.move_to_end(sid)
         return eng
 
+    def drop(self, sid: str) -> None:
+        """セッションをキャッシュから破棄する（DB行が消えたゾンビエンジンの掃除用）。"""
+        self._engines.pop(sid, None)
+        self._finalized.discard(sid)
+
     def mark_finalized(self, sid: str) -> None:
         self._finalized.add(sid)
 

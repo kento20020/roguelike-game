@@ -8,9 +8,11 @@ GameEngine メソッド呼び出しとして再適用することで状態を復
 app.simulation.bots._apply の {"type": ..., ...} dict ディスパッチと同じ規約を踏襲し、
 guard/side_bet 対応を加えて拡張したもの。
 
-再生は GameEngine の状態を作るためだけに行う。_drain_observations（調書カウント）や
+再生は GameEngine の状態を作るためだけに行う。調書カウント（ObservationRow）や
 _finalize_if_ended（RunRecord確定）はライブプレイ時に既に実行・DB反映済みのため、
-ここでは呼ばない（呼ぶと二重計上になる）。
+ここではDBへ書かない（書くと二重計上になる）。再生中に engine 内部へ蓄積される
+_pending_observations も同じ理由で復元前に破棄する（残すと復元後の最初の戦闘ターンの
+drain でまとめてDBへ書かれ二重計上になる）。
 """
 from __future__ import annotations
 
@@ -49,4 +51,7 @@ def rebuild_engine(row: "ActiveSessionRow") -> GameEngine:
     eng.new_run(row.seed, upgrades=row.upgrades_json, bot_type=row.bot_type)
     for action in row.actions_json:
         apply_action(eng, action)
+    # 再生で蓄積した調書観測はライブ時に反映済み。破棄しないと、復元後の最初の戦闘ターンの
+    # _drain_observations で新規分と一緒にDBへ書かれ、二重計上になる。
+    eng.drain_observations()
     return eng
