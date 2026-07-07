@@ -99,7 +99,7 @@ def new_run(req: NewRunRequest, db: Session = Depends(get_db)) -> GameStateRespo
     eng = GameEngine()
     eng.new_run(seed, upgrades=upgrades, bot_type=req.bot_type)
     session_id = store.create(eng)
-    crud.create_active_session(db, session_id, seed, req.bot_type, upgrades)
+    crud.create_active_session(db, session_id, seed, req.bot_type, upgrades, eng.run.run_id)
     return _state(session_id, eng)
 
 

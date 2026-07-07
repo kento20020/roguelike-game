@@ -22,6 +22,9 @@ def test_random_bot_terminates(data):
 def test_strong_bot_deterministic(data):
     a = bots.play_strong(GameEngine(data), seed=5)
     b = bots.play_strong(GameEngine(data), seed=5)
+    # run_id はラン識別用の一意IDであり、seedの決定論の対象外
+    a, b = dict(a), dict(b)
+    a.pop("run_id"), b.pop("run_id")
     assert a == b
 
 
