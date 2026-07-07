@@ -8,7 +8,18 @@ def test_same_seed_same_runrecord(data):
     ra = auto_play(a, seed=123)["run_record"]
     b = GameEngine(data)
     rb = auto_play(b, seed=123)["run_record"]
-    assert ra == rb                    # 同seed＋同方策 → 完全一致
+    # run_id はラン識別用の一意IDであり、seedの決定論の対象外（別ランなら別ID）
+    ra, rb = dict(ra), dict(rb)
+    assert ra.pop("run_id") != rb.pop("run_id")
+    assert ra == rb                    # 同seed＋同方策 → run_id以外は完全一致
+
+
+def test_run_id_unique_across_same_seed_runs(data):
+    """seedが同じでもrun_idは衝突しない（RunRecord/検死レポート取り違え防止）。"""
+    a = auto_play(GameEngine(data), seed=42)["run_record"]
+    b = auto_play(GameEngine(data), seed=42)["run_record"]
+    assert a["seed"] == b["seed"] == 42
+    assert a["run_id"] != b["run_id"]
 
 
 def test_different_seed_differs(data):

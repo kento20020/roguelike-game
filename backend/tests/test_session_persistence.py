@@ -267,11 +267,12 @@ def test_terminal_before_finalize_crash_is_recovered_on_resume(api):
     store.mark_finalized(sid)  # 以降の _finalize_if_ended を全スキップ＝finalize未達をエミュレート
     final_state = _drive(client, state)
     assert final_state["phase"] in ("cleared", "dead")
+    run_id = final_state["run_record"]["run_id"]  # run_idはseed非依存の一意ID（uuid4）
 
     # クラッシュ窓の前提: アクションは記録済みだが RunRecord は未保存
     with TestSession() as db:
         assert crud.load_active_session(db, sid) is not None
-        assert not any(r.run_id == "run-7" for r in crud.list_run_records(db))
+        assert not any(r.run_id == run_id for r in crud.list_run_records(db))
 
     store.clear()  # 再起動相当（インメモリと _finalized を破棄）
     r = client.get(f"/api/run/{sid}")
@@ -280,7 +281,7 @@ def test_terminal_before_finalize_crash_is_recovered_on_resume(api):
 
     # 復元経路が finalize 相当を実行し、RunRecord が確定していること
     with TestSession() as db:
-        assert any(r.run_id == "run-7" for r in crud.list_run_records(db))
+        assert any(r.run_id == run_id for r in crud.list_run_records(db))
 
 
 # ── 復元時 finalize が二重確定しない（既に確定済みのランを再開しても RunRecord/ポイントを増やさない）──
@@ -290,9 +291,10 @@ def test_resume_of_finalized_run_does_not_double_finalize(api):
     sid = state["session_id"]
     final_state = _drive(client, state)  # ライブで正規に finalize 済み
     assert final_state["phase"] in ("cleared", "dead")
+    run_id = final_state["run_record"]["run_id"]  # run_idはseed非依存の一意ID（uuid4）
 
     with TestSession() as db:
-        recs_before = [r for r in crud.list_run_records(db) if r.run_id == "run-7"]
+        recs_before = [r for r in crud.list_run_records(db) if r.run_id == run_id]
         pts_before = crud.get_or_create_profile(db).points
     assert len(recs_before) == 1  # ライブで1回だけ確定済み
 
@@ -300,7 +302,7 @@ def test_resume_of_finalized_run_does_not_double_finalize(api):
     assert client.get(f"/api/run/{sid}").status_code == 200
 
     with TestSession() as db:
-        recs_after = [r for r in crud.list_run_records(db) if r.run_id == "run-7"]
+        recs_after = [r for r in crud.list_run_records(db) if r.run_id == run_id]
         pts_after = crud.get_or_create_profile(db).points
     assert len(recs_after) == 1          # 二重に RunRecord を作らない
     assert pts_after == pts_before        # ポイント二重付与もしない

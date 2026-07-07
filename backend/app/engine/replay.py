@@ -49,6 +49,11 @@ def apply_action(eng: GameEngine, action: dict) -> None:
 def rebuild_engine(row: "ActiveSessionRow") -> GameEngine:
     eng = GameEngine()
     eng.new_run(row.seed, upgrades=row.upgrades_json, bot_type=row.bot_type)
+    # new_run() は呼ぶたびに新しいrun_id（uuid4）を発行するため、再構築のたびに変わってしまうと
+    # 既存のRunRecord/postmortemの参照キーとズレる。ライブ生成時に確定したrun_idへ上書きする
+    # （旧行でrun_id未保存＝Noneの場合のみ、new_run()が発行した値をそのまま使う）。
+    if row.run_id is not None:
+        eng.run.run_id = row.run_id
     for action in row.actions_json:
         apply_action(eng, action)
     # 再生で蓄積した調書観測はライブ時に反映済み。破棄しないと、復元後の最初の戦闘ターンの

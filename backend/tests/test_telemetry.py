@@ -55,7 +55,10 @@ def test_save_run_record_stamps_versions(data):
     row = crud.save_run_record(db, g.run.snapshot(), strategy_version=None)
     assert row.data_version == GameData.load().data_version
     assert row.strategy_version is None
-    row2 = crud.save_run_record(db, g.run.snapshot(), strategy_version="strong-v1")
+
+    g2 = GameEngine(data)  # 別ラン（run_idはuuid4ベースで衝突しないため別seedで再度auto_play）
+    auto_play(g2, seed=12)
+    row2 = crud.save_run_record(db, g2.run.snapshot(), strategy_version="strong-v1")
     assert row2.strategy_version == "strong-v1"
     # API 出力（to_dict）にも載る
     d = row.to_dict()

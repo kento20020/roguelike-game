@@ -26,7 +26,7 @@
 ```
 RunRecord:
   # ラン識別
-  run_id: string               # = "run-{seed}"（session_id=uuid とは別物・同一seedで衝突し得る）
+  run_id: string               # = "run-{uuid4}"（session_id=uuid とは別物だが、seed非依存の一意ID）
   seed: int
   timestamp: datetime          # 実装では created_at（DB server_default=now）として永続化
 
@@ -67,7 +67,7 @@ RunRecord:
 ```
 
 > **フィールド定義の明確化（実装準拠）**：
-> - `run_id = "run-{seed}"`。`session_id`（uuid・`session_store`）とは**別物**で、同一seedを使う bot パネルでは run_id が衝突し得る（`RunRecordRow.run_id` は index で unique 制約なし）。ラン⇄セッションの紐付けは §25。
+> - `run_id = "run-{uuid4}"`。`session_id`（uuid・`session_store`）とは**別物**の識別子だが、`new_run()` 内で毎回 `uuid.uuid4()` から生成するためseedとは独立＝同一seedの複数ランでも衝突しない（`RunRecordRow`/`PostmortemRow`/`RunActionsRow` の `run_id` は unique 制約つき・マイグレーション `0004_run_id_unique`）。ラン⇄セッションの紐付けは §25。
 > - `mods_acquired` は同mod複数取得を**重複保持（取得順）**。`total_turns` は戦闘ターン総和。`permanent_upgrades_state` の各intは**レベル値**（0〜上限Lv）。`bot_type` は `human`/`strong`/`random`。`enemies_defeated[].experience` は **romaji enum**（§20.7・v1.4 で OPEN-012 解消。旧レコードには日本語が残るが data_version で世代が分かれる）。
 >
 > **v1.4 で追加済み（OPEN-024/025 解消・Alembic `0002_telemetry`）**：`data_version`・`strategy_version`・`sink_use_counts`・`gate_results`・`action_counts`。マイグレーション前の旧行は NULL のまま保持され、API 層（`to_dict`）が既定値（""/{}/[]）へ丸める。

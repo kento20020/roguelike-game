@@ -5,6 +5,7 @@ combat_log（表示専用）と RunRecord（統計専用）は別管理で同期
 """
 from __future__ import annotations
 
+import uuid
 from typing import Any, Optional
 
 from app.data.loader import GameData, get_data
@@ -97,7 +98,9 @@ class GameEngine:
         self.battle = None
         self.pending = {}
         self.gate_guarantee_uses = 0
-        self.run = RunRecord(run_id=f"run-{seed}", seed=seed, bot_type=bot_type,
+        # run_id はseedに依存させない（seedはクライアントが任意指定でき、同一seedの
+        # 複数ランでrun_idが衝突するとRunRecord/検死レポートの取り違えにつながるため）。
+        self.run = RunRecord(run_id=f"run-{uuid.uuid4().hex}", seed=seed, bot_type=bot_type,
                              floor_reached=1, permanent_upgrades_state=dict(up))
         return self.snapshot()
 

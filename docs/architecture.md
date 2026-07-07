@@ -68,7 +68,7 @@
 - SFC32 本体・種導出・warmup 回数を含め **Python/TS で同一実装**にし、golden vector（`tests/test_rng.py`）へ一致させる（TS版の用途は §18.5）。
 - botシミュレーションは固定シードパネル（seed 0〜999）で再現性を担保。
 - **seed の範囲・生成**：`0 ≤ seed ≤ 2^32−1`（Pydantic `conint(ge=0, le=2**32-1)` で検証推奨）。未指定時はサーバが `secrets.randbits(32)` で生成。
-- **seed・rng_streams は API 出力に含めない**（不変条件）。ただし `run_id = "run-{seed}"` はラン**終了後**の RunRecord にのみ現れる（進行中は snapshot.run_record=null のため seed は露出せず、seed-scum を防ぐ）。`snapshot()` にも含まれず、同一SFC32実装で全ロールを事前計算されて暗黙知/スカウト経済が崩れるのを防ぐ。**スナップショットテストで非存在を assert 済み（v1.4 実装・`tests/test_invariants.py`。一時期この不変条件が実装で破れていたのを修復）**。
+- **seed・rng_streams は API 出力に含めない**（不変条件）。`RunRecord.seed` はラン**終了後**にのみ現れる（進行中は snapshot.run_record=null のため seed は露出せず、seed-scum を防ぐ）。`snapshot()` にも含まれず、同一SFC32実装で全ロールを事前計算されて暗黙知/スカウト経済が崩れるのを防ぐ。**スナップショットテストで非存在を assert 済み（v1.4 実装・`tests/test_invariants.py`。一時期この不変条件が実装で破れていたのを修復）**。`run_id` はseedとは独立に `uuid.uuid4()` から生成する一意ID（`"run-{uuid4}"`）で、同一seedの複数ランでも衝突しない（`RunRecordRow`/`PostmortemRow`/`RunActionsRow` ともにunique制約）。
 
 ---
 

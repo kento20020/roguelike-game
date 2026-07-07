@@ -17,7 +17,7 @@ class RunRecordRow(Base):
     __tablename__ = "run_records"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    run_id: Mapped[str] = mapped_column(String, index=True)
+    run_id: Mapped[str] = mapped_column(String, unique=True, index=True)
     seed: Mapped[int] = mapped_column(Integer)
     bot_type: Mapped[str] = mapped_column(String, default="human")
     cleared: Mapped[bool] = mapped_column(Boolean)
@@ -64,7 +64,7 @@ class PostmortemRow(Base):
     __tablename__ = "postmortems"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    run_id: Mapped[str] = mapped_column(String, index=True)
+    run_id: Mapped[str] = mapped_column(String, unique=True, index=True)
     turn_history_json: Mapped[list] = mapped_column(JSON)
     fatal_turn_index: Mapped[int] = mapped_column(Integer)
     counterfactual_json: Mapped[dict] = mapped_column(JSON)
@@ -106,7 +106,7 @@ class RunActionsRow(Base):
     __tablename__ = "run_actions"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    run_id: Mapped[str] = mapped_column(String, index=True)
+    run_id: Mapped[str] = mapped_column(String, unique=True, index=True)
     actions_json: Mapped[list] = mapped_column(JSON)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
@@ -120,6 +120,12 @@ class ActiveSessionRow(Base):
     終局（cleared/dead）後も TTL 掃除まではあえて残す（RunRecordRow/RunActionsRow が
     正の記録として既に確定しているため実害は無く、削除すると「クリア直後の再起動で
     GET /run/{id} が404になる」退行を生むため）。
+
+    run_id はライブ生成時（new_run）に一度だけ uuid4 で決まる一意IDで、以後
+    rebuild_engine() が何度呼ばれても同じ値を使い続ける必要がある（re-generateすると
+    再構築のたびにRunRecord/postmortemの参照キーが変わり、crud.run_record_exists による
+    二重finalize防止やpostmortem検索が壊れるため）。ここに保存し rebuild_engine() で
+    上書き適用する。旧行（このカラム追加前）は None のままで良い（TTL掃除で自然消滅）。
     """
     __tablename__ = "active_sessions"
 
@@ -128,6 +134,7 @@ class ActiveSessionRow(Base):
     bot_type: Mapped[str] = mapped_column(String, default="human")
     upgrades_json: Mapped[dict] = mapped_column(JSON)
     actions_json: Mapped[list] = mapped_column(JSON, default=list)
+    run_id: Mapped[Optional[str]] = mapped_column(String, unique=True, nullable=True)
     last_seen_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 

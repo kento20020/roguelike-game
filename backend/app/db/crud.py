@@ -80,10 +80,10 @@ def run_record_exists(db: Session, run_id: str) -> bool:
 
 # ── ActiveSession（進行中ランの再現用・アクションログ再生方式・OPEN-007）──
 def create_active_session(db: Session, session_id: str, seed: int, bot_type: str,
-                           upgrades: dict) -> ActiveSessionRow:
+                           upgrades: dict, run_id: str) -> ActiveSessionRow:
     row = ActiveSessionRow(
         session_id=session_id, seed=seed, bot_type=bot_type,
-        upgrades_json=upgrades, actions_json=[],
+        upgrades_json=upgrades, actions_json=[], run_id=run_id,
     )
     db.add(row)
     return _commit(db, row)

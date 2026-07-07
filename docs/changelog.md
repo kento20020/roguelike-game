@@ -2,6 +2,8 @@
 
 各版で確定した内容の経緯。現行仕様は本文を正本とし、ここは時系列の記録。
 
+- **v1.6**（2026-07-07）：**run_idのseed非依存化**。`run_id = "run-{seed}"` はクライアントが任意指定できる`seed`に由来するため、同一seedの複数ラン（明示指定・共有プレイ等）で衝突し得た（`data_model.md`に既知の限界として記載済みだったが未修正）。放置すると検死レポート取り違えに加え、`crud.run_record_exists`によるクラッシュ復元時finalizeの誤スキップ（RunRecordがサイレントに欠落）にもつながるため修正。`game_engine.new_run()` の run_id 生成を `uuid.uuid4()` ベースに変更し、`run_records`/`postmortems`/`run_actions` の `run_id` にDB UNIQUE制約を追加（`0004_run_id_unique`）。
+  - **副作用の是正**：`new_run()`は呼ぶたびに新しいrun_idを発行するため、そのままでは`app.engine.replay.rebuild_engine()`によるキャッシュミス後の再構築のたびにrun_idが変わってしまい、セッション永続化（v1.5）のRunRecord/postmortem参照キーとズレる回帰を生んでいた。`active_sessions`にrun_id列を追加してライブ生成時の値を保存し、`rebuild_engine()`が同じ値へ上書きすることで解消（`0005_active_session_run_id`）。
 - **v1.5**（2026-07-07）：**セッション永続化（OPEN-007解消）**。本番で複数人に遊んでもらう際の最大の障害だった「進行中ランがプロセス内メモリのみ・単一プロセス前提」を解消した。
   - **アクションログ再生方式を採用**（GameStateの全フィールドをスナップショットする方式は不採用）：GameEngineは(seed, upgrades, 操作列)の純粋関数（同一seed→同一結果の不変条件）であることを利用し、`active_sessions`テーブルへ「seed＋初期upgrades＋適用アクション列」だけを記録。インメモリキャッシュミス時（再起動・LRU追い出し直後）に`app.engine.replay.rebuild_engine`が`new_run`+アクション再適用で状態を再構築する。フィールド追加のたびに保存/復元コードを同期する必要がなく、将来の変更に自動追従する。
   - **session_storeをLRU上限（既定500）つきキャッシュに変更**：追い出されても実害なし（DBから透過的に復元）。「遊ばれるほどメモリが増え続ける」問題も同時に解消。
