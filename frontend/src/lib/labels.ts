@@ -56,20 +56,31 @@ export const SINK_META: Record<SinkType, { label: string; effect: string; iconTy
   treasure_reroll: { label: "引き直す", effect: "宝箱を引き直す", iconType: "arrow" },
 };
 
-// 技（mod）id→アイコン種別（mods.json は id がそのまま日本語名）。
+// 技（mod）id（mods.json の英語スラグ）→アイコン種別。
+// 注意: mod の id は英語スラグ（mikiri / juso / ...）であり日本語名ではない。
 export const MOD_ICON: Record<string, string> = {
-  反射: "reflect",
-  見切り: "evade",
-  重装甲: "shield",
-  好機: "star",
-  先読み: "eye",
-  加速止め: "cap",
+  hansha: "reflect",
+  mikiri: "evade",
+  juso: "shield",
+  kouki: "star",
+  yomi: "eye",
+  kasoku_dome: "cap",
 };
 
 // 技の効果説明は mods.json 由来の catalog（/api/catalog/mods）が正本。
-// フロントでの重複定義（旧 MOD_EFFECT）は撤去した。
+// 表示名は catalog 取得失敗時も生スラグ（mikiri 等）を出さないよう静的に持つ
+// （store はカタログ取得失敗を「効果文が出ないだけ」の非致命扱いにしている）。
+export const MOD_LABEL: Record<string, string> = {
+  mikiri: "見切り",
+  kasoku_dome: "加速止め",
+  juso: "重装甲",
+  hansha: "反射",
+  yomi: "先読み",
+  kouki: "好機",
+};
+
 export function modLabel(id: string): string {
-  return id;
+  return MOD_LABEL[id] ?? id;
 }
 
 // 敵の行動種別（combat_resolver の behaviors）。意味は定性的に説明し、確率は出さない（暗黙知 GDD §5）。
