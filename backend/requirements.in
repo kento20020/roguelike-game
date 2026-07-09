@@ -12,7 +12,7 @@ fastapi>=0.110
 # wheelメタデータに従いuvloopが正しく解決・インストールされる（＝CI上の欠落は無い）。
 # 唯一の妥協点は「uvloopのバージョンだけはこのロックファイルで固定されない」こと。
 # 完全に固定したい場合はLinux環境（CI相当）でpip-compileを再実行すること。
-uvicorn[standard]>=0.29
+uvicorn[standard]>=0.51.0
 pydantic>=2.6
 sqlalchemy>=2.0
 # DBスキーマ移行（OPEN-027 の一部前倒し。手順は docs/runbook.md）

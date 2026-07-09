@@ -16,10 +16,6 @@ anyio==4.14.1
     #   watchfiles
 click==8.4.2
     # via uvicorn
-colorama==0.4.6
-    # via
-    #   click
-    #   uvicorn
 fastapi==0.139.0
     # via -r requirements.in
 greenlet==3.5.3
@@ -66,8 +62,10 @@ typing-inspection==0.4.2
     # via
     #   fastapi
     #   pydantic
-uvicorn[standard]==0.50.2
+uvicorn[standard]==0.51.0
     # via -r requirements.in
+uvloop==0.22.1
+    # via uvicorn
 watchfiles==1.2.0
     # via uvicorn
 websockets==16.0
