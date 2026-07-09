@@ -8,14 +8,12 @@ anyio==4.14.1
     # via
     #   -c requirements.txt
     #   httpx
+ast-serialize==0.6.0
+    # via mypy
 certifi==2026.6.17
     # via
     #   httpcore
     #   httpx
-colorama==0.4.6
-    # via
-    #   -c requirements.txt
-    #   pytest
 coverage[toml]==7.15.0
     # via pytest-cov
 h11==0.16.0
@@ -35,7 +33,7 @@ iniconfig==2.3.0
     # via pytest
 librt==0.12.0
     # via mypy
-mypy==1.20.2
+mypy==2.2.0
     # via -r requirements-dev.in
 mypy-extensions==1.1.0
     # via mypy
