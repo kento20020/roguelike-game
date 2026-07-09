@@ -49,7 +49,7 @@ class GameData:
 
     # ── construction ──────────────────────────────────────────────
     @classmethod
-    def load(cls, validate: bool = True) -> "GameData":
+    def load(cls, validate: bool = True) -> GameData:
         names = ("config.json", "enemies.json", "floors.json", "mods.json")
         raw = {name: _read_bytes(name) for name in names}
         config = json.loads(raw["config.json"])

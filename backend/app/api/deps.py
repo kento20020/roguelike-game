@@ -66,10 +66,10 @@ def get_engine_or_404(session_id: str, db: Session = Depends(get_db)) -> GameEng
     # 409/400 に誤マッピングされ、GET が「phase不整合」を返す混乱した応答になるため明示的に包む（観点3）。
     try:
         eng = rebuild_engine(row)
-    except Exception:
+    except Exception as err:
         logger.exception("failed to rebuild session %s from action log", session_id)
         raise HTTPException(status_code=500,
-                            detail=f"failed to restore session {session_id} from action log")
+                            detail=f"failed to restore session {session_id} from action log") from err
     store.restore(session_id, eng)
 
     # クラッシュ窓の回復（OPEN-007 観点2）: ライブで終局したが finalize 未達のまま再起動した行は、

@@ -16,7 +16,7 @@ if TYPE_CHECKING:
     from app.engine.game_engine import GameEngine
 
 
-def compute_postmortem(engine: "GameEngine") -> dict:
+def compute_postmortem(engine: GameEngine) -> dict:
     if not engine.run.turn_history:
         return {}
     last = engine.run.turn_history[-1]

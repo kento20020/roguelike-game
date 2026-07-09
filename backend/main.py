@@ -5,9 +5,11 @@
 """
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
 import uuid
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -16,16 +18,44 @@ from fastapi.responses import JSONResponse
 from app.api.routes import router
 from app.db import models  # noqa: F401  (テーブル登録のため import)
 from app.db.crud import UpgradeError
-from app.db.session import Base, engine
+from app.db.session import Base, SessionLocal, engine
 from app.engine.game_engine import IllegalAction, InvalidMove, WrongPhase
+from app.logging_setup import request_id_var, setup_logging
+from app.maintenance import periodic_session_cleanup
 
-logging.basicConfig(
-    level=os.environ.get("LOG_LEVEL", "INFO").upper(),
-    format="%(asctime)s %(levelname)s %(name)s %(message)s",
-)
+setup_logging()
 logger = logging.getLogger("casino_tower")
 
-app = FastAPI(title="カジノタワー ローグライト API", version="1.0")
+# active_sessions TTL 掃除の周期タスク設定（.env.example 参照）。
+# TTL は crud.delete_stale_active_sessions の既定（7日=168h）に一致させる。
+_SESSION_TTL_HOURS = int(os.environ.get("SESSION_TTL_HOURS", "168"))
+_SESSION_CLEANUP_INTERVAL_HOURS = float(os.environ.get("SESSION_CLEANUP_INTERVAL_HOURS", "24"))
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """起動時に active_sessions TTL 掃除の周期タスクを立ち上げ、停止時に確実に片付ける。
+
+    NOTE: TestClient をコンテキストマネージャ無し（`TestClient(app)`）で使う既存テストでは
+    lifespan は発火しない。`with TestClient(app) as client:` を使ったときのみ起動する。
+    """
+    task = asyncio.create_task(
+        periodic_session_cleanup(
+            SessionLocal,
+            interval_hours=_SESSION_CLEANUP_INTERVAL_HOURS,
+            ttl_hours=_SESSION_TTL_HOURS,
+        )
+    )
+    try:
+        yield
+    finally:
+        task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass  # 正常なシャットダウン（周期タスクのキャンセルは想定内）
+
+app = FastAPI(title="カジノタワー ローグライト API", version="1.0", lifespan=lifespan)
 
 # テーブル作成（SQLite・開発/テスト用フォールバック）。
 # スキーマ変更の正規手段は Alembic（docs/runbook.md）。create_all は既存テーブルに列追加をしない。
@@ -45,14 +75,23 @@ app.add_middleware(
 
 @app.middleware("http")
 async def request_id_middleware(request: Request, call_next):
-    """リクエストID採番（X-Request-ID）。障害調査時にログとレスポンスを突き合わせる足がかり。"""
+    """リクエストID採番（X-Request-ID）。障害調査時にログとレスポンスを突き合わせる足がかり。
+
+    call_next の前に request_id_var へ set し、finally で reset することで、call_next 内側で
+    走る全ログレコード（RequestIdFilter 経由）へ request_id が自動付与される。手動での
+    req_id 引数埋め込みは不要になったのでメッセージから外した。
+    """
     req_id = request.headers.get("X-Request-ID") or uuid.uuid4().hex[:12]
-    response = await call_next(request)
-    response.headers["X-Request-ID"] = req_id
-    if response.status_code >= 400:
-        logger.warning("req=%s %s %s -> %d", req_id, request.method, request.url.path,
-                       response.status_code)
-    return response
+    token = request_id_var.set(req_id)
+    try:
+        response = await call_next(request)
+        response.headers["X-Request-ID"] = req_id
+        if response.status_code >= 400:
+            logger.warning("%s %s -> %d", request.method, request.url.path,
+                           response.status_code)
+        return response
+    finally:
+        request_id_var.reset(token)
 
 
 @app.exception_handler(WrongPhase)

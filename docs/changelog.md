@@ -2,6 +2,16 @@
 
 各版で確定した内容の経緯。現行仕様は本文を正本とし、ここは時系列の記録。
 
+- **v1.7**（2026-07-07）：**運用・開発基盤整備**。DevOps監査で見つかった改善項目を順次実装している。
+  - **frontend-ci.yml新設**：frontend側のCIが存在せず`npm run typecheck`/`lint`/`build`がPRマージ時に未検証だった問題を解消。`balance.yml`と同型でtypecheck/lint/buildを検証。
+  - **Pythonバージョン統一**：`balance.yml`(3.11)と`docs-ci.yml`(3.12)の不一致を3.12に統一し、依存キャッシュも追加。
+  - **pip-compileで依存ピン留め**：`backend/requirements.txt`が全て`>=`の範囲指定のみでロックファイルが存在しなかった再現性リスクを解消。`requirements.in`（ランタイム）/`requirements-dev.in`（テスト専用）からpip-compileで完全ピン留めしたロックを生成。
+  - **Dependabot有効化**：`.github/dependabot.yml`を新設し、pip（backend）・npm（frontend）・github-actionsの3エコシステムを週次で自動更新PR化。
+  - **pytest-cov導入（閾値なし）**：CIでcoverageを計測・可視化するのみに留め、強制ゲート（`--cov-fail-under`）は設けない（統計指標を最適化目標にしないというGoodhart回避の哲学に整合させるため）。
+  - **ruff + mypyをCIに追加**：backendに静的解析が一切なく規約が未検証だった状態を解消。ベースライン計測（ruff違反216件・mypyエラー176件＝うち`union-attr`が149件）を踏まえ、段階導入の緩めの厳格度で導入。ruffは`E,F,W,I,B,UP`から開始し、大量に出る/機能価値の低いルール（`E501`93件＝主に日本語コメント・`UP045`56件＝`Optional`モダナイズ・`B008`＝FastAPI `Depends`イディオム・`B905`/`UP047`）はTODO付きで`ignore`、安全な自動修正（未使用import整理・`typing`→`collections.abc`・注釈のアンクォート等）のみ適用（`ruff format`は`git blame`破壊のため不使用）。mypyはエンジンのOptional状態機械設計に起因する`union-attr`等をモジュール単位の`overrides`で緩和（エンジンのロジックは不変・型注釈追加のみ）、簡単な`var-annotated`5件のみ実修正。設定は`backend/pyproject.toml`（`[project]`を持たないツール設定専用）に集約。CLAUDE.mdの「型ヒント必須」規約を`balance.yml`の`lint`ジョブ（`balance`と並列）で自動検証できるようにした。
+  - **active_sessions TTL自動化**：`delete_stale_active_sessions`が定義済みだが本番コードから一度も呼ばれていなかった問題を解消。FastAPI lifespan + asyncioバックグラウンドタスクで周期実行（新規依存なし。APSchedulerは既存の最小フットプリント志向に合わせ不採用）。
+  - **構造化ログ + request_id伝播**：`X-Request-ID`がレスポンスヘッダには付くがログレコードには自動連携していなかった問題を解消。`contextvars`でrequest_idを全ログレコードへ自動注入し、`LOG_FORMAT=json`でJSON構造化出力に切り替え可能にした（既定は`text`でローカル開発の可読性を維持）。
+  - **ONBOARDING.md作成**：`docs/ONBOARDING.md`を新設し、環境構築からテスト・静的解析の回し方までを一本化。README/operations.md/runbook.mdの残課題記述（OPEN-027）からONBOARDINGを解消済みに更新。
 - **v1.6**（2026-07-07）：**run_idのseed非依存化**。`run_id = "run-{seed}"` はクライアントが任意指定できる`seed`に由来するため、同一seedの複数ラン（明示指定・共有プレイ等）で衝突し得た（`data_model.md`に既知の限界として記載済みだったが未修正）。放置すると検死レポート取り違えに加え、`crud.run_record_exists`によるクラッシュ復元時finalizeの誤スキップ（RunRecordがサイレントに欠落）にもつながるため修正。`game_engine.new_run()` の run_id 生成を `uuid.uuid4()` ベースに変更し、`run_records`/`postmortems`/`run_actions` の `run_id` にDB UNIQUE制約を追加（`0004_run_id_unique`）。
   - **副作用の是正**：`new_run()`は呼ぶたびに新しいrun_idを発行するため、そのままでは`app.engine.replay.rebuild_engine()`によるキャッシュミス後の再構築のたびにrun_idが変わってしまい、セッション永続化（v1.5）のRunRecord/postmortem参照キーとズレる回帰を生んでいた。`active_sessions`にrun_id列を追加してライブ生成時の値を保存し、`rebuild_engine()`が同じ値へ上書きすることで解消（`0005_active_session_run_id`）。
 - **v1.5**（2026-07-07）：**セッション永続化（OPEN-007解消）**。本番で複数人に遊んでもらう際の最大の障害だった「進行中ランがプロセス内メモリのみ・単一プロセス前提」を解消した。

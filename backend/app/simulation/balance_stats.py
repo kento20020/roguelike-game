@@ -17,9 +17,10 @@ P(sup_t K_t ≥ 1/α) ≤ α。よって {m: sup_t K_t < 1/α} は被覆 ≥ 1-�
 from __future__ import annotations
 
 import math
-from typing import Callable, Sequence
+from collections.abc import Callable, Sequence
 
 import numpy as np
+
 
 # ───────────────────────── A: 自前近似 ─────────────────────────
 def wilson(k: int, n: int, z: float = 1.96) -> tuple[float, float]:

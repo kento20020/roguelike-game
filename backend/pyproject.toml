@@ -1,0 +1,92 @@
+# backend 静的解析ツールの設定コンテナ。
+# このファイルはパッケージングには一切関与しない（[project] を意図的に持たない）。
+# ruff（lint）と mypy（型検査）の設定のみを集約し、CI の `lint` ジョブが参照する。
+#
+# 導入時ベースライン（2026-07 計測・素の設定）:
+#   ruff  : E,F,W,I,B,UP で 216 件
+#   mypy  : app main.py で 176 件（12 ファイル・union-attr が 149 件＝85%）
+# CLAUDE.md の「型ヒント必須」規約を自動検証できるようにするのが目的。
+# 大量に出るルールは段階導入とし、下記 TODO で将来の厳格化ポイントを残す。
+
+[tool.ruff]
+target-version = "py312"
+# 既存コードの行長に合わせる（88 だと機械的リフロー地獄になり git blame を破壊するため）。
+line-length = 100
+# alembic 自動生成リビジョンは機械生成物なのでスタイル検査の対象外にする
+# （env.py は手編集する設定なので対象に残す）。
+extend-exclude = ["migrations/versions"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP"]
+ignore = [
+    # --- 段階導入: 初回は無効化し、専用 PR で解消してから有効化する ---
+    # line-too-long: ベースライン 93 件。多くは日本語コメント（ruff は文字数カウント
+    # のため全角でも 1 文字＝表示幅の半分で嵩む）。一括リフロー＝ blame 破壊になるので
+    # 初回は無効。TODO: 整形パス（別 PR）を通してから E501 を有効化する。
+    "E501",
+    # Optional[X] -> X | None: ベースライン 56 件。Pydantic スキーマ（api_schemas/models）
+    # とエンジンにまたがる。純粋なモダナイズで機能価値ゼロ・差分が大きい。
+    # TODO: 型注釈モダナイズ専用 PR で --fix 適用してから有効化する。
+    "UP045",
+    # PEP695 ジェネリック関数（def f[T](...)）: 1 件（db/crud._commit）。自動修正不可で
+    # モジュールレベル TypeVar の除去を伴う。TODO: モダナイズ時にまとめて対応。
+    "UP047",
+    # --- 恒久的に無効化（このコードベースでは意図的パターン） ---
+    # function-call-in-default: FastAPI の Depends()/Query() を引数デフォルトに置く
+    # イディオム（18 件）。FastAPI では正しい書き方なので恒久 ignore。
+    "B008",
+    # zip() without strict=: 4 件。strict 省略時の挙動＝strict=False で現行と同一。
+    # 価値が低く、対象にエンジン（chaos_weights）を含み触りたくない。
+    # TODO: 意図が strict=True の箇所が無いか確認のうえ明示引数を付けて有効化する。
+    "B905",
+]
+
+[tool.ruff.lint.per-file-ignores]
+# テストは pytest 固有のイディオムを許容する。
+#   F811: import した fixture を各テストの引数名で「再定義」する pytest の通常パターン
+#         （test_session_persistence.py が該当。line 13 に開発者の noqa 注記あり）。
+#   F841: テスト内の未使用ローカル（可読性・段取り用）。
+#   B007/B011/E731: ループ変数未使用 / assert False / lambda 代入。テストでは許容範囲。
+"tests/**" = ["F811", "F841", "B007", "B011", "E731"]
+
+# ---------------------------------------------------------------------------
+
+[tool.mypy]
+python_version = "3.12"
+# サードパーティのスタブ欠落でCIを赤くしない（型検査の主眼は自作コード）。
+ignore_missing_imports = true
+# 注: disallow_untyped_defs / check_untyped_defs は今回は未設定（既定=無効）。
+# TODO(段階厳格化): overrides を1つずつ削り、最終的に check_untyped_defs=true →
+#   モジュール単位で disallow_untyped_defs=true へ引き上げる。strict=true 全面化は今回はしない。
+
+[[tool.mypy.overrides]]
+# エンジン/API はゲーム状態フィールドを Optional（Player|None・RunRecord|None 等）で持ち、
+# game_phase 保証のもと narrowing なしにアクセスする状態機械設計。None 安全を型で通すには
+# 実行時 assert の追加＝ロジック変更が必要になり、これはバランス回帰ゲートの保護対象
+# （エンジンの挙動を変えてはいけない）。よって該当コード種のみ無効化し、他の型検査は生かす。
+# ベースライン内訳: union-attr 149 / arg-type（同根の Optional 引数渡し）/ operator。
+# TODO(段階厳格化): 状態モデルを phase 別に分割 or TypeGuard を導入して union-attr を
+#   解消したら本 override を縮小・削除する。
+module = [
+    "app.engine.game_engine",
+    "app.engine.snapshot",
+    "app.engine.floor_generator",
+    "app.engine.postmortem",
+    "app.engine.replay",
+    "app.api.deps",
+    "app.api.routes",
+    "app.simulation.bots",
+]
+disable_error_code = ["union-attr", "arg-type", "operator"]
+
+[[tool.mypy.overrides]]
+# numpy スタブ起因（ndarray を Sequence[float] 期待の関数へ渡す / max(key=...) の overload）。
+# TODO: numpy 側の型を明示 or cast で解消して本 override を削る。
+module = ["app.simulation.balance_stats"]
+disable_error_code = ["arg-type"]
+
+[[tool.mypy.overrides]]
+# SQLAlchemy の Result.rowcount がスタブ未定義（実行時は CursorResult に存在）。
+# TODO: CursorResult へ cast して解消し本 override を削る。
+module = ["app.db.crud"]
+disable_error_code = ["attr-defined"]

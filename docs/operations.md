@@ -151,6 +151,6 @@
 | OPEN-024 | RunRecord data_version | 版混在の統計汚染防止（§19.1） | — | **解消（v1.4）** | 4JSON sha256短縮ハッシュ＋strategy_version を Alembic `0002_telemetry` で追加（§19.1） |
 | OPEN-025 | sink use_count / gate_results / guard記録 | ROI/寄与の逆算用テレメトリ（§19.1） | — | **解消（v1.4）** | sink_use_counts・gate_results・action_counts（attack/guard/heal_*）を記録。全ランの操作履歴も run_actions へ永続化 |
 | OPEN-026 | 認証・冪等性・stats scope | 進行中DB永続・冪等キー・stats/history のスコープ（§25） | 中 | 実装後半 | 単一プレイヤーは非スコープ明記（§0.4）＋ stats scope＋全mutating POSTに冪等キー |
-| OPEN-027 | 運用基盤の整備 | Alembic・Docker・game.dbバックアップ・構造化ログ+req_id・.env.example・CI・`/health`・RUNBOOK/ONBOARDING（§22/§23） | 低 | **大半解消（v1.4）** | 解消済み: Alembic・ログ＋X-Request-ID・.env.example・`/health`・CI（balance.yml/pytest）・runbook更新・CORS限定。残: Docker・バックアップ自動化・ONBOARDING |
+| OPEN-027 | 運用基盤の整備 | Alembic・Docker・game.dbバックアップ・構造化ログ+req_id・.env.example・CI・`/health`・RUNBOOK/ONBOARDING（§22/§23） | 低 | **大半解消（v1.4）** | 解消済み: Alembic・ログ＋X-Request-ID・.env.example・`/health`・CI（balance.yml/pytest）＋frontend-ci（lint/build）・runbook更新・CORS限定。残: Docker・バックアップ自動化 |
 | OPEN-028 | カオスの ramp_hit 空砲 | カオスは increment=0 のため ramp_hit 被ダメ常時5。ramp偏重（最大85%）を引いた個体はほぼ無害＝実効強度の分散が極端（§9.2） | 低 | Phase1後 | 「意図的な当たり枠」と明記 or カオス専用の小 increment 付与（データ変更のみ）。受入=§9.2 に評価を明文化 |
 | OPEN-029 | 初クリアまでの体験曲線 | win-to-progress は初クリアまでメタ進行ゼロ（§2.1）。人間相当の弱めbotでの初クリア期待ラン数が長すぎると離脱点になる | 低 | Phase2 | §18.1 の観測指標で監視（閾値なし）。超過が見えた場合のみ救済（到達フロア別微小ポイント等）を検討 |

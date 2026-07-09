@@ -10,11 +10,13 @@ from __future__ import annotations
 
 import sys
 from collections import Counter
-from typing import Callable
+from collections.abc import Callable
 
 from app.engine.game_engine import GameEngine
 from app.simulation import bots
-from app.simulation.balance_stats import wilson  # 単一ソース（再エクスポート: test_simulation 互換）
+from app.simulation.balance_stats import (
+    wilson,  # 単一ソース（再エクスポート: test_simulation 互換）
+)
 
 
 def run_cohort(play: Callable[..., dict], n: int, **kw) -> dict:
@@ -22,7 +24,7 @@ def run_cohort(play: Callable[..., dict], n: int, **kw) -> dict:
     records は balance_report / balance_analysis / fun_metrics の入力になる。"""
     eng = GameEngine()
     cleared = 0
-    death_floor = Counter()
+    death_floor: Counter[int] = Counter()
     total_turns = 0
     records = []
     for seed in range(n):

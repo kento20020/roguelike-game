@@ -16,11 +16,11 @@ from app.engine import postmortem as pm
 from app.engine import snapshot as snap
 from app.engine.floor_generator import build_enemy_instance, generate_floor
 from app.engine.rng import (
+    STREAM_BEHAVIOR,
     STREAM_CHAOS,
     STREAM_GATE,
     STREAM_HEAL,
     STREAM_TREASURE,
-    STREAM_BEHAVIOR,
     GameRNG,
 )
 from app.schemas.models import (

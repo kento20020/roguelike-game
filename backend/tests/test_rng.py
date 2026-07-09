@@ -4,10 +4,10 @@ GOLDEN_* は現行 Python 実装の出力を凍結したもの。将来 TS 版�
 同じ値を出すこと。アルゴリズムを変えたらこのテストが落ちる（＝意図しない変更検知）。
 """
 from app.engine.rng import (
-    GameRNG,
     STREAM_BEHAVIOR,
     STREAM_FLOOR,
     STREAM_GENERAL,
+    GameRNG,
     Sfc32,
 )
 
