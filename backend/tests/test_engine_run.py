@@ -107,6 +107,8 @@ def test_full_run_terminates(data):
     assert rr["total_turns"] > 0
     assert rr["floor_reached"] >= 1
     assert len(rr["enemies_defeated"]) >= 1
+    # 死亡/クリア画面の「強敵撃破数」表示用（GDD §15.1）: 各撃破記録は is_strong を持つ
+    assert all("is_strong" in d for d in rr["enemies_defeated"])
 
 
 def test_snapshot_completeness(data):
@@ -133,7 +135,8 @@ def test_progression_and_termination(data):
 
 
 def test_snapshot_exposes_enemy_preview(data):
-    """探索マップの L2/L3 開示: 敵ノードは体験タイプ・強敵・名前・最大HPを持つ（確率は持たない）。"""
+    """L2（体験タイプ・強敵）は常時開示、L3（名前・最大HP）はインタラクト後のみ（§5・OPEN-015）。
+    確率（behaviors weight）は常に非公開。"""
     eng = GameEngine(data)
     eng.new_run(7)
     nodes = eng.snapshot()["floor"]["nodes"]
@@ -142,11 +145,19 @@ def test_snapshot_exposes_enemy_preview(data):
     for n in enemies:
         assert isinstance(n["experience"], str) and n["experience"]
         assert isinstance(n["is_strong"], bool)
-        assert n["name"]
-        assert n["max_hp"] > 0
+        assert "name" not in n and "max_hp" not in n       # L3 は未インタラクトでは伏せる
         assert "behaviors" not in n and "weight" not in n  # 確率は伏せる
     for n in [n for n in nodes.values() if n["kind"] != "enemy"]:
         assert n.get("experience") is None
+    # 戦闘コミット（インタラクト）で L3 開示
+    eng.select_node("L")
+    view = eng.snapshot()["floor"]["nodes"]["L"]
+    assert view["name"] and view["max_hp"] > 0
+    # 撃破後（resolved）も開示継続
+    while eng.phase == "battle":
+        eng.attack()
+    view2 = eng.snapshot()["floor"]["nodes"]["L"]
+    assert view2["name"] and view2["max_hp"] > 0
 
 
 def test_gate_preview_pending_has_table_and_damage(data):
@@ -346,22 +357,61 @@ def test_gate_guarantee_stacks_recorded(data):
             break
     assert eng is not None, "20 seed 内で gate_preview に到達できるはず"
     eng.player.chips = 99999
+    # OPEN-016: major=0 到達後は重ねがけ不可のため、2回積める major を持つテーブルに差し替える
+    eng.floor.gate_result_table = {"unhurt": 0.10, "minor": 0.25, "major": 0.60, "special": 0.05}
     assert eng.run.gate_guarantee_stacks == 0
     eng.use_sink("gate_guarantee")
     eng.use_sink("gate_guarantee")
     assert eng.run.gate_guarantee_stacks == 2
-    assert eng.snapshot()["run_record"]["gate_guarantee_stacks"] == 2
+    # 進行中 snapshot は run_record 非露出（§17.3）のため内部 RunRecord 側で確認する
+    assert eng.run.snapshot()["gate_guarantee_stacks"] == 2
 
 
 def test_yomi_exposes_next_action_in_snapshot(data):
-    """先読み所持なら戦闘突入時 snapshot に確定の次手(next_action)が載る。無しなら None。"""
+    """先読み所持なら戦闘突入時 snapshot に確定の次手(next_action)が載る。無しなら None。
+
+    tell_system フラグはON時「yomi無しでも常に先引き」する試作仕様のため、
+    このテストの意図（yomi無し→None）を保つには明示的にOFFにして検証する。
+    """
     BEH = {"counter", "heavy_blow", "evade", "ramp_hit", "none"}
-    eng = GameEngine(data)
-    eng.new_run(1)
-    eng.select_node("L")
-    assert eng.snapshot()["battle"]["next_action"] is None      # yomi 無し
-    eng2 = GameEngine(data)
-    eng2.new_run(1)
-    eng2.player.mods.append("yomi")
-    s = eng2.select_node("L")
-    assert s["battle"]["next_action"] in BEH                    # 確定の次手
+    prev_flag = data.config.get("feature_flags", {}).get("tell_system")
+    data.config.setdefault("feature_flags", {})["tell_system"] = False
+    try:
+        eng = GameEngine(data)
+        eng.new_run(1)
+        eng.select_node("L")
+        assert eng.snapshot()["battle"]["next_action"] is None      # yomi 無し
+        eng2 = GameEngine(data)
+        eng2.new_run(1)
+        eng2.player.mods.append("yomi")
+        s = eng2.select_node("L")
+        assert s["battle"]["next_action"] in BEH                    # 確定の次手
+    finally:
+        data.config["feature_flags"]["tell_system"] = prev_flag
+
+
+def test_tell_system_flag_forces_turn1_preview_without_yomi(data):
+    """テル試作: フラグON時、yomi未所持でもturn1でpending_action(next_action)がセットされる。
+
+    既存のroll_behavior呼び出しと同じコードパス・同じタイミングを使うだけで、
+    新規のRNG消費箇所は増えない、という前提の確認。
+    """
+    prev_flag = data.config.get("feature_flags", {}).get("tell_system")
+    data.config.setdefault("feature_flags", {})["tell_system"] = True
+    try:
+        eng = GameEngine(data)
+        eng.new_run(1)
+        s = eng.select_node("L")
+        assert "yomi" not in eng.player.mods
+        assert s["battle"]["next_action"] is not None
+        assert s["battle"]["tell_reliability"] is not None
+
+        # 回帰テスト: battle.turns基準の閾値を使うと「常に次ターンを公開」し続けてしまい、
+        # yomi無しでも実質全ターン確定情報が見える＝暗黙知型ギャンブル性が壊れる致命的な
+        # バグがあった（閾値をturn1固定の1にして修正）。turn2以降はNoneに戻ることを確認。
+        s2 = eng.attack()
+        if s2["phase"] == "battle":
+            assert s2["battle"]["next_action"] is None
+            assert s2["battle"]["tell_reliability"] is None
+    finally:
+        data.config["feature_flags"]["tell_system"] = prev_flag

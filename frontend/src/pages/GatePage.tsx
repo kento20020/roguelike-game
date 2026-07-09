@@ -1,6 +1,8 @@
+import clsx from "clsx";
 import type { GameState, SinkType } from "../api/types";
 import { useGameStore } from "../store/gameStore";
 import CenterStage from "../components/common/CenterStage";
+import GlowTitle from "../components/common/GlowTitle";
 import { gateOutcome, SINK_META } from "../lib/labels";
 
 // 関門（gate_preview）。出目の確率分布＋被ダメを見せ、関門保証で安全側に寄せるか判断させる（GDD §7.4）。
@@ -19,9 +21,8 @@ export default function GatePage({ state }: { state: GameState }) {
   return (
     <CenterStage maxWidth={500}>
       <span className="label">ハウスルール</span>
-      <div className="font-serif" style={{ fontSize: 38, color: "var(--brass)" }}>
-        胴元の関門
-      </div>
+      {/* 関門の看板。真鍮グロー（glow-title）で「ここが節目」と示す */}
+      <GlowTitle size={38}>胴元の関門</GlowTitle>
       <p className="font-sans" style={{ fontSize: 12.5, color: "var(--ink2)", lineHeight: 1.6 }}>
         通れば次の階へ。ただし胴元の取り分は出目しだい。
       </p>
@@ -72,7 +73,8 @@ export default function GatePage({ state }: { state: GameState }) {
             {guarantee.cost != null ? ` · ${guarantee.cost}` : ""}
           </button>
         )}
-        <button className="btn" style={{ minWidth: 160 }} disabled={busy} onClick={gateResolve}>
+        {/* 主ボタンだけ脈動グロー。保証（btn-ghost）は光らせない。ボタンが1つだけの時はグロー不要 */}
+        <button className={clsx("btn", guarantee && "btn-glow")} style={{ minWidth: 160 }} disabled={busy} onClick={gateResolve}>
           通過する
         </button>
       </div>

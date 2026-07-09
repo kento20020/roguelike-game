@@ -33,7 +33,7 @@ def test_chaos_enemies_empty_and_flagged(data: GameData):
     assert len(chaos) == 4  # f3_r2_e, f4_r2_e, f5_r2_d, f5_r3_c
     for e in chaos:
         assert e["behaviors"] == []
-        assert e["experience"] == "カオス"
+        assert e["experience"] == "chaos"
 
 
 def test_race_enemies_have_ramp_increment(data: GameData):
@@ -44,28 +44,28 @@ def test_race_enemies_have_ramp_increment(data: GameData):
 
 def test_floor_pools_reference_real_enemies(data: GameData):
     for fl in data.floors:
-        for key in ("row1_pool", "row2_pool", "row3_pool"):
+        for key in ("row1_pool", "row2_pool", "row3_pool", "enemy_pool"):
             for eid in fl.get(key, []):
                 assert eid in data._enemies_by_id
 
 
-def test_unlock_parent_arity(data: GameData):
-    # multi=2親 / single=1親、を全フロアで確認
-    def check(umap, who):
-        for k, spec in umap.items():
-            if spec["type"] == "multi":
-                assert len(spec["parents"]) == 2, f"{who} {k}"
-            else:
-                assert len(spec["parents"]) == 1, f"{who} {k}"
-
+def test_floor_definitions_valid(data: GameData):
+    """1F=静的レイアウトの親数、2F以降=可変深度の生成パラメータ（接続はランタイム生成なので
+    floor_generator.validate_floor が生成毎に検証する）。"""
+    depths = {}
     for fl in data.floors:
         if fl.get("fixed_layout"):
-            check(fl["nodes_layout"]["row2"], "1F")
-        elif fl["floor_number"] == 5:
-            check(fl["unlock_map"]["row1_to_row2"], "5F r1->r2")
-            check(fl["unlock_map"]["row2_to_row3"], "5F r2->r3")
+            for k, spec in fl["nodes_layout"]["row2"].items():
+                want = 2 if spec["type"] == "multi" else 1
+                assert len(spec["parents"]) == want, f"1F {k}"
         else:
-            check(fl["unlock_map"], f"{fl['floor_number']}F")
+            assert fl["depth"] >= 2
+            depths[fl["floor_number"]] = fl["depth"]
+            g = fl["generation"]
+            assert 2 <= g["main_width_min"] <= g["main_width_max"] <= 3
+            assert fl["enemy_pool"]
+    # 深度カーブ（デザイナー決定の叩き台: 2F=3 / 3F=4 / 4F=5 / 5F=6）
+    assert depths == {2: 3, 3: 4, 4: 5, 5: 6}
 
 
 def test_coeff_fallback_uses_config_default(data: GameData):
@@ -115,3 +115,17 @@ def test_tutorial_guaranteed_mod_is_hansha(data: GameData):
     tut = data.mods_doc["tutorial_guaranteed"]
     assert tut["mod_id"] == "hansha"
     assert tut["floor"] == 1
+
+
+def test_upgrade_max_levels_total_is_21(data: GameData):
+    """恒久強化の上限Lv合計=21（data_model.md §20 合格条件・OPEN-013）。意図的に変えるなら docs も更新。"""
+    items = data.config["permanent_upgrades"]["items"]
+    assert sum(v["max_level"] for v in items.values()) == 21
+
+
+def test_gate_result_tables_sum_to_one(data: GameData):
+    """全フロアのゲート出目テーブルはキー4種・合計1.0（OPEN-013。loader.validate でも強制）。"""
+    for fl in data.floors:
+        t = fl["gate_result_table"]
+        assert set(t) == {"unhurt", "minor", "major", "special"}
+        assert abs(sum(t.values()) - 1.0) < 1e-9

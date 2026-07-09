@@ -48,11 +48,18 @@ def _drive(client, state, max_steps=3000):
         if ph == "battle":
             p = state["player"]
             sinks = [a["sink"] for a in state["available_actions"] if a["type"] == "use_sink"]
-            if p["hp"] < p["max_hp"] * 0.5 and "heal_large" in sinks:
+            # OPEN-020 で戦闘中回復は1ターン消費するため、緊急時（35%未満）のみ回復する
+            if p["hp"] < p["max_hp"] * 0.35 and "heal_large" in sinks:
                 state = client.post(f"/api/run/{sid}/sink", json={"sink_type": "heal_large"}).json()
                 continue
             state = client.post(f"/api/run/{sid}/attack").json()
         elif ph == "exploring":
+            p = state["player"]
+            sinks = [a["sink"] for a in state["available_actions"] if a["type"] == "use_sink"]
+            # 探索中の回復はターン消費なし（OPEN-020 の battle 中とは違う）ので積極的に使う
+            if p["hp"] < p["max_hp"] * 0.7 and "heal_large" in sinks:
+                state = client.post(f"/api/run/{sid}/sink", json={"sink_type": "heal_large"}).json()
+                continue
             nodes = state["floor"]["nodes"]
             avail = [nid for nid, n in nodes.items() if n["state"] == "available"]
             free = [n for n in avail if nodes[n]["kind"] in ("treasure", "heal", "gate_route")]
@@ -127,12 +134,22 @@ def test_select_locked_node_400(api):
 
 
 def test_full_run_persists_record_and_history(api):
-    client, _ = api
+    client, TestSession = api
     state = _drive(client, _new(client, seed=7))
     assert state["phase"] in ("cleared", "dead")
     hist = client.get("/api/stats/history").json()
     assert len(hist) >= 1
     assert hist[0]["total_turns"] > 0
+    # OPEN-024: 世代札が刻印される（human ランは strategy_version=NULL）
+    assert hist[0]["data_version"]
+    assert hist[0]["strategy_version"] is None
+    # 操作履歴（run_actions）が全ランで永続化される
+    from sqlalchemy import select
+
+    from app.db.models import RunActionsRow
+    with TestSession() as db:
+        rows = list(db.execute(select(RunActionsRow)).scalars())
+    assert len(rows) == 1 and len(rows[0].actions_json) > 0
 
 
 # ── meta progression ──
@@ -195,19 +212,23 @@ def test_upgrade_respects_max_level(api):
 
 
 def test_clear_awards_point(api):
+    """クリア到達時のポイント付与・履歴記録の API 経路を検証する。
+    クリア率そのもの（バランス）は bot ハーネス（§18）の管轄なので、
+    ここではエンジンを直接強化して決定的にクリアさせる。"""
     client, TestSession = api
-    # 生存しやすいよう恒久強化を maxed に
-    with TestSession() as db:
-        p = crud.get_or_create_profile(db)
-        p.max_hp, p.attack, p.init_gold, p.gold_drop, p.sink_cost = 5, 5, 5, 3, 3
-        db.commit()
-    cleared = None
-    for seed in range(40):
-        state = _drive(client, _new(client, seed=seed))
-        if state["phase"] == "cleared":
-            cleared = state
+    state = _new(client, seed=1)
+    sid = state["session_id"]
+    eng = store.get(sid)
+    eng.player.attack = 9999                      # 全戦闘を1ターンで終える
+    eng.player.max_hp = eng.player.hp = 99999     # 道中の被弾で死なない
+    for _ in range(3000):
+        if state["phase"] in ("cleared", "dead"):
             break
-    assert cleared is not None, "maxed 強化でいずれかの seed はクリアできるはず"
+        if state["phase"] == "gate_preview":
+            # ゲート死を排除（出目テーブルはフロア生成物なのでテスト内で無傷固定）
+            eng.floor.gate_result_table = {"unhurt": 1.0, "minor": 0.0, "major": 0.0, "special": 0.0}
+        state = _drive(client, state, max_steps=1)
+    assert state["phase"] == "cleared"
     # クリアで 1pt 付与
     with TestSession() as db:
         assert crud.get_or_create_profile(db).points >= 1
@@ -234,7 +255,12 @@ def test_guard_available_and_usable(api):
     assert r.json()["phase"] == "battle"
     types = {a["type"] for a in r.json()["available_actions"]}
     assert "guard" in types and "attack" in types
-    assert client.post(f"/api/run/{sid}/guard").status_code == 200
+    assert r.json()["battle"]["guard_uses"] == 0  # 契約: 減衰段を戦闘開始から公開
+    assert r.json()["battle"]["guard_next_scale"] == 1.0  # 契約: 戦闘開始時は受けフル効き
+    g = client.post(f"/api/run/{sid}/guard")
+    assert g.status_code == 200
+    assert g.json()["battle"]["guard_uses"] == 1  # 受け1回で加算（BattleOut契約の破れ防止）
+    assert g.json()["battle"]["guard_next_scale"] == 0.5  # 契約: 受け1回で次の効きが半減（BattleOut欠落防止）
 
 
 def test_guard_wrong_phase_409(api):

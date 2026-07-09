@@ -53,11 +53,13 @@
 | 3 | 宝箱mod抽選 |
 | 4 | 回復ノード（大/小） |
 | 5 | ゲートイベント結果 |
-| 6 | **stance（予約・未使用）** |
+| 6 | **floor_topology（フロア接続トポロジー生成・v1.4）** |
 | 7 | 汎用 |
 | 8 | **chaos（カオス敵の行動比率決定）** |
 
-> **消費契約（実装準拠）**：`floor_generator` は stream0（FLOOR）で終端単親dead-endの宝箱presence、stream1（ENEMY_POOL）で敵配置shuffle、stream4（HEAL）で回復ノード選択、**stream7（GENERAL）で多親敵の撃破ドロップpresence**を引く。戦闘は stream2（BEHAVIOR）、宝箱の中身mod抽選は stream3（TREASURE）、ゲート結果は stream5（GATE）、カオス比率は stream8（CHAOS・敵あたり4回・id昇順）。stance（6）は予約・未使用。
+> **消費契約（実装準拠）**：`floor_generator` は stream0（FLOOR）で終端単親dead-endの宝箱presence、stream1（ENEMY_POOL）で敵配置shuffle（袋方式）、stream4（HEAL）で回復ノード選択、**stream6（TOPOLOGY）でrow幅・接続ステアケース・dead-end配置**、**stream7（GENERAL）で多親敵の撃破ドロップpresence**を引く。戦闘は stream2（BEHAVIOR）、宝箱の中身mod抽選は stream3（TREASURE）、ゲート結果は stream5（GATE）、カオス比率は stream8（CHAOS・敵あたり4回・id昇順）。
+> **stream6 の転用（v1.4）**：旧「stance予約」枠を接続トポロジー生成に転用した（9本不変条件を維持・新規10本目を増設しない）。フェーズB（スタンス）を将来実装する場合は新たな乱数設計を OPEN-006 で行う。
+> **サイドベット『読み宣言』の判定（§15.4）**：そのターンの stream2 の既存ロール結果（`res["action"]`）をそのまま使い、**新規RNG消費はゼロ**（消費契約を変えない）。
 > **先読みの消費（yomi/scout）**：yomi は `prepare_preview` が **stream2 から次行動を先引きしてキャッシュ**（`pending_action`）し、実ターンの `resolve_turn` がそのキャッシュを消費する（＝先読みが嘘にならない・二重消費しない）。scout は `top_behavior`（最大weightの示唆）を返すだけで**RNGを消費しない**。
 > **stream7（汎用）の用途限定**：現状は多親敵の撃破ドロップpresenceに使用。再現性に影響する新用途は専用ストリームを割り当て、汎用へ混ぜない（§17.1「ストリームを混ぜない」）。
 
@@ -66,7 +68,7 @@
 - SFC32 本体・種導出・warmup 回数を含め **Python/TS で同一実装**にし、golden vector（`tests/test_rng.py`）へ一致させる（TS版の用途は §18.5）。
 - botシミュレーションは固定シードパネル（seed 0〜999）で再現性を担保。
 - **seed の範囲・生成**：`0 ≤ seed ≤ 2^32−1`（Pydantic `conint(ge=0, le=2**32-1)` で検証推奨）。未指定時はサーバが `secrets.randbits(32)` で生成。
-- **seed・rng_streams は API 出力に含めない**（不変条件）。ただし `run_id = "run-{seed}"` はラン**終了後**の RunRecord にのみ現れる（進行中は snapshot.run_record=null のため seed は露出せず、seed-scum を防ぐ）。`snapshot()` にも含まれず、同一SFC32実装で全ロールを事前計算されて暗黙知/スカウト経済が崩れるのを防ぐ。スナップショットテストで両キーの非存在を assert する（§20.5）。
+- **seed・rng_streams は API 出力に含めない**（不変条件）。`RunRecord.seed` はラン**終了後**にのみ現れる（進行中は snapshot.run_record=null のため seed は露出せず、seed-scum を防ぐ）。`snapshot()` にも含まれず、同一SFC32実装で全ロールを事前計算されて暗黙知/スカウト経済が崩れるのを防ぐ。**スナップショットテストで非存在を assert 済み（v1.4 実装・`tests/test_invariants.py`。一時期この不変条件が実装で破れていたのを修復）**。`run_id` はseedとは独立に `uuid.uuid4()` から生成する一意ID（`"run-{uuid4}"`）で、同一seedの複数ランでも衝突しない（`RunRecordRow`/`PostmortemRow`/`RunActionsRow` ともにunique制約）。
 
 ---
 
@@ -153,7 +155,13 @@ game-roguelike3/
 │       │   └── gameStore.ts             # Zustand：ゲーム状態（RunRecord含む）
 │       │
 │       ├── lib/
-│       │   └── labels.ts                # 表示ラベル定義
+│       │   ├── labels.ts                # 表示ラベル定義
+│       │   └── sfx.ts                   # 効果音（ミュート設定の保存を内包）
+│       │
+│       ├── hooks/
+│       │   ├── useCombatFx.ts           # 被弾・強打などの戦闘演出
+│       │   ├── useChipFx.ts             # チップ増減演出
+│       │   └── useSideBet.ts            # サイドベットの状態・派生値
 │       │
 │       ├── pages/                       # phaseごとのフルスクリーン
 │       │   ├── StartPage.tsx
@@ -164,7 +172,8 @@ game-roguelike3/
 │       │   ├── GatePage.tsx             # gate_preview / gate_resolve
 │       │   ├── NextFloorPage.tsx
 │       │   ├── ClearedPage.tsx
-│       │   └── DeadPage.tsx
+│       │   ├── DeadPage.tsx             # 検死レポート/リプレイの2タブを内包
+│       │   └── DossierPage.tsx          # ディーラー調書（観測記録）
 │       │
 │       └── components/
 │           ├── common/                  # 複数phaseで再利用
@@ -181,8 +190,14 @@ game-roguelike3/
 │           │   ├── TreeCanvas.tsx       # ツリー構造の描画（nodes+parentsから辺を描画）
 │           │   └── NodeCard.tsx         # 敵/宝箱/回復/ゲートノード（強敵・体験タイプ表示を内包）
 │           ├── battle/
-│           │   ├── CombatPanel.tsx      # 敵HP・ramp値・攻撃ボタン（ramp警告表示を内包）
+│           │   ├── CombatPanel.tsx      # 戦闘画面のオーケストレーション
+│           │   ├── EnemyStage.tsx       # 敵肖像・HP・ramp蓄積バッジ
+│           │   ├── NextActionPreview.tsx# 先読み/テル/スカウト表示
+│           │   ├── PlayerStatusBar.tsx  # 自分パネル（HP・攻撃力・被弾演出）
+│           │   ├── SideBetPanel.tsx     # サイドベットUI
 │           │   └── CombatLog.tsx        # 全ログ保持・スクロール
+│           ├── dead/                    # 検死レポート/リプレイの部品
+│           ├── dossier/                 # 調書の部品（敵カード・ソート等）
 │           └── result/
 │               ├── ResultSummary.tsx    # 到達フロア・ターン数・mod一覧（死亡/クリア共通）
 │               └── UpgradeAllocator.tsx # 恒久強化割り振り
@@ -193,13 +208,17 @@ game-roguelike3/
     └── app/
         ├── api/
         │   ├── routes.py                # エンドポイント定義（§25）
-        │   └── deps.py                  # 依存性注入（セッション取得等）
-        ├── session_store.py             # セッション管理
+        │   └── deps.py                  # 依存性注入（セッション取得。キャッシュミス時はDB再生にフォールバック）
+        ├── session_store.py             # セッション管理（LRU上限つきホットキャッシュ。真の永続はactive_sessions）
         ├── engine/
-        │   ├── game_engine.py           # ゲーム状態の中核
-        │   ├── floor_generator.py       # ツリー生成・アンロック連鎖
+        │   ├── game_engine.py           # ゲーム状態の中核（phase遷移・アクション受付）
+        │   ├── snapshot.py              # APIスナップショット/ノードビュー構築（表示層）
+        │   ├── floor_generator.py       # あみだくじ格子生成（可変深度・§4.2）
         │   ├── combat_resolver.py       # 戦闘1ターンの解決
         │   ├── gate_resolver.py         # ゲートイベント
+        │   ├── postmortem.py            # 検死レポート（致命ターンの反実仮想解析）
+        │   ├── tells.py                 # テル（気配）の判定
+        │   ├── replay.py                # アクションログ再生（OPEN-007・進行中ラン復元）
         │   ├── chaos_weights.py         # カオス敵のラン別比率決定
         │   └── rng.py                   # SFC32（9ストリーム）
         ├── data/
@@ -209,8 +228,8 @@ game-roguelike3/
         │   ├── floors.json              # フロア構成・アンロックルール
         │   └── config.json              # 数値パラメータ（データ駆動調整対象）
         ├── db/
-        │   ├── models.py                # SQLAlchemyモデル（RunRecord等）
-        │   ├── session.py               # DB接続（SQLite→PostgreSQL切り替え点）
+        │   ├── models.py                # SQLAlchemyモデル（RunRecord/ActiveSession等）
+        │   ├── session.py               # DB接続（SQLite・WAL mode／PostgreSQL切り替え点）
         │   └── crud.py                  # DB操作
         ├── schemas/
         │   ├── api_schemas.py           # Pydanticモデル（リクエスト/レスポンス）

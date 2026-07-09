@@ -1,6 +1,6 @@
 # ゲーム設計書（インデックス） — カジノタワー ローグライト
 
-> **v1.2**（実装整合）。本書は従来1ファイルに集約していた設計書を役割別に分割した**目次（インデックス）**です。各内容は下記の分割ファイルが正本。相互参照の §番号・OPEN-xxx は分割前の番号を維持しています。
+> **v1.5**（セッション永続化）。本書は従来1ファイルに集約していた設計書を役割別に分割した**目次（インデックス）**です。各内容は下記の分割ファイルが正本。相互参照の §番号・OPEN-xxx は分割前の番号を維持しています。
 > 数値の正本は `backend/app/data/*.json`（config/enemies/mods/floors）。API実形は `engine.snapshot()` / Pydantic（`backend/app/schemas`）。
 
 確率ベースの戦闘を核に、**カジノタワーを登り詰める**5フロアのパーマデス制ローグライト。React(表示) + FastAPI(全ロジック) のモノレポ。ゲームロジックはすべて Python 側に集約し、同じエンジンを API と bot シミュレーションの両方が呼ぶ。
@@ -21,6 +21,7 @@
 | [changelog.md](changelog.md) | 変更履歴（v0.6〜v1.2） | 付録 |
 | [adr/](adr/) | アーキテクチャ決定記録（FastAPI / サーバ権威 / SQLite先行） | §22 由来 |
 | [schemas/](schemas/) | データ正本ミラー＋API例JSON（config/enemies/mods/floors ＋ gamestate/battle/mod_interactions） | §10.4, §25.3 |
+| [proposals/](proposals/) | 改善アイディア集（**提案・正本ではない**。採用時はクラスSとして正本へ反映してから実装） | — |
 
 ## 正本の優先順位（要約）
 

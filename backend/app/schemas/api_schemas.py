@@ -6,12 +6,13 @@ from __future__ import annotations
 
 from typing import Any, Optional
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 # ── requests ──
 class NewRunRequest(BaseModel):
-    seed: Optional[int] = None
+    # seed は SFC32 の定義域 [0, 2^32-1] に制限（§17.3。範囲外の暗黙丸めを入口で拒否）
+    seed: Optional[int] = Field(default=None, ge=0, le=2**32 - 1)
     bot_type: str = "human"
 
 
@@ -25,6 +26,18 @@ class SinkRequest(BaseModel):
 
 class UpgradeRequest(BaseModel):
     upgrade_type: str
+
+
+class SideBet(BaseModel):
+    """サイドベット『読み宣言』: 次の敵行動(behavior)への任意ベット。
+    既存のstream2(behavior_roll)の結果をそのまま使う。新規RNG消費はしない。"""
+    behavior: str
+    amount: int
+
+
+class CombatActionRequest(BaseModel):
+    """attack/guard の共通リクエストボディ。side_bet は任意（賭けない状態がデフォルト）。"""
+    side_bet: Optional[SideBet] = None
 
 
 # ── state sub-models ──
@@ -79,10 +92,24 @@ class BattleOut(BaseModel):
     enemy: EnemyOut
     turns: int
     ramp_value: int
+    # 受けの使用回数（ジャストガードの重ねがけ減衰の現在段・戦闘毎リセット・v1.8）。
+    # UIが「次の受けの効き」を表示するための公開状態。
+    guard_uses: int = 0
+    # 次の受けの効き（軽減量スケール = stack_decay ** guard_uses・1.0→0.5→0.25…）。
+    # snapshot が計算した値をそのまま透過する。snapshot 単独追加でレスポンスから欠落した
+    # v1.8 tell_reliability の契約破れを繰り返さないよう、必ずこの BattleOut にも定義する。
+    guard_next_scale: float = 1.0
     scout_hint: Optional[str] = None
     preview: Optional[str] = None
     next_action: Optional[str] = None  # 先読みが公開した確定の次手の種別
     log: list[LogLine]
+    side_bet_total: int = 0  # サイドベット『読み宣言』の戦闘あたり累計額（per_battle_cap 可視化用）
+    side_bet_result: Optional[dict[str, Any]] = None  # 直近ターンのサイドベット結果（次ターンでクリア）
+    last_turn: Optional[dict[str, Any]] = None  # 直近ターンの実現結果 {action, guard}（ログ表示済みの公開情報のみ）
+    side_bet: Optional[dict[str, Any]] = None  # サイドベット表示規則（正本 config.json side_bet の該当キーのみ）
+    # テル（行動の前兆）試作: 気配信頼度ラベル。フラグOFF/非公開ターンは None。
+    # engine.snapshot() は生成していたが本スキーマに無くレスポンスから欠落していた（型契約の破れを修復）。
+    tell_reliability: Optional[str] = None
 
 
 class ActionItem(BaseModel):
@@ -109,6 +136,12 @@ class RunRecordOut(BaseModel):
     death_floor: Optional[int] = None
     permanent_upgrades_state: dict[str, int]
     gate_guarantee_stacks: int = 0
+    # OPEN-024/025 テレメトリ（旧レコードは既定値で埋まる）
+    data_version: str = ""
+    strategy_version: Optional[str] = None
+    sink_use_counts: dict[str, int] = {}
+    gate_results: list[dict] = []
+    action_counts: dict[str, int] = {}
 
 
 # ── responses ──
@@ -124,6 +157,17 @@ class GameStateResponse(BaseModel):
     run_record: Optional[RunRecordOut] = None
 
 
+class PostmortemResponse(BaseModel):
+    """検死レポート＋リプレイ（GET /run/{sid}/postmortem）。turn_history/counterfactual は
+    engineが計算した軽量dictをそのまま透過する（WinModel等の未実装インフラには依存しない）。"""
+    model_config = ConfigDict(extra="allow")
+    run_id: str
+    turn_history: list[dict[str, Any]]
+    fatal_turn_index: int
+    counterfactual: dict[str, Any]
+    created_at: Optional[str] = None
+
+
 class UpgradeStateResponse(BaseModel):
     points: int
     levels: dict[str, int]
@@ -136,3 +180,25 @@ class ModCatalogItem(BaseModel):
     name: str
     effect_1: str
     effect_stack: str
+
+
+class EnemyCatalogItem(BaseModel):
+    """敵の表示用カタログ（enemies.json 由来・id/name/experienceのみ。weight/behaviorsは含めない）。"""
+    id: str
+    name: str
+    experience: str
+
+
+# ── dealer dossier（個人観測統計・Wilson信頼区間。真のweightは非開示）──
+class DossierBehaviorOut(BaseModel):
+    behavior: str
+    count: int
+    n_total: int
+    ci_low: float
+    ci_high: float
+
+
+class DossierEnemyOut(BaseModel):
+    enemy_id: str
+    behaviors: list[DossierBehaviorOut]
+    n_total: int

@@ -3,13 +3,13 @@
   "clear_counts": {
     "base (fresh acct)": 0,
     "mid (~6 clears)": 0,
-    "maxed (26 clears)": 21
+    "maxed (21 clears)": 15
   },
   "random_clear_count": 0,
   "maxed_death_floor": {
-    "4": 15,
-    "5": 84
+    "4": 28,
+    "5": 77
   },
   "strong_depth_gt_random": true,
-  "_comment": "Phase5回帰CIの基準値。data/*.jsonやエンジンの数値変更で test_balance_regression が失敗したら、変更が意図的なら人間がこのファイルを再生成して承認する（python -m app.simulation.gen_baseline 相当）。"
+  "_comment": "Phase5回帰CIの基準値。data/*.jsonやエンジンの数値変更で test_balance_regression が失敗したら、変更が意図的なら python -m app.simulation.gen_baseline で再生成して承認する。"
 }

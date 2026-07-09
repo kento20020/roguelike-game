@@ -123,7 +123,12 @@ class Battle:
     preview: Optional[str] = None        # 先読みで公開した次行動（表示用文言）
     pending_action: Optional[str] = None # 先読みで先引きした次行動（消費される）
     kouki_cooldown: int = 0              # 好機の残クールダウン
+    guard_uses: int = 0                  # この戦闘での受け使用回数（重ねがけ減衰用・戦闘毎リセット）
     log: list[dict] = field(default_factory=list)  # 表示専用・使い捨て
+    side_bet_total: int = 0              # サイドベット『読み宣言』累計額（per_battle_cap 判定用）
+    side_bet_result: Optional[dict] = None  # 直近ターンの的中/払戻（表示専用・次ターンでクリア）
+    last_action: Optional[str] = None    # 直近ターンで実現した敵の行動（ログ表示済みの公開結果・表示契約用）
+    last_guard: Optional[bool] = None    # 直近ターンに受けを選んだか（表示契約用）
 
     def add_log(self, text: str, kind: str = "info") -> None:
         self.log.append({"t": text, "k": kind})
@@ -150,6 +155,11 @@ class RunRecord:
     death_floor: Optional[int] = None
     permanent_upgrades_state: dict[str, int] = field(default_factory=dict)
     gate_guarantee_stacks: int = 0  # ゲート保証の重ねがけ回数（ラン合計・GDD §19.1 v0.9追加）
+    turn_history: list[dict] = field(default_factory=list)  # 検死/リプレイ用（ターン開始前スナップショット付き）。snapshot()には含めない（内部専用）。
+    # ── OPEN-025 テレメトリ: sink別使用回数 / フロア別ゲート結果 / 行動種別ターン数 ──
+    sink_use_counts: dict[str, int] = field(default_factory=dict)
+    gate_results: list[dict] = field(default_factory=list)   # [{"floor": int, "outcome": str}]
+    action_counts: dict[str, int] = field(default_factory=dict)  # player_move(attack/guard/heal_*)別
 
     def snapshot(self) -> dict[str, Any]:
         return {
@@ -162,6 +172,9 @@ class RunRecord:
             "death_cause": self.death_cause, "death_floor": self.death_floor,
             "permanent_upgrades_state": dict(self.permanent_upgrades_state),
             "gate_guarantee_stacks": self.gate_guarantee_stacks,
+            "sink_use_counts": dict(self.sink_use_counts),
+            "gate_results": list(self.gate_results),
+            "action_counts": dict(self.action_counts),
         }
 
 

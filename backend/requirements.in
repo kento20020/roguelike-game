@@ -1,0 +1,21 @@
+# カジノタワー ローグライト — backend
+# エンジン本体は標準ライブラリのみで動く（決定論RNG・数値計算は自前）。
+# 以下は API 段で使用するランタイム依存（テスト専用の依存は requirements-dev.in）。
+fastapi>=0.110
+# 既知の注意点: requirements.txt はこのプロジェクトの開発環境(Windows)でpip-compileして
+# いる。uvicorn[standard]が持つuvloop依存（uvicorn自身のメタデータでは
+# `sys_platform != "win32"` マーカー付き）はWindows上では解決対象外のため、
+# 生成される requirements.txt にはマーカー付きでもuvloopの行自体が一切出力されない
+# （実測で確認済み。pip-tools 7.5.3にWindows→Linux向けのuniversal解決オプションは無い）。
+# ただし requirements.txt 側の `uvicorn[standard]==x.y.z` 行はextras付きのまま出力される
+# ため、CI（ubuntu-latest）で `pip install -r requirements.txt` する際はuvicorn自身の
+# wheelメタデータに従いuvloopが正しく解決・インストールされる（＝CI上の欠落は無い）。
+# 唯一の妥協点は「uvloopのバージョンだけはこのロックファイルで固定されない」こと。
+# 完全に固定したい場合はLinux環境（CI相当）でpip-compileを再実行すること。
+uvicorn[standard]>=0.29
+pydantic>=2.6
+sqlalchemy>=2.0
+# DBスキーマ移行（OPEN-027 の一部前倒し。手順は docs/runbook.md）
+alembic>=1.13
+# バランス検証フレームワーク(§18 balance_stats/analysis)のe-value計算用。エンジン本体は依存しない。
+numpy>=1.26

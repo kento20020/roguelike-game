@@ -21,8 +21,18 @@
   --brass: #c9a24b;
   --brassSoft: rgba(201, 162, 75, 0.12);
   --danger: #c7402a;
+  --dangerSoft: rgba(199, 64, 42, 0.13);
   --moss: #5e8a66;
+  --glowAccent: rgba(200, 90, 42, 0.55);
+  --glowBrass: rgba(201, 162, 75, 0.55);
+  --glowBrassStrong: rgba(201, 162, 75, 0.85);
   --ease: cubic-bezier(0.2, 0, 0, 1);
+  /* フォントトークン: tailwind.config.js の fontFamily と同一スタック。
+     コンポーネント各所の var(--serif)/var(--sans)/var(--mono) 参照はこれが正本
+     （未定義のまま放置すると serif/mono 指定が全て body の sans に落ちる）。 */
+  --serif: "Instrument Serif", "Noto Serif JP", serif;
+  --sans: "Geist", "Noto Sans JP", system-ui, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, monospace;
 }
 
 * {
@@ -108,6 +118,132 @@ body {
     transform: translate(0, 0);
   }
 }
+/* ── juice foundation: 実現結果（ヒット/被弾）を受けて再生する演出 ── */
+@keyframes hitShake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  20% {
+    transform: translateX(-6px);
+  }
+  40% {
+    transform: translateX(5px);
+  }
+  60% {
+    transform: translateX(-3px);
+  }
+  80% {
+    transform: translateX(2px);
+  }
+}
+@keyframes dmgPop {
+  0% {
+    transform: translate(-50%, 0);
+    opacity: 0;
+  }
+  15% {
+    opacity: 1;
+  }
+  100% {
+    transform: translate(-50%, -26px);
+    opacity: 0;
+  }
+}
+@keyframes critFlash {
+  0% {
+    opacity: 0;
+  }
+  18% {
+    opacity: 0.55;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+@keyframes guardFlash {
+  0% {
+    opacity: 0;
+  }
+  18% {
+    opacity: 0.4;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+@keyframes fatalPulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 1px var(--danger), 0 0 0 rgba(199, 64, 42, 0);
+  }
+  50% {
+    box-shadow: 0 0 0 1px var(--danger), 0 0 16px rgba(199, 64, 42, 0.32);
+  }
+}
+@keyframes shimmer {
+  0% {
+    background-position: -180% 0;
+  }
+  100% {
+    background-position: 180% 0;
+  }
+}
+/* ── チップ&カード物理演出（design/claude_design_prompt_chip_fx_and_enemy_card_motif.md 由来） ── */
+@keyframes chipEnter {
+  0% {
+    transform: translateY(-8px) scale(0.85);
+    opacity: 0;
+  }
+  60% {
+    transform: translateY(1px) scale(1.03);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+@keyframes counterTick {
+  0% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-3px);
+  }
+  100% {
+    transform: translateY(0);
+  }
+}
+/* CombatPanel の蓄積ダメージ表示ドットが参照(未定義のままだと点滅しない) */
+@keyframes pulseDot {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+/* ── A案「ネオン・マーキー」（design/preview/components-glow-marquee.html 由来） ── */
+@keyframes marqueeGlow {
+  0%,
+  100% {
+    text-shadow: 0 0 6px var(--glowBrass), 0 0 18px rgba(201, 162, 75, 0.25);
+  }
+  50% {
+    text-shadow: 0 0 10px var(--glowBrassStrong), 0 0 30px rgba(201, 162, 75, 0.45);
+  }
+}
+@keyframes btnPulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 1px var(--accent2), 0 0 14px var(--glowAccent);
+  }
+  50% {
+    box-shadow: 0 0 0 1px var(--accent2), 0 0 26px var(--glowAccent);
+  }
+}
 
 /* ── 再利用クラス ── */
 @layer components {
@@ -161,5 +297,211 @@ body {
   .btn-ghost:hover:not(:disabled) {
     border-color: var(--ink2);
     filter: none;
+  }
+  .fx-shake {
+    animation: hitShake 0.32s var(--ease);
+  }
+  .fx-dmg-pop {
+    position: absolute;
+    left: 50%;
+    top: -4px;
+    transform: translate(-50%, 0);
+    font-family: var(--mono);
+    font-weight: 600;
+    font-size: 15px;
+    color: var(--danger);
+    pointer-events: none;
+    animation: dmgPop 0.62s var(--ease) forwards;
+  }
+  .fx-crit-flash {
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: var(--danger);
+    pointer-events: none;
+    opacity: 0;
+    animation: critFlash 0.28s var(--ease);
+  }
+  .fx-guard-flash {
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: var(--moss);
+    pointer-events: none;
+    opacity: 0;
+    animation: guardFlash 0.3s var(--ease);
+  }
+  .fx-counter-tick {
+    display: inline-block;
+    animation: counterTick 0.22s var(--ease);
+  }
+  .chip-disc {
+    flex: none;
+    width: 13px;
+    height: 13px;
+    border-radius: 50%;
+    border: 2px dashed var(--brass);
+    background: var(--paper2);
+  }
+  .chip-disc.fx-chip-enter {
+    animation: chipEnter 0.32s var(--ease) both;
+  }
+  .chip-btn {
+    @apply inline-flex items-center justify-center font-mono cursor-pointer;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    border: 2px dashed var(--rule2);
+    background: var(--paper2);
+    color: var(--ink3);
+    font-size: 12px;
+    transition: all 0.14s var(--ease);
+  }
+  .chip-btn:hover:not(:disabled) {
+    border-color: var(--ink2);
+  }
+  .chip-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+  .chip-btn--active {
+    border: 2px solid var(--brass);
+    background: color-mix(in srgb, var(--brass) 18%, var(--paper2));
+    color: var(--brass);
+    transform: scale(1.08);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--brass) 22%, transparent);
+  }
+  .flip-scene {
+    width: 52px;
+    height: 68px;
+    perspective: 700px;
+    flex: none;
+  }
+  .flip-card {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    transform-style: preserve-3d;
+    transition: transform 0.5s var(--ease);
+  }
+  .flip-card.flipped {
+    transform: rotateY(180deg);
+  }
+  .flip-face {
+    position: absolute;
+    inset: 0;
+    backface-visibility: hidden;
+    border-radius: 8px;
+    border: 1px solid var(--rule2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: "Instrument Serif", "Noto Serif JP", serif;
+    font-size: 18px;
+  }
+  .flip-back {
+    background: var(--paper2);
+    color: var(--ink3);
+  }
+  .flip-front {
+    background: var(--felt);
+    transform: rotateY(180deg);
+  }
+  .fx-chip-pop {
+    position: absolute;
+    left: 100%;
+    top: -4px;
+    margin-left: 4px;
+    transform: translate(0, 0);
+    font-family: var(--mono);
+    font-weight: 600;
+    font-size: 12px;
+    color: var(--brass);
+    white-space: nowrap;
+    pointer-events: none;
+    animation: dmgPop 0.62s var(--ease) forwards;
+  }
+  .dossier-card {
+    transition: transform 0.16s var(--ease), box-shadow 0.16s var(--ease), border-color 0.16s var(--ease);
+  }
+  .dossier-card:hover {
+    transform: translateY(-3px);
+    border-color: var(--rule2);
+    box-shadow: 0 14px 30px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(241, 236, 224, 0.04);
+  }
+  .dossier-card--unmet {
+    opacity: 0.5;
+  }
+  .dossier-card--unmet:hover {
+    transform: none;
+    box-shadow: none;
+  }
+  .dossier-skeleton {
+    background: linear-gradient(
+      100deg,
+      var(--paper2) 40%,
+      var(--paper3) 50%,
+      var(--paper2) 60%
+    );
+    background-size: 250% 100%;
+    animation: shimmer 1.6s ease-in-out infinite;
+  }
+  .dossier-sort-btn {
+    @apply font-sans cursor-pointer;
+    padding: 5px 12px;
+    font-size: 11.5px;
+    border-radius: 999px;
+    border: 1px solid var(--rule2);
+    background: transparent;
+    color: var(--ink3);
+    transition: color 0.14s var(--ease), border-color 0.14s var(--ease), background 0.14s var(--ease);
+  }
+  .dossier-sort-btn:hover {
+    color: var(--ink);
+    border-color: var(--ink2);
+  }
+  .dossier-sort-btn--active {
+    background: var(--accentSoft);
+    border-color: var(--accentRing);
+    color: var(--ink);
+  }
+  /* ── A案「ネオン・マーキー」: 注目対象にだけグローを乗せる ── */
+  .glow-title {
+    color: var(--brass);
+    text-shadow: 0 0 6px var(--glowBrass), 0 0 18px rgba(201, 162, 75, 0.25);
+    animation: marqueeGlow 3.2s var(--ease) infinite;
+  }
+  .btn-glow {
+    box-shadow: 0 0 0 1px var(--accent2), 0 0 20px var(--glowAccent);
+    animation: btnPulse 2.2s var(--ease) infinite;
+  }
+  .gate-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--paper2);
+    border: 1px solid var(--rule2);
+    flex: none;
+  }
+  .gate-dot--lit {
+    background: var(--brass);
+    border-color: var(--brass);
+    box-shadow: 0 0 6px var(--glowBrass), 0 0 14px var(--glowBrassStrong);
+  }
+  .victory-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 18px;
+    border-radius: 999px;
+    border: 1px solid var(--brass);
+    background: var(--brassSoft);
+    color: var(--brass);
+    font-size: 12px;
+    letter-spacing: 0.06em;
+    box-shadow: 0 0 24px var(--glowBrass);
+  }
+  .glow-ring {
+    box-shadow: 0 0 0 1px var(--brass), 0 0 22px var(--glowBrass), inset 0 1px 0 rgba(241, 236, 224, 0.04), 0 18px 50px rgba(0, 0, 0, 0.42) !important;
   }
 }

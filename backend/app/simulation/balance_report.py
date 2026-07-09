@@ -12,6 +12,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from collections.abc import Sequence
 
 from app.simulation import balance_analysis as ba
 from app.simulation import balance_stats as bs
@@ -32,7 +33,7 @@ def _maxed_profile() -> dict:
     return max(PROFILES.values(), key=lambda u: sum(u.values()) if u else 0)
 
 
-def _indicators(records) -> list[int]:
+def _indicators(records: Sequence[dict]) -> list[int]:
     return [1 if r.get("cleared") else 0 for r in records]
 
 

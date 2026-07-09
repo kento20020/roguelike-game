@@ -17,7 +17,7 @@
 ## 2. PRフロー
 
 - **squash merge のみ**（main は 1PR = 1コミット）。AI対話での試行錯誤・手戻りはブランチ内に閉じ、main には畳んだ結果だけを残す。
-- solo 運用のため self-merge 可。ただし **CI green（`balance` / `check-docs` / `frontend`）必須**。
+- solo 運用のため self-merge 可。ただし **CI green（`balance` / `lint` / `check-docs` / `frontend`）必須**。
 - マージ後のブランチは自動削除（リポジトリ設定）。
 - マージ前のローカル確認: `pytest`（backend変更時）/ `npm run typecheck`（frontend変更時）/ `python scripts/check_docs.py`（docs・data・API変更時）。
 
@@ -42,7 +42,7 @@
 1. 仕様上の未決事項は [docs/operations.md](docs/operations.md) §21.2 の **OPEN-xxx 表が正本**（起票・文言変更は D クラスの docs PR）。
 2. **実装着手時**: GitHub Issue を「`OPEN-0xx: 題名`」で起票し、OPEN 表の状態列に `起票 #N` を記入。作業開始で `対応中 #N` に更新。
 3. 実装PRに **`Closes #N`** を書く（squash merge で Issue が自動クローズ）。
-4. **完了時**: 同PRまたは直後の D PR で OPEN 行を表から削除し、[docs/changelog.md](docs/changelog.md) に解消経緯を記録（既存慣行「解消済みは変更履歴へ」を踏襲）。
+4. **完了時**: 同PRまたは直後の D PR で OPEN 行の対応フェーズ列に解消版数（例 `解消（v1.5）`）・状態列に `解消` を記入し、[docs/changelog.md](docs/changelog.md) に解消経緯を記録（**行は表に残す**既存慣行を踏襲）。
 5. OPEN 由来でない純粋な実装バグは Issue のみでよい（OPEN 表には足さない）。
 
 ## 5. changelog / ADR / 版 bump の基準
@@ -62,10 +62,11 @@
 
 | ワークフロー | ジョブ名（=必須チェック名） | 内容 | PRでの発火 |
 |---|---|---|---|
-| `balance.yml` | `balance` | backend pytest 全件＋バランス回帰ゲート | 常時（backend 変更なしなら内部 skip で成功報告） |
-| `docs-ci.yml` | `check-docs` | schemas JSON 妥当性・相対リンク切れ・doc-code drift 検知 | 常時 |
-| `frontend-ci.yml` | `frontend` | typecheck / build（lint は eslint 未導入のため対象外・導入時に追加） | 常時 |
+| `balance.yml` | `balance` | backend pytest 全件（カバレッジ計測）＋バランス回帰ゲート | `backend/**` 変更時 |
+| `balance.yml` | `lint` | backend 静的解析 ruff＋mypy（`balance` と並列） | `backend/**` 変更時 |
+| `docs-ci.yml` | `check-docs` | `scripts/check_docs.py`（schemas JSON 妥当性・相対リンク切れ検知） | `docs/**` 変更時 |
+| `frontend-ci.yml` | `frontend` | eslint（`npm run lint`）＋ build（`tsc --noEmit` 内包） | `frontend/**` 変更時 |
 
-- main は上記3チェックを必須とするブランチ保護（管理者にも適用・force push 禁止）。
-- PR トリガーを path フィルタしないのは意図的（必須チェックが発火しないPRで永久 pending になるのを防ぐ）。重い `balance` のみジョブ内で変更有無を判定して skip する。
+- main は上記4チェック（`balance` / `lint` / `check-docs` / `frontend`）を必須とするブランチ保護（管理者にも適用・force push 禁止）。
+- 3ワークフローとも push / PR を **path フィルタで発火**させる（`balance.yml`＝`backend/**`、`docs-ci.yml`＝`docs/**`、`frontend-ci.yml`＝`frontend/**`）。ジョブ内で変更有無を判定する skip は行わない。
 - 緊急時（CI 自体の障害等）のみ、ブランチ保護の「管理者にも適用」を一時無効化して対処し、復旧後すぐ戻す。
