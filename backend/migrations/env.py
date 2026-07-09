@@ -15,7 +15,7 @@ from sqlalchemy import create_engine, pool
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import app.db.models  # noqa: F401  # テーブル定義を Base.metadata に登録する
-from app.db.session import Base, DATABASE_URL
+from app.db.session import DATABASE_URL, Base
 
 config = context.config
 if config.config_file_name is not None:

@@ -46,7 +46,7 @@ def apply_action(eng: GameEngine, action: dict) -> None:
         raise ValueError(f"unknown replay action type: {t!r}")
 
 
-def rebuild_engine(row: "ActiveSessionRow") -> GameEngine:
+def rebuild_engine(row: ActiveSessionRow) -> GameEngine:
     eng = GameEngine()
     eng.new_run(row.seed, upgrades=row.upgrades_json, bot_type=row.bot_type)
     # new_run() は呼ぶたびに新しいrun_id（uuid4）を発行するため、再構築のたびに変わってしまうと

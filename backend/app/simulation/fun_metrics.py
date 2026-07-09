@@ -10,8 +10,9 @@ from __future__ import annotations
 
 import math
 from collections import Counter
+from collections.abc import Sequence
 from statistics import mean, pstdev
-from typing import Optional, Sequence
+from typing import Optional
 
 from app.data.loader import get_data
 

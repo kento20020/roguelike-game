@@ -14,7 +14,7 @@ if TYPE_CHECKING:
     from app.engine.game_engine import GameEngine
 
 
-def build_node_view(engine: "GameEngine", node: Node) -> dict:
+def build_node_view(engine: GameEngine, node: Node) -> dict:
     """ノードの表示用 dict。敵ノードは L2（体験タイプ・強敵）を常時開示し、
     L3（名前・最大HP）はインタラクト後（resolved／戦闘中の当該ノード）のみ付す（§5・OPEN-015）。
     確率テーブルの数値は出さない（暗黙知型・GDD §5）。"""
@@ -32,14 +32,14 @@ def build_node_view(engine: "GameEngine", node: Node) -> dict:
     return d
 
 
-def _build_floor_state(engine: "GameEngine") -> dict:
+def _build_floor_state(engine: GameEngine) -> dict:
     return {
         "floor_number": engine.current_floor,
         "nodes": {nid: build_node_view(engine, n) for nid, n in engine.floor.nodes.items()},
     }
 
 
-def _build_battle_state(engine: "GameEngine") -> dict:
+def _build_battle_state(engine: GameEngine) -> dict:
     b = engine.battle
     battle_state = {
         "enemy": b.enemy.snapshot(),
@@ -68,7 +68,7 @@ def _build_battle_state(engine: "GameEngine") -> dict:
     return battle_state
 
 
-def build_snapshot(engine: "GameEngine") -> dict:
+def build_snapshot(engine: GameEngine) -> dict:
     """完全なゲーム状態 dict を組み立てて返す。floor→battle→available_actions の順に評価する
     （いずれも副作用なし・RNG非消費なので評価順は挙動に影響しない）。"""
     return {

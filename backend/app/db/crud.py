@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import TypeVar
 
 from sqlalchemy import delete, desc, select
@@ -111,7 +111,7 @@ def load_active_session(db: Session, session_id: str) -> ActiveSessionRow | None
 
 def _naive_utc_now() -> datetime:
     """SQLite の func.now()（CURRENT_TIMESTAMP=UTC・naive文字列）と比較可能な形式で現在時刻を返す。"""
-    return datetime.now(timezone.utc).replace(tzinfo=None)
+    return datetime.now(UTC).replace(tzinfo=None)
 
 
 def delete_stale_active_sessions(db: Session, max_age_hours: int = 24 * 7) -> int:

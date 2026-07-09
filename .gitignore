@@ -9,6 +9,8 @@ __pycache__/
 *.pyc
 .pytest_cache/
 backend/game.db
+backend/coverage.xml
+backend/.coverage
 
 # node / frontend
 node_modules/

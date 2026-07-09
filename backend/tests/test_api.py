@@ -145,6 +145,7 @@ def test_full_run_persists_record_and_history(api):
     assert hist[0]["strategy_version"] is None
     # 操作履歴（run_actions）が全ランで永続化される
     from sqlalchemy import select
+
     from app.db.models import RunActionsRow
     with TestSession() as db:
         rows = list(db.execute(select(RunActionsRow)).scalars())
