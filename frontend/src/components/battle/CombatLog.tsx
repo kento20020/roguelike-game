@@ -22,7 +22,7 @@ export default function CombatLog({ log }: { log: LogLine[] }) {
       ref={ref}
       className="font-mono"
       style={{
-        maxHeight: 168,
+        maxHeight: 132,
         overflowY: "auto",
         background: "var(--paper)",
         border: "1px solid var(--rule)",

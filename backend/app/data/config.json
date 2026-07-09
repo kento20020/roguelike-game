@@ -14,8 +14,10 @@
     "stance_multiplier_default": 1.0,
     "guard": {
       "deal_factor": 0.5,
-      "incoming_factor": 0.25,
-      "_comment": "受け（ガード）: 与ダメ×deal_factor・被ダメ×incoming_factor（重装甲の軽減後に乗算）。回数無制限（攻撃を捨てる機会コストが抑制）。数値は叩き台・bot再検証で調整。"
+      "mitigation_by_action": { "heavy_blow": 0.9, "counter": 0.5, "ramp_hit": 0.5 },
+      "stack_decay": 0.5,
+      "count_whiff": true,
+      "_comment": "受け（ジャストガード）: 与ダメ×deal_factor。被ダメ軽減率は敵の実際の行動に連動し（none/evadeは空振り＝軽減なし）、同一戦闘内の使用ごとに軽減量がstack_decay倍へ減衰（ゲート保証の重ねがけ半減と同哲学・戦闘毎リセット）。count_whiff=trueなら空振りもカウント。数値は叩き台・感度分析とbot再検証で調整（OPEN-018）。"
     },
     "_comment": "counter_factor/heavy_factorは全敵共通の既定値。敵がenemies.jsonで個別に上書き可能。ramp_value(n) = ramp_base_initial + ramp_increment*(n-1)"
   },

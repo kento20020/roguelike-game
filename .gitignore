@@ -17,3 +17,5 @@ node_modules/
 frontend/dist/
 frontend/.vite/
 *.tsbuildinfo
+backend/game.db-shm
+backend/game.db-wal

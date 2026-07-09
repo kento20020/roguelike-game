@@ -44,6 +44,11 @@ def _build_battle_state(engine: GameEngine) -> dict:
     battle_state = {
         "enemy": b.enemy.snapshot(),
         "turns": b.turns, "ramp_value": b.ramp_value,
+        # 受けの使用回数（重ねがけ減衰の現在段）。UIが「次の受けの効き」を示せるよう公開する。
+        "guard_uses": b.guard_uses,
+        # 次に受けた場合の軽減量スケール = stack_decay ** guard_uses（1.0→0.5→0.25…）。
+        # 減衰の計算はここ（Python）で確定させる。フロントは表示のみで一切計算しない（アーキ原則1）。
+        "guard_next_scale": engine.data.config["combat"]["guard"]["stack_decay"] ** b.guard_uses,
         "scout_hint": b.scout_hint, "preview": b.preview,
         # 先読み(yomi)が公開した「確定の次手」の種別（counter/heavy_blow/...）。未公開は None。
         "next_action": b.pending_action,

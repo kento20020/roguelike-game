@@ -22,7 +22,7 @@
 > **クリア率帯の測定条件**：帯（25-40%）は bot の `permanent_upgrades_state` に依存する（+attack等は全戦闘を短縮）。**未強化パネルを基準**とし、フル強化は別帯で管理（bot 強化状態を固定して測る）。
 > **strong戦略の版固定**：クリア率帯は strong bot の賢さに対する相対値。`strategy_version` で strong 戦略を凍結し「確定帯は当該版に対してのみ有効」とする（戦略変更時は帯を再検証）。**バランス検証全体が bot の人間代表性に依存する**点は運用上の前提として明記。
 > **効果量閾値の事前登録**：X/Y/Z/W の値は**Phase2 開始前に数値で確定して本表へ記入する（事前登録）**。データを見てから閾値を決めるのは効果量版 p-hacking であり禁止。値の決定はデザイナー（人間）、以後の変更は変更履歴で管理。
-> **確定帯と guard の不整合（OPEN-018）**：帯 25-40% は **guard 無し bot** での測定値。guard（§8.4）の数値決着と bots.py への実装が済むまで、guard 込み行動空間での帯は未検証＝**Phase1 は OPEN-018/020 の決着後に開始する**。
+> **確定帯と guard の不整合（OPEN-018）**：帯 25-40% は **guard 無し bot** での測定値だった。v1.8 でジャストガード再設計・bots.py（strong-v2）への受け方策実装・感度分析による数値確定（heavy0.9/decay0.5）が完了し、guard 数値起因の Phase1 ブロッカーは解消した。**Phase1 前に残るのは深度カーブ・depth_scaling 等の数値調整**（§18.2 の v1.4注記）。
 
 ### 18.2 検証フェーズ
 
@@ -37,6 +37,7 @@
 
 > **注記**：Phase0「バグゼロ」は検証不能のため「全テストgreen／既知P0=0」に置換。`fun_metrics.py` は特定Phaseに紐づかない**探索的ツール（合格条件外）**。Phase3 の e-BH は `balance_stats.py`、mod アブレーションは `balance_analysis.py`（旧記述は balance_analysis 単独に見えたため訂正）。guard（§8.4）を正式化する場合は bot 戦略に guard を含めて Phase1-4 を再測定（OPEN-018）。Phase5 の GitHub Actions は **docs-ci に加えて balance.yml（pytest＋バランス回帰 `test_balance_regression`）が稼働済み**（旧記述「未整備」は古い）。回帰基準の再生成は `python -m app.simulation.gen_baseline`（意図的変更の承認手順）。
 > **v1.4 の基準値変化（要デザイナーレビュー）**：フロア可変深度化（§4.1）と heal 1ターン消費（OPEN-020）により、maxed 強bot のクリア数は 18/120 → **6/120（5%）** に低下した（ベースライン再生成済み）。確定帯 25〜40% は未強化パネル基準のため直接比較ではないが、**深度カーブ・depth_scaling・回復経済の数値調整（デザイナー）を Phase1 前に行う**こと。調整ノブ: floors.json `depth`・config `depth_scaling`・heal コスト・OPEN-018 guard 係数。
+> **v1.8 の基準値変化**：ジャストガード再設計＋strong-v2（受け方策）により maxed クリア率は 5% → **10.2%（N=1000・ベースライン 15/120）** へ回復。base/mid は依然 0% で帯 25〜40% には未達＝**上記の数値調整（デザイナー）は引き続き Phase1 前に必要**。
 
 ### 18.3 ツール群
 
@@ -51,6 +52,7 @@
 | balance_report.py | レポート生成 | 実在 |
 | fun_metrics.py | 体験指標（面白さ系メトリクス） | 実在 |
 | gen_baseline.py | ベースライン生成 | 実在 |
+| guard_sensitivity.py | guard係数の感度分析（政策×係数グリッド） | 実在 |
 | INTEGRATION.md | 統計手法とフェーズのマッピング | 実在 |
 | llm_content_pipeline.py | Generator→Validator→Simulator→Critic | **将来・未実装**（INTEGRATION.md に記載） |
 
@@ -105,7 +107,7 @@
 | 戦闘係数（counter 1.0 / heavy 1.8 / ramp_base 5） | **確定** | config.json・実装一致 |
 | ゲート確率テーブル（§7.4） | **確定** | floors.json・データは合計1.0（CI検査はOPEN-013） |
 | ゲート特殊効果（+40G確定・追加効果未実装・§7.4） | 一部確定 | OPEN-011 |
-| 受け（guard・§8.4） | 実装済み・**数値未確定（支配戦略リスク）** | OPEN-018（高・Phase1前） |
+| 受け（guard・§8.4） | **確定（v1.8）** | OPEN-018 解消。感度分析（heavy0.9/decay0.5が支配戦略消滅かつスキル表現最大）で数値確定（`docs/proposals/guard_redesign.md` §8） |
 | メタ進行の永続（ProfileRow・§20.6） | **確定** | 実装一致 |
 | 進行中状態の永続（アクションログ再生・§25.1） | **確定（v1.5）** | OPEN-007 解消。マルチユーザー認証は引き続き OPEN-026 |
 | experience の正準キー（romaji enum・§20.7） | **確定（v1.4）** | OPEN-012 解消 |
@@ -142,7 +144,7 @@
 | OPEN-015 | L3情報の state別マスク | 未インタラクトノードの name/max_hp 非送出（§5） | — | **解消（v1.4）** | `_node_view` を state別マスク化（L2常時・L3はインタラクト後）。受入条件をテストで担保 |
 | OPEN-016 | ゲート保証の削減0停止 | 大ダメ0%到達後の重ねがけ拒否（§7.4） | — | **解消（v1.4）** | 400＋action非提示を実装 |
 | OPEN-017 | 宝箱リロールの判断材料/廃止 | 中身非公開で期待値改善0（Phase4判断）。1F確定宝箱分は解消済み | 低 | Phase4 | 一般はヒント付与 or 廃止を継続検討。**1F確定宝箱（fixed_mod）のリロールは v1.4 で 400＋非提示に解消** |
-| OPEN-018 | guard の正式化・数値是正 | 現数値（deal0.5/incoming0.25・無コスト・回数無制限）は非ランプ敵（ロスター約7割）に対し**総被ダメ半減の支配戦略**になり得る。体験タイプの差別化が潰れ、§18 の全計測（帯25-40%は guard 無し測定）の前提が崩れている（§8.4/§18.1） | **高** | **Phase1 前必須** | 数値是正（コスト付与 or 係数圧縮 0.6/0.5 等・データ駆動）→ bots.py へ guard 実装 → 再測定。**決着まで Phase1 を開始しない**。受入=bot 行動空間が UI と一致 |
+| OPEN-018 | guard の正式化・数値是正 | 旧数値（deal0.5/incoming0.25・無コスト・回数無制限）は非ランプ敵（ロスター約7割）に対し**総被ダメ半減の支配戦略**になり得た | 中 | **解消（v1.8）** | ジャストガード再設計＋bots.py strong-v2＋感度分析で数値確定（heavy0.9/decay0.5が支配戦略消滅かつスキル表現最大）。受入条件（bot行動空間=UI一致）達成（§8.4・`docs/proposals/guard_redesign.md` §8） |
 | OPEN-019 | -sinkコスト下限 | scout無料化（0G）防止（§13.2） | — | **解消（v1.4）** | `max(1,…)` クランプ実装。最安sink≥1G |
 | OPEN-020 | heal sink のターン消費 | battle中healで敵が反応するか（§13.2） | — | **解消（v1.4）** | 推奨の「1ターン消費」案を実装（heal後に敵ロール発火・§13.2）。guard 数値（OPEN-018）との複合再測定は Phase1 で実施 |
 | OPEN-021 | 攻撃ブースト異常系 | evade巻戻し丸損・pending中二重課金（§13.2/§25.4） | — | **解消（v1.4）** | evade時は boost 持越し＋pending中の再購入400 |

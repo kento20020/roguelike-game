@@ -123,6 +123,7 @@ class Battle:
     preview: Optional[str] = None        # 先読みで公開した次行動（表示用文言）
     pending_action: Optional[str] = None # 先読みで先引きした次行動（消費される）
     kouki_cooldown: int = 0              # 好機の残クールダウン
+    guard_uses: int = 0                  # この戦闘での受け使用回数（重ねがけ減衰用・戦闘毎リセット）
     log: list[dict] = field(default_factory=list)  # 表示専用・使い捨て
     side_bet_total: int = 0              # サイドベット『読み宣言』累計額（per_battle_cap 判定用）
     side_bet_result: Optional[dict] = None  # 直近ターンの的中/払戻（表示専用・次ターンでクリア）

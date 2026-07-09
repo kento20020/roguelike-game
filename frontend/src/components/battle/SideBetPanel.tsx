@@ -94,31 +94,65 @@ export default function SideBetPanel({
           </button>
           {BEHAVIOR.map((b) => {
             const active = betBehavior === b.key;
+            // 先読みで確定した次手＝この行動なら、NextActionPreview と同じ図形・同色で対応づけて強調する。
+            const predicted = battle.next_action === b.key;
+            const emphasized = active || predicted;
             return (
-              <button
-                key={b.key}
-                disabled={busy || bettingDisabled}
-                onClick={() => setBetBehavior(active ? null : b.key)}
-                title={b.jp}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  width: 40,
-                  height: 40,
-                  borderRadius: 8,
-                  border: `${active ? 2 : 1}px solid ${active ? b.color : "var(--rule2)"}`,
-                  background: active ? `color-mix(in srgb, ${b.color} 18%, var(--paper2))` : "transparent",
-                  boxShadow: active ? `0 0 0 3px color-mix(in srgb, ${b.color} 22%, transparent)` : "none",
-                  color: active ? b.color : "var(--ink3)",
-                  opacity: busy || bettingDisabled ? 0.4 : active ? 1 : 0.85,
-                  transform: active ? "scale(1.08)" : "scale(1)",
-                  transition: "all .14s var(--ease)",
-                  cursor: busy || bettingDisabled ? "default" : "pointer",
-                }}
-              >
-                <Icon type={b.iconType} size={18} />
-              </button>
+              <div key={b.key} style={{ position: "relative", display: "flex" }}>
+                {predicted && !active && (
+                  <span
+                    style={{
+                      position: "absolute",
+                      top: -7,
+                      left: "50%",
+                      transform: "translateX(-50%)",
+                      padding: "1px 5px",
+                      borderRadius: 999,
+                      fontSize: 8.5,
+                      lineHeight: 1.2,
+                      letterSpacing: "0.04em",
+                      whiteSpace: "nowrap",
+                      background: b.color,
+                      color: "var(--paper)",
+                      zIndex: 1,
+                      pointerEvents: "none",
+                    }}
+                  >
+                    読み
+                  </span>
+                )}
+                <button
+                  disabled={busy || bettingDisabled}
+                  onClick={() => setBetBehavior(active ? null : b.key)}
+                  title={predicted ? `${b.jp}（先読みで確定した次手）` : b.jp}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    width: 40,
+                    height: 40,
+                    borderRadius: 8,
+                    border: `${emphasized ? 2 : 1}px solid ${emphasized ? b.color : "var(--rule2)"}`,
+                    background: active
+                      ? `color-mix(in srgb, ${b.color} 18%, var(--paper2))`
+                      : predicted
+                        ? `color-mix(in srgb, ${b.color} 9%, var(--paper2))`
+                        : "transparent",
+                    boxShadow: active
+                      ? `0 0 0 3px color-mix(in srgb, ${b.color} 22%, transparent)`
+                      : predicted
+                        ? `0 0 0 2px color-mix(in srgb, ${b.color} 26%, transparent)`
+                        : "none",
+                    color: emphasized ? b.color : "var(--ink3)",
+                    opacity: busy || bettingDisabled ? 0.4 : emphasized ? 1 : 0.85,
+                    transform: active ? "scale(1.08)" : predicted ? "scale(1.04)" : "scale(1)",
+                    transition: "all .14s var(--ease)",
+                    cursor: busy || bettingDisabled ? "default" : "pointer",
+                  }}
+                >
+                  <Icon type={b.iconType} size={18} />
+                </button>
+              </div>
             );
           })}
         </div>

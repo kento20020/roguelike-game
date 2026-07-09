@@ -278,14 +278,14 @@ def test_mikiri_kouki_coexist(data):
     assert r["extra"] == 15
 
 
-# ── ガード（受け）──
+# ── ガード（受け・ジャストガード）──
 def test_guard_reduces_incoming_and_dealt(data):
     e = make_enemy(hp=100, attack=20)
     p, b = mk(e, attack=20)
     r = cr.resolve_turn(b, p, data, DUMMY, forced_action=cr.COUNTER, guard=True)
     assert e.hp == 90                       # dealt 20*0.5 = 10
-    assert r["incoming"] == 5               # counter 20 → ×0.25 = 5
-    assert p.hp == 95
+    assert r["incoming"] == 10              # counter 20 → 軽減50% = 10
+    assert p.hp == 90
 
 
 def test_guard_does_not_consume_boost(data):
@@ -305,9 +305,9 @@ def test_guard_none_action_no_incoming(data):
 
 
 def test_guard_with_juso_stacks(data):
-    # 重装甲(-4)後に guard ×0.25
+    # 重装甲(-4)後に guard 軽減率（counter 50%）を乗算
     e = make_enemy(hp=100, attack=20)
     p, b = mk(e, attack=20, mods=[JUSO])
     r = cr.resolve_turn(b, p, data, DUMMY, forced_action=cr.COUNTER, guard=True)
-    # base 20 - juso 4 = 16 → ×0.25 = 4
-    assert r["incoming"] == 4
+    # base 20 - juso 4 = 16 → ×0.5 = 8
+    assert r["incoming"] == 8

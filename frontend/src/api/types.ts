@@ -83,6 +83,8 @@ export interface Battle {
   enemy: Enemy;
   turns: number;
   ramp_value: number;
+  guard_uses?: number; // 受けの使用回数（当戦闘・重ねがけ減衰の現在段・戦闘毎リセット）
+  guard_next_scale?: number; // 次の受けの効き（軽減量スケール = stack_decay^guard_uses・1.0→0.5→0.25…・バックエンド算出）
   scout_hint: string | null;
   preview: string | null;
   next_action?: string | null; // 先読みが公開した確定の次手の種別
