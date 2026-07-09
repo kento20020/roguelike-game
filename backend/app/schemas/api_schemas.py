@@ -92,6 +92,9 @@ class BattleOut(BaseModel):
     enemy: EnemyOut
     turns: int
     ramp_value: int
+    # 受けの使用回数（ジャストガードの重ねがけ減衰の現在段・戦闘毎リセット・v1.8）。
+    # UIが「次の受けの効き」を表示するための公開状態。
+    guard_uses: int = 0
     scout_hint: Optional[str] = None
     preview: Optional[str] = None
     next_action: Optional[str] = None  # 先読みが公開した確定の次手の種別
