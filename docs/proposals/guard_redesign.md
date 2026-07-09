@@ -1,7 +1,7 @@
 # ガード再設計: ジャストガード＋重ねがけ減衰（OPEN-018 対応案）
 
-> 状態: **実装済み（v1.8）**。§7 の3決定はデザイナー承認済み（叩き台数値承認・空振りカウントする・ramp_hit 50%軽減）。
-> 残: §6-6 感度分析 → 数値の最終確定（デザイナー）。確定まで Phase1 は開始しない。
+> 状態: **実装済み・数値確定（v1.8・感度分析済み）**。§7 の3決定はデザイナー承認済み（叩き台数値承認・空振りカウントする・ramp_hit 50%軽減）。
+> §6-6 感度分析が完了し、数値は heavy 0.9 / counter 0.5 / ramp_hit 0.5 / stack_decay 0.5（＝§4 の叩き台のまま。config.json 変更なし）で確定した。詳細は §8。OPEN-018 は解消。
 > 対象: `config.json combat.guard` / `combat_resolver.py` / `schemas/models.py Battle` / `bots.py` / snapshot・replay
 > 起点: OPEN-018「現行 guard（deal 0.5 / incoming 0.25・無コスト・回数無制限）は非ランプ敵（ロスター約7割）に対する支配戦略になり得る」
 
@@ -127,3 +127,38 @@ bot 行動空間 = UI 一致の原則（OPEN-018 受入条件）に従い、**UI
 2. **空振りのカウント**: する（推奨。スパム抑止が強く規則も単純）/ しない（空振りは deal 半減の損のみで二重罰を避ける）
 3. **ramp_hit への軽減**: 0.5（推奨。長期化不利と併せた二重の緩い耐性）/ 0（guard 完全無効＝ランプ敵を明示的な guard メタにする）
 4. **config.json の構造変更**（`incoming_factor` → `mitigation_by_action` マップ）の承認
+
+## 8. 感度分析の結果と数値確定（2026-07-09）
+
+`guard_sensitivity.py`（N=400・maxedプロファイル・CRN）で `heavy_mitigation ∈ {0.7, 0.8, 0.9} × stack_decay ∈ {0.4, 0.5, 0.7}` の9comboを、方策 smart（現行の受け方策）／never（受けない＝旧 strong-v1 相当）／always（毎ターン受ける＝旧仕様で支配戦略だった「常時受け」の再現）の3方策で比較した。counter/ramp_hit=0.5・deal_factor=0.5・count_whiff=true は全comboで固定。生データ: `backend/app/simulation/baselines/guard_sensitivity_result.json`。
+
+### 8.1 結果の要点
+
+- **支配戦略の消滅**: always は全9comboでクリア率≈0%（8combo が0.0%・heavy0.9×decay0.7のみ0.25%）。dominance（always−never、never=3.75%）は全comboで負（-3.5〜-3.75pt）。旧仕様（一律25%軽減・無コスト・回数無制限）で成立していた「常時受けが得」という期待値優位は、どのcomboでも再現されない
+- **スキル表現**: skill_expression（smart−never）は全comboで正（+4.8〜+6.8pt）。「情報がある時だけ受けが得」という設計意図どおり、賢い方策のみが受けから恩恵を得る構造になっている
+- **最大スキル表現**: heavy 0.9 × decay 0.5 で +6.8pt（smart 10.5% vs never 3.8%）。heavy 0.9 × decay 0.7 も同率の +6.8pt だが、always のスパム抑止がわずかに弱い（always 0.2% > 0%＝完全にはゼロへ抑えられない）
+
+### 8.2 選定基準と確定値
+
+1. dominance ≤ 0（支配戦略の再発なし）を必須条件とする
+2. 満たすcombo群の中で skill_expression を最大化する
+3. 同率の場合は既存哲学（ゲート保証「重ねがけは効果半減」）との一貫性で決める
+
+→ heavy 0.9 × decay 0.5 を採用。decay 0.7 は同率のスキル表現だがスパム抑止がわずかに弱く、「重ねがけは効果半減」の哲学とも一致する 0.5 を選ぶ。
+
+**確定値**（config.json は変更なし＝§4 の叩き台がそのまま最終値）:
+
+| 係数 | 確定値 |
+|---|---|
+| `mitigation_by_action.heavy_blow` | 0.9 |
+| `mitigation_by_action.counter` | 0.5 |
+| `mitigation_by_action.ramp_hit` | 0.5 |
+| `stack_decay` | 0.5 |
+| `count_whiff` | true |
+| `deal_factor` | 0.5 |
+
+### 8.3 再現方法
+
+```
+python -m app.simulation.guard_sensitivity [N]   # 既定 N=400
+```

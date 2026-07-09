@@ -8,6 +8,7 @@
   - **bot行動空間の一致（OPEN-018受入条件）**：strong bot に受け方策を実装（`strategy_version=strong-v2`。UIにも公開される`next_action`に対してのみ張る・盲guardしない・3回目以降は張らない）。random bot の guard が無言no-opだった潜在バグも修正。
   - **反実仮想（検死）の忠実化**：`pre_turn_snapshot`に`guard_uses`を追加し、postmortemのguard反転再解決が致命ターン直前の減衰段を引き継ぐようにした（旧データは`.get`で後方互換）。
   - **効果測定**：maxed 強botクリア率 5% → **10.2%**（N=1000・CRN）。ベースライン再生成済み（15/120）。base/mid は依然0%で、深度カーブ等の数値調整（デザイナー・v1.4注記）は引き続きPhase1前に必要。軽減率・減衰係数は叩き台であり、感度分析→デザイナー確定まで Phase1 は開始しない。
+  - **感度分析による数値確定**：`guard_sensitivity.py`（N=400・maxedプロファイル・CRN・heavy∈{0.7,0.8,0.9}×decay∈{0.4,0.5,0.7}の9combo×方策{smart/never/always}）で最終数値を検証。always（常時受け）は全comboでクリア≈0%・dominance（always−never）は全comboで負（-3.5〜-3.75pt）＝支配戦略は再発せず、skill_expression（smart−never）は全comboで正（+4.8〜+6.8pt）。最大は heavy0.9×decay0.5（+6.8pt・smart 10.5% vs never 3.8%）で、同率の decay0.7 よりスパム抑止がわずかに強くゲート保証「重ねがけ半減」の哲学とも一致するため採用。**確定値は叩き台のまま（heavy0.9/counter0.5/ramp_hit0.5/stack_decay0.5）＝config.json変更なし**。詳細は `docs/proposals/guard_redesign.md` §8。
 - **v1.7**（2026-07-07）：**運用・開発基盤整備**。DevOps監査で見つかった改善項目を順次実装している。
   - **frontend-ci.yml新設**：frontend側のCIが存在せず`npm run typecheck`/`lint`/`build`がPRマージ時に未検証だった問題を解消。`balance.yml`と同型でtypecheck/lint/buildを検証。
   - **Pythonバージョン統一**：`balance.yml`(3.11)と`docs-ci.yml`(3.12)の不一致を3.12に統一し、依存キャッシュも追加。
