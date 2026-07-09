@@ -32,5 +32,6 @@
 | APIレスポンスの実形・フィールド名 | `engine.snapshot()` / `backend/app/schemas`（Pydantic） |
 
 詳細な文書統治・版管理ルール・正本優先度は [architecture.md](architecture.md)（§0.1–§0.2）を参照。
+開発運用ルール（ブランチ / PR / 変更クラス / 課題管理）は [CONTRIBUTING.md](../CONTRIBUTING.md) を参照。
 
 > 分割前の単一ファイル版（全内容を1ファイルに集約）は git 履歴で参照可能（このコミット以前）。ファイル名 `game_design_document.md` は固定のまま（CLAUDE.md / AGENTS.md / README の参照はこのインデックスに着地する）。

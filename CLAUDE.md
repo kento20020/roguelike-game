@@ -96,10 +96,13 @@ React(表示) + FastAPI(全ロジック) のモノレポ。**詳細設計は `do
 
 ## 🔄 ワークフロー
 
-- コミットは `feat:` / `fix:` / `test:` / `docs:` を接頭辞に
-- PRは `pytest` と `npm run typecheck` を通してから
+- **mainへ直接コミットしない。** 1テーマ=1ブランチ=1PR、squash merge。運用ルールの正本は [CONTRIBUTING.md](CONTRIBUTING.md)
+- ブランチは `feat/` `fix/` `docs/` `balance/` `refactor/` `ci/` ＋ kebab-case。PRタイトルに `feat:` 等のprefix必須（squash後のmainコミットメッセージになる）
+- **spec-first**: 仕様変更（クラスS）は docs PR を先にマージしてから実装PR。バグ修正・リファクタ・バランス数値のみ（クラスF/R/B）は単独PR可 — 分類は CONTRIBUTING §3
+- 課題管理: 仕様の未決は `docs/operations.md` §21.2 の OPEN-xxx 表が正本。実装着手時に GitHub Issue を起票してPRに `Closes #N`、完了時にOPEN表を更新
+- PRは `pytest`・`npm run typecheck`・`python scripts/check_docs.py` を通してから（CI必須チェック: balance / lint / check-docs / frontend）
 - 新機能は「テスト→エンジン実装→API→UI」の順
-- phaseを増やすときは §6 の状態遷移図を更新してから実装
+- phaseを増やすときは §6 の状態遷移図を更新してから実装（＝クラスS: docs PR先行）
 
 ---
 

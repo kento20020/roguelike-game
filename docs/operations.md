@@ -125,34 +125,36 @@
 
 ### 21.2 未決事項（OPEN）
 
-| ID | 項目 | 内容 | 優先度 | 対応フェーズ | 方針 |
-|----|------|------|:------:|:----------:|------|
-| OPEN-001 | 固有名詞確定 | 仮名→カジノテーマ名の最終確定（§11.1） | 中 | 実装後半 | §16.2の方向で全敵・全mod名を確定。v1.1では実置換しない |
-| OPEN-002 | 恒久強化数値（旧問E） | 各強化項目の効果値・上限の最終調整＋**割り振り導線**（`/upgrade` のスコープ・バンク消化の許可phase・§12.3/§25.2） | 中 | Phase1後 | データ駆動。構造は確定済み。導線は `/api/profile/upgrade` 移設 or 許可phase明記 |
-| OPEN-003 | sinkコスト（旧問G） | 攻撃ブースト30G・回復係数含む最終調整 | 低 | Phase4後 | ROI計測後 |
-| OPEN-004 | 強敵判定の定義方式（旧問J） | 絶対閾値 diff≥4 は終盤退化（3F 4/8・4F **7/8**・5F **10/10** が強敵＝情報量ゼロ・§11.2）。UI表示・強敵報酬・宝箱確率・統計に波及 | 中 | Phase1前に暫定固定 | 「値」でなく**定義方式**（フロア相対・上位n体等）を再設計。暫定は絶対値4のまま。受入=定義方式の確定＋config反映 |
-| OPEN-005 | 攻撃ブースト効果量 | +100%が適正か | 低 | Phase4 | データ駆動。叩き台+100% |
-| OPEN-006 | フェーズB | スタンスシステム設計 | 低 | v1.x以降 | A案検証完了後（攻撃ブーストと計算経路共有） |
-| OPEN-007 | セーブ/ロード・進行中状態の永続 | ブラウザ離脱＋**サーバ再起動での喪失**（`session_store` はメモリ・単一プロセス） | — | **解消（v1.5）** | GameStateの全フィールド（rng含む）をスナップショットする方式ではなく、**「seed＋初期upgrades＋適用アクション列」を`active_sessions`（SQLite）へ記録し、キャッシュミス時にゼロから再生する**方式を採用（同一seed→同一結果の不変条件をそのまま利用。Redis等の新規インフラは導入しない）。`session_store`はLRU上限（既定500）つきのホットキャッシュに変更、追い出されても`app.engine.replay.rebuild_engine`で透過的に復元される。受入=`store.clear()`（再起動相当）を挟んでも`GET /run/{id}`が中断前と同一状態を返す（`tests/test_session_persistence.py`）。同一`session_id`への複数ワーカー同時書き込みの競合ハードニングは対象外（既知の限界として残す） |
-| OPEN-008 | 演出・SE/BGM | オーディオ仕様 | 低 | 実装後期 | — |
-| OPEN-009 | アクセシビリティ | 色覚対応・キーボード操作 | 低 | 実装後期 | — |
-| OPEN-010 | 勝利優先時のHP | 同時死亡・勝利優先でHP0生存になる挙動 | — | **解消（v1.4）** | 勝利時 `hp = max(1, hp)` を実装・相打ちテストで担保（§8.2） |
-| OPEN-011 | ゲート特殊効果 | 特殊の追加効果（現状+40Gのみ・「次フロア強化等」未実装）（§7.4） | 低 | 実装後期 | 効果実装なら受入=効果定義＋発生率検証。当面は +40G 確定 |
-| OPEN-012 | experience の enum 化 | 日本語→romaji 正準キー（grind/gamble/race/dodge/chaos）（§20.7） | — | **解消（v1.4）** | enemies.json・labels.ts・統計キーを一括変更。受入条件（日本語がAPI/統計キーに出ない）を loader.validate で強制 |
-| OPEN-013 | データCI検査の拡充 | gate合計1.0・kind整合・経路≥2・上限Lv=21・snapshot非出力（§20.5） | — | **解消（v1.4）** | loader.validate＋validate_floor（生成毎）＋テスト（snapshot非出力・上限Lv21）に分担して実装（§20.5） |
-| OPEN-014 | 体験タイプ最早出現の制約化 | 段階導入をCI検証（ずれ2F/カオス3F〜）（§4.4/§9.1） | 低 | Phase1後 | §9.1 制約をCIへ。受入=違反プールが fail |
-| OPEN-015 | L3情報の state別マスク | 未インタラクトノードの name/max_hp 非送出（§5） | — | **解消（v1.4）** | `_node_view` を state別マスク化（L2常時・L3はインタラクト後）。受入条件をテストで担保 |
-| OPEN-016 | ゲート保証の削減0停止 | 大ダメ0%到達後の重ねがけ拒否（§7.4） | — | **解消（v1.4）** | 400＋action非提示を実装 |
-| OPEN-017 | 宝箱リロールの判断材料/廃止 | 中身非公開で期待値改善0（Phase4判断）。1F確定宝箱分は解消済み | 低 | Phase4 | 一般はヒント付与 or 廃止を継続検討。**1F確定宝箱（fixed_mod）のリロールは v1.4 で 400＋非提示に解消** |
-| OPEN-018 | guard の正式化・数値是正 | 旧数値（deal0.5/incoming0.25・無コスト・回数無制限）は非ランプ敵（ロスター約7割）に対し**総被ダメ半減の支配戦略**になり得た | 中 | **解消（v1.8）** | ジャストガード再設計＋bots.py strong-v2＋感度分析で数値確定（heavy0.9/decay0.5が支配戦略消滅かつスキル表現最大）。受入条件（bot行動空間=UI一致）達成（§8.4・`docs/proposals/guard_redesign.md` §8） |
-| OPEN-019 | -sinkコスト下限 | scout無料化（0G）防止（§13.2） | — | **解消（v1.4）** | `max(1,…)` クランプ実装。最安sink≥1G |
-| OPEN-020 | heal sink のターン消費 | battle中healで敵が反応するか（§13.2） | — | **解消（v1.4）** | 推奨の「1ターン消費」案を実装（heal後に敵ロール発火・§13.2）。guard 数値（OPEN-018）との複合再測定は Phase1 で実施 |
-| OPEN-021 | 攻撃ブースト異常系 | evade巻戻し丸損・pending中二重課金（§13.2/§25.4） | — | **解消（v1.4）** | evade時は boost 持越し＋pending中の再購入400 |
-| OPEN-022 | 反射チュートリアル確実化 | 1Fで反射の取得/発火を保証（§14.2） | 低 | 実装後半 | 必須経路配置 or A必須経由。受入=1F内で取得&発火 |
-| OPEN-023 | modペア交互作用ゲート | synergy寄与の統計ゲート（§18.1） | 中 | Phase3 | `balance_analysis` アブレーションをペア拡張（e-BH） |
-| OPEN-024 | RunRecord data_version | 版混在の統計汚染防止（§19.1） | — | **解消（v1.4）** | 4JSON sha256短縮ハッシュ＋strategy_version を Alembic `0002_telemetry` で追加（§19.1） |
-| OPEN-025 | sink use_count / gate_results / guard記録 | ROI/寄与の逆算用テレメトリ（§19.1） | — | **解消（v1.4）** | sink_use_counts・gate_results・action_counts（attack/guard/heal_*）を記録。全ランの操作履歴も run_actions へ永続化 |
-| OPEN-026 | 認証・冪等性・stats scope | 進行中DB永続・冪等キー・stats/history のスコープ（§25） | 中 | 実装後半 | 単一プレイヤーは非スコープ明記（§0.4）＋ stats scope＋全mutating POSTに冪等キー |
-| OPEN-027 | 運用基盤の整備 | Alembic・Docker・game.dbバックアップ・構造化ログ+req_id・.env.example・CI・`/health`・RUNBOOK/ONBOARDING（§22/§23） | 低 | **大半解消（v1.4）** | 解消済み: Alembic・ログ＋X-Request-ID・.env.example・`/health`・CI（balance.yml/pytest）＋frontend-ci（lint/build）・runbook更新・CORS限定。残: Docker・バックアップ自動化 |
-| OPEN-028 | カオスの ramp_hit 空砲 | カオスは increment=0 のため ramp_hit 被ダメ常時5。ramp偏重（最大85%）を引いた個体はほぼ無害＝実効強度の分散が極端（§9.2） | 低 | Phase1後 | 「意図的な当たり枠」と明記 or カオス専用の小 increment 付与（データ変更のみ）。受入=§9.2 に評価を明文化 |
-| OPEN-029 | 初クリアまでの体験曲線 | win-to-progress は初クリアまでメタ進行ゼロ（§2.1）。人間相当の弱めbotでの初クリア期待ラン数が長すぎると離脱点になる | 低 | Phase2 | §18.1 の観測指標で監視（閾値なし）。超過が見えた場合のみ救済（到達フロア別微小ポイント等）を検討 |
+> **運用**: 実装着手時に GitHub Issue を「`OPEN-0xx: 題名`」で起票して状態列に `起票 #N`（着手後は `対応中 #N`）を記入し、実装PRに `Closes #N` を書く。解消時は解消版数を対応フェーズ列に記録し、changelog.md に経緯を残す（解消済みも行は残す既存慣行を踏襲）。手順の正本は [CONTRIBUTING.md](../CONTRIBUTING.md)。
+
+| ID | 項目 | 内容 | 優先度 | 対応フェーズ | 方針 | 状態 |
+|----|------|------|:------:|:----------:|------|:----:|
+| OPEN-001 | 固有名詞確定 | 仮名→カジノテーマ名の最終確定（§11.1） | 中 | 実装後半 | §16.2の方向で全敵・全mod名を確定。v1.1では実置換しない | 未着手 |
+| OPEN-002 | 恒久強化数値（旧問E） | 各強化項目の効果値・上限の最終調整＋**割り振り導線**（`/upgrade` のスコープ・バンク消化の許可phase・§12.3/§25.2） | 中 | Phase1後 | データ駆動。構造は確定済み。導線は `/api/profile/upgrade` 移設 or 許可phase明記 | 未着手 |
+| OPEN-003 | sinkコスト（旧問G） | 攻撃ブースト30G・回復係数含む最終調整 | 低 | Phase4後 | ROI計測後 | 未着手 |
+| OPEN-004 | 強敵判定の定義方式（旧問J） | 絶対閾値 diff≥4 は終盤退化（3F 4/8・4F **7/8**・5F **10/10** が強敵＝情報量ゼロ・§11.2）。UI表示・強敵報酬・宝箱確率・統計に波及 | 中 | Phase1前に暫定固定 | 「値」でなく**定義方式**（フロア相対・上位n体等）を再設計。暫定は絶対値4のまま。受入=定義方式の確定＋config反映 | 未着手 |
+| OPEN-005 | 攻撃ブースト効果量 | +100%が適正か | 低 | Phase4 | データ駆動。叩き台+100% | 未着手 |
+| OPEN-006 | フェーズB | スタンスシステム設計 | 低 | v1.x以降 | A案検証完了後（攻撃ブーストと計算経路共有） | 未着手 |
+| OPEN-007 | セーブ/ロード・進行中状態の永続 | ブラウザ離脱＋**サーバ再起動での喪失**（`session_store` はメモリ・単一プロセス） | — | **解消（v1.5）** | GameStateの全フィールド（rng含む）をスナップショットする方式ではなく、**「seed＋初期upgrades＋適用アクション列」を`active_sessions`（SQLite）へ記録し、キャッシュミス時にゼロから再生する**方式を採用（同一seed→同一結果の不変条件をそのまま利用。Redis等の新規インフラは導入しない）。`session_store`はLRU上限（既定500）つきのホットキャッシュに変更、追い出されても`app.engine.replay.rebuild_engine`で透過的に復元される。受入=`store.clear()`（再起動相当）を挟んでも`GET /run/{id}`が中断前と同一状態を返す（`tests/test_session_persistence.py`）。同一`session_id`への複数ワーカー同時書き込みの競合ハードニングは対象外（既知の限界として残す） | 解消 |
+| OPEN-008 | 演出・SE/BGM | オーディオ仕様 | 低 | 実装後期 | — | 未着手 |
+| OPEN-009 | アクセシビリティ | 色覚対応・キーボード操作 | 低 | 実装後期 | — | 未着手 |
+| OPEN-010 | 勝利優先時のHP | 同時死亡・勝利優先でHP0生存になる挙動 | — | **解消（v1.4）** | 勝利時 `hp = max(1, hp)` を実装・相打ちテストで担保（§8.2） | 解消 |
+| OPEN-011 | ゲート特殊効果 | 特殊の追加効果（現状+40Gのみ・「次フロア強化等」未実装）（§7.4） | 低 | 実装後期 | 効果実装なら受入=効果定義＋発生率検証。当面は +40G 確定 | 未着手 |
+| OPEN-012 | experience の enum 化 | 日本語→romaji 正準キー（grind/gamble/race/dodge/chaos）（§20.7） | — | **解消（v1.4）** | enemies.json・labels.ts・統計キーを一括変更。受入条件（日本語がAPI/統計キーに出ない）を loader.validate で強制 | 解消 |
+| OPEN-013 | データCI検査の拡充 | gate合計1.0・kind整合・経路≥2・上限Lv=21・snapshot非出力（§20.5） | — | **解消（v1.4）** | loader.validate＋validate_floor（生成毎）＋テスト（snapshot非出力・上限Lv21）に分担して実装（§20.5） | 解消 |
+| OPEN-014 | 体験タイプ最早出現の制約化 | 段階導入をCI検証（ずれ2F/カオス3F〜）（§4.4/§9.1） | 低 | Phase1後 | §9.1 制約をCIへ。受入=違反プールが fail | 未着手 |
+| OPEN-015 | L3情報の state別マスク | 未インタラクトノードの name/max_hp 非送出（§5） | — | **解消（v1.4）** | `_node_view` を state別マスク化（L2常時・L3はインタラクト後）。受入条件をテストで担保 | 解消 |
+| OPEN-016 | ゲート保証の削減0停止 | 大ダメ0%到達後の重ねがけ拒否（§7.4） | — | **解消（v1.4）** | 400＋action非提示を実装 | 解消 |
+| OPEN-017 | 宝箱リロールの判断材料/廃止 | 中身非公開で期待値改善0（Phase4判断）。1F確定宝箱分は解消済み | 低 | Phase4 | 一般はヒント付与 or 廃止を継続検討。**1F確定宝箱（fixed_mod）のリロールは v1.4 で 400＋非提示に解消** | 一部解消 |
+| OPEN-018 | guard の正式化・数値是正 | 旧数値（deal0.5/incoming0.25・無コスト・回数無制限）は非ランプ敵（ロスター約7割）に対し**総被ダメ半減の支配戦略**になり得た | 中 | **解消（v1.8）** | ジャストガード再設計＋bots.py strong-v2＋感度分析で数値確定（heavy0.9/decay0.5が支配戦略消滅かつスキル表現最大）。受入条件（bot行動空間=UI一致）達成（§8.4・`docs/proposals/guard_redesign.md` §8） | 解消 |
+| OPEN-019 | -sinkコスト下限 | scout無料化（0G）防止（§13.2） | — | **解消（v1.4）** | `max(1,…)` クランプ実装。最安sink≥1G | 解消 |
+| OPEN-020 | heal sink のターン消費 | battle中healで敵が反応するか（§13.2） | — | **解消（v1.4）** | 推奨の「1ターン消費」案を実装（heal後に敵ロール発火・§13.2）。guard 数値（OPEN-018）との複合再測定は Phase1 で実施 | 解消 |
+| OPEN-021 | 攻撃ブースト異常系 | evade巻戻し丸損・pending中二重課金（§13.2/§25.4） | — | **解消（v1.4）** | evade時は boost 持越し＋pending中の再購入400 | 解消 |
+| OPEN-022 | 反射チュートリアル確実化 | 1Fで反射の取得/発火を保証（§14.2） | 低 | 実装後半 | 必須経路配置 or A必須経由。受入=1F内で取得&発火 | 未着手 |
+| OPEN-023 | modペア交互作用ゲート | synergy寄与の統計ゲート（§18.1） | 中 | Phase3 | `balance_analysis` アブレーションをペア拡張（e-BH） | 未着手 |
+| OPEN-024 | RunRecord data_version | 版混在の統計汚染防止（§19.1） | — | **解消（v1.4）** | 4JSON sha256短縮ハッシュ＋strategy_version を Alembic `0002_telemetry` で追加（§19.1） | 解消 |
+| OPEN-025 | sink use_count / gate_results / guard記録 | ROI/寄与の逆算用テレメトリ（§19.1） | — | **解消（v1.4）** | sink_use_counts・gate_results・action_counts（attack/guard/heal_*）を記録。全ランの操作履歴も run_actions へ永続化 | 解消 |
+| OPEN-026 | 認証・冪等性・stats scope | 進行中DB永続・冪等キー・stats/history のスコープ（§25） | 中 | 実装後半 | 単一プレイヤーは非スコープ明記（§0.4）＋ stats scope＋全mutating POSTに冪等キー | 未着手 |
+| OPEN-027 | 運用基盤の整備 | Alembic・Docker・game.dbバックアップ・構造化ログ+req_id・.env.example・CI・`/health`・RUNBOOK/ONBOARDING（§22/§23） | 低 | **大半解消（v1.4）** | 解消済み: Alembic・ログ＋X-Request-ID・.env.example・`/health`・CI（balance.yml/pytest）＋frontend-ci（lint/build）・runbook更新・CORS限定。残: Docker・バックアップ自動化 | 大半解消 |
+| OPEN-028 | カオスの ramp_hit 空砲 | カオスは increment=0 のため ramp_hit 被ダメ常時5。ramp偏重（最大85%）を引いた個体はほぼ無害＝実効強度の分散が極端（§9.2） | 低 | Phase1後 | 「意図的な当たり枠」と明記 or カオス専用の小 increment 付与（データ変更のみ）。受入=§9.2 に評価を明文化 | 未着手 |
+| OPEN-029 | 初クリアまでの体験曲線 | win-to-progress は初クリアまでメタ進行ゼロ（§2.1）。人間相当の弱めbotでの初クリア期待ラン数が長すぎると離脱点になる | 低 | Phase2 | §18.1 の観測指標で監視（閾値なし）。超過が見えた場合のみ救済（到達フロア別微小ポイント等）を検討 | 未着手 |

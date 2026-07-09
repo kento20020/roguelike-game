@@ -118,3 +118,4 @@ cd frontend && npm install && npm run dev
 ## 設計書
 
 ゲーム仕様・アーキテクチャの詳細は **[`docs/game_design_document.md`](docs/game_design_document.md)**（インデックス）から辿れる分割設計書が正本。数値の正本は `backend/app/data/*.json`。
+開発の進め方（ブランチ運用 / PR / 変更クラス / 課題管理）は **[CONTRIBUTING.md](CONTRIBUTING.md)** を参照。
