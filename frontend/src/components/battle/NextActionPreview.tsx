@@ -1,5 +1,6 @@
 import type { Battle } from "../../api/types";
 import { behaviorMeta, TELL_META } from "../../lib/labels";
+import Icon from "../common/Icon";
 
 // 先読み＝確定の次手（種別を明示）／スカウト＝傾向（控えめ）。CombatPanel から抽出。
 export default function NextActionPreview({ battle }: { battle: Battle }) {
@@ -14,6 +15,10 @@ export default function NextActionPreview({ battle }: { battle: Battle }) {
       >
         <div className="flex items-center gap-2">
           <span className="label" style={{ color: "var(--brass)" }}>先読み · 確定</span>
+          {/* サイドベットの賭けボタンと同じ図形・同色（labels.ts の BEHAVIOR 正本）で対応づける */}
+          <span style={{ color: nb.color, display: "inline-flex", flex: "none" }}>
+            <Icon type={nb.iconType} size={16} />
+          </span>
           <span style={{ fontSize: 14, fontWeight: 600, color: nb.color }}>次は {nb.jp}</span>
           {tell && (
             <>

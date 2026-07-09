@@ -95,6 +95,10 @@ class BattleOut(BaseModel):
     # 受けの使用回数（ジャストガードの重ねがけ減衰の現在段・戦闘毎リセット・v1.8）。
     # UIが「次の受けの効き」を表示するための公開状態。
     guard_uses: int = 0
+    # 次の受けの効き（軽減量スケール = stack_decay ** guard_uses・1.0→0.5→0.25…）。
+    # snapshot が計算した値をそのまま透過する。snapshot 単独追加でレスポンスから欠落した
+    # v1.8 tell_reliability の契約破れを繰り返さないよう、必ずこの BattleOut にも定義する。
+    guard_next_scale: float = 1.0
     scout_hint: Optional[str] = None
     preview: Optional[str] = None
     next_action: Optional[str] = None  # 先読みが公開した確定の次手の種別

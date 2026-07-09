@@ -87,11 +87,18 @@ export default function Header({ player, floorNumber }: { player: Player; floorN
               style={{ background: "transparent", border: "1px solid var(--rule)", borderRadius: 999, padding: "4px 9px 4px 11px", cursor: "pointer" }}
             >
               <span className="label">技</span>
-              {uniqueMods.map((m) => (
+              {/* mod が増えてもヘッダーが横に膨らまないよう、先頭3件のみチップ表示＋残りは +N に畳む
+                  （全件は下のドロップダウンで確認できる） */}
+              {uniqueMods.slice(0, 3).map((m) => (
                 <span key={m} className="pill">
                   {modLabel(m)}
                 </span>
               ))}
+              {uniqueMods.length > 3 && (
+                <span className="pill" style={{ color: "var(--brass)" }}>
+                  +{uniqueMods.length - 3}
+                </span>
+              )}
               <span style={{ fontSize: 9, color: "var(--ink3)" }}>▾</span>
             </button>
             {open && (

@@ -3,6 +3,7 @@ import { experienceMeta } from "../../lib/labels";
 import CombatLog from "./CombatLog";
 import BehaviorGlossary from "../common/BehaviorGlossary";
 import EnemyStage from "./EnemyStage";
+import GuardEfficacy from "./GuardEfficacy";
 import NextActionPreview from "./NextActionPreview";
 import PlayerStatusBar from "./PlayerStatusBar";
 import SideBetPanel from "./SideBetPanel";
@@ -62,7 +63,10 @@ export default function CombatPanel({
 
       <SideBetPanel battle={battle} player={player} busy={busy} sb={sb} />
 
-      <div className="flex items-center gap-3" style={{ marginTop: 18 }}>
+      <div style={{ marginTop: 16 }}>
+        <GuardEfficacy battle={battle} />
+      </div>
+      <div className="flex items-center gap-3" style={{ marginTop: 10 }}>
         <button onClick={submitAttack} disabled={!canAttack || busy} className="btn" style={{ minWidth: 200, height: 50 }}>
           攻撃する — {player.attack}
           {player.attack_boost_pending ? "（強化）" : ""}

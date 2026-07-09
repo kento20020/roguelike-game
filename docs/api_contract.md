@@ -52,7 +52,7 @@
 
 > **battle phase の例（実装準拠・要点）**：
 > 例: [`schemas/battle_example.json`](schemas/battle_example.json)（battle phase の要点）
-> `battle` は `BattleOut`（enemy/turns/ramp_value/scout_hint/preview/next_action/log/side_bet_total/side_bet_result/last_turn/side_bet/tell_reliability）。`pending` は phase別（§20.8。例：`gate_preview`=`{table,damage}`、`treasure_opened`=`{mod,count}`）。`available_actions[].type` は §20.7。**未インタラクトの敵ノードは L2（experience/is_strong）のみで name/max_hp を含まない**（§5・OPEN-015 解消・v1.4）。`resolved` は `state` 由来の派生（§20.4）。進行中は `run_record: null`（seed非露出・§17.3）。
+> `battle` は `BattleOut`（enemy/turns/ramp_value/guard_uses/guard_next_scale/scout_hint/preview/next_action/log/side_bet_total/side_bet_result/last_turn/side_bet/tell_reliability）。`guard_next_scale`＝次の受けの軽減量スケール（stack_decay^guard_uses・1.0→0.5→0.25…・UI「受けの効き」表示用）。`pending` は phase別（§20.8。例：`gate_preview`=`{table,damage}`、`treasure_opened`=`{mod,count}`）。`available_actions[].type` は §20.7。**未インタラクトの敵ノードは L2（experience/is_strong）のみで name/max_hp を含まない**（§5・OPEN-015 解消・v1.4）。`resolved` は `state` 由来の派生（§20.4）。進行中は `run_record: null`（seed非露出・§17.3）。
 
 ### 25.4 エラーハンドリング
 

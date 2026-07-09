@@ -256,9 +256,11 @@ def test_guard_available_and_usable(api):
     types = {a["type"] for a in r.json()["available_actions"]}
     assert "guard" in types and "attack" in types
     assert r.json()["battle"]["guard_uses"] == 0  # 契約: 減衰段を戦闘開始から公開
+    assert r.json()["battle"]["guard_next_scale"] == 1.0  # 契約: 戦闘開始時は受けフル効き
     g = client.post(f"/api/run/{sid}/guard")
     assert g.status_code == 200
     assert g.json()["battle"]["guard_uses"] == 1  # 受け1回で加算（BattleOut契約の破れ防止）
+    assert g.json()["battle"]["guard_next_scale"] == 0.5  # 契約: 受け1回で次の効きが半減（BattleOut欠落防止）
 
 
 def test_guard_wrong_phase_409(api):
