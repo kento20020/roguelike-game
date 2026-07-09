@@ -1,0 +1,313 @@
+{
+  "n": 400,
+  "profile": {
+    "max_hp": 5,
+    "attack": 5,
+    "init_gold": 5,
+    "gold_drop": 3,
+    "sink_cost": 3
+  },
+  "fixed": {
+    "counter": 0.5,
+    "ramp_hit": 0.5,
+    "deal_factor": 0.5,
+    "count_whiff": true
+  },
+  "grid": {
+    "heavy_mitigation": [
+      0.7,
+      0.8,
+      0.9
+    ],
+    "stack_decay": [
+      0.4,
+      0.5,
+      0.7
+    ]
+  },
+  "never": {
+    "n": 400,
+    "cleared": 15,
+    "clear_rate": 0.0375,
+    "avg_floor": 4.6125,
+    "avg_guard": 0.0,
+    "death_floor": {
+      "3": 13,
+      "4": 129,
+      "5": 243
+    }
+  },
+  "combos": [
+    {
+      "heavy_mitigation": 0.7,
+      "stack_decay": 0.4,
+      "smart": {
+        "n": 400,
+        "cleared": 34,
+        "clear_rate": 0.085,
+        "avg_floor": 4.6975,
+        "avg_guard": 2.49,
+        "death_floor": {
+          "3": 4,
+          "4": 113,
+          "5": 249
+        }
+      },
+      "always": {
+        "n": 400,
+        "cleared": 0,
+        "clear_rate": 0.0,
+        "avg_floor": 3.6325,
+        "avg_guard": 60.595,
+        "death_floor": {
+          "3": 161,
+          "4": 225,
+          "5": 14
+        }
+      },
+      "skill_expression": 0.04750000000000001,
+      "dominance": -0.0375
+    },
+    {
+      "heavy_mitigation": 0.7,
+      "stack_decay": 0.5,
+      "smart": {
+        "n": 400,
+        "cleared": 35,
+        "clear_rate": 0.0875,
+        "avg_floor": 4.7,
+        "avg_guard": 2.51,
+        "death_floor": {
+          "3": 4,
+          "4": 112,
+          "5": 249
+        }
+      },
+      "always": {
+        "n": 400,
+        "cleared": 0,
+        "clear_rate": 0.0,
+        "avg_floor": 3.6775,
+        "avg_guard": 62.72,
+        "death_floor": {
+          "3": 149,
+          "4": 231,
+          "5": 20
+        }
+      },
+      "skill_expression": 0.049999999999999996,
+      "dominance": -0.0375
+    },
+    {
+      "heavy_mitigation": 0.7,
+      "stack_decay": 0.7,
+      "smart": {
+        "n": 400,
+        "cleared": 36,
+        "clear_rate": 0.09,
+        "avg_floor": 4.7,
+        "avg_guard": 2.53,
+        "death_floor": {
+          "3": 4,
+          "4": 112,
+          "5": 248
+        }
+      },
+      "always": {
+        "n": 400,
+        "cleared": 0,
+        "clear_rate": 0.0,
+        "avg_floor": 3.8575,
+        "avg_guard": 72.5175,
+        "death_floor": {
+          "3": 94,
+          "4": 269,
+          "5": 37
+        }
+      },
+      "skill_expression": 0.0525,
+      "dominance": -0.0375
+    },
+    {
+      "heavy_mitigation": 0.8,
+      "stack_decay": 0.4,
+      "smart": {
+        "n": 400,
+        "cleared": 37,
+        "clear_rate": 0.0925,
+        "avg_floor": 4.7225,
+        "avg_guard": 2.5425,
+        "death_floor": {
+          "3": 3,
+          "4": 105,
+          "5": 255
+        }
+      },
+      "always": {
+        "n": 400,
+        "cleared": 0,
+        "clear_rate": 0.0,
+        "avg_floor": 3.655,
+        "avg_guard": 61.56,
+        "death_floor": {
+          "3": 153,
+          "4": 232,
+          "5": 15
+        }
+      },
+      "skill_expression": 0.055,
+      "dominance": -0.0375
+    },
+    {
+      "heavy_mitigation": 0.8,
+      "stack_decay": 0.5,
+      "smart": {
+        "n": 400,
+        "cleared": 35,
+        "clear_rate": 0.0875,
+        "avg_floor": 4.7225,
+        "avg_guard": 2.5425,
+        "death_floor": {
+          "3": 3,
+          "4": 105,
+          "5": 257
+        }
+      },
+      "always": {
+        "n": 400,
+        "cleared": 0,
+        "clear_rate": 0.0,
+        "avg_floor": 3.7075,
+        "avg_guard": 64.335,
+        "death_floor": {
+          "3": 141,
+          "4": 235,
+          "5": 24
+        }
+      },
+      "skill_expression": 0.049999999999999996,
+      "dominance": -0.0375
+    },
+    {
+      "heavy_mitigation": 0.8,
+      "stack_decay": 0.7,
+      "smart": {
+        "n": 400,
+        "cleared": 34,
+        "clear_rate": 0.085,
+        "avg_floor": 4.725,
+        "avg_guard": 2.5575,
+        "death_floor": {
+          "3": 3,
+          "4": 104,
+          "5": 259
+        }
+      },
+      "always": {
+        "n": 400,
+        "cleared": 0,
+        "clear_rate": 0.0,
+        "avg_floor": 3.8825,
+        "avg_guard": 73.29,
+        "death_floor": {
+          "3": 88,
+          "4": 271,
+          "5": 41
+        }
+      },
+      "skill_expression": 0.04750000000000001,
+      "dominance": -0.0375
+    },
+    {
+      "heavy_mitigation": 0.9,
+      "stack_decay": 0.4,
+      "smart": {
+        "n": 400,
+        "cleared": 40,
+        "clear_rate": 0.1,
+        "avg_floor": 4.7425,
+        "avg_guard": 2.535,
+        "death_floor": {
+          "3": 2,
+          "4": 99,
+          "5": 259
+        }
+      },
+      "always": {
+        "n": 400,
+        "cleared": 0,
+        "clear_rate": 0.0,
+        "avg_floor": 3.6725,
+        "avg_guard": 62.445,
+        "death_floor": {
+          "3": 147,
+          "4": 237,
+          "5": 16
+        }
+      },
+      "skill_expression": 0.0625,
+      "dominance": -0.0375
+    },
+    {
+      "heavy_mitigation": 0.9,
+      "stack_decay": 0.5,
+      "smart": {
+        "n": 400,
+        "cleared": 42,
+        "clear_rate": 0.105,
+        "avg_floor": 4.745,
+        "avg_guard": 2.54,
+        "death_floor": {
+          "3": 2,
+          "4": 98,
+          "5": 258
+        }
+      },
+      "always": {
+        "n": 400,
+        "cleared": 0,
+        "clear_rate": 0.0,
+        "avg_floor": 3.74,
+        "avg_guard": 65.225,
+        "death_floor": {
+          "3": 132,
+          "4": 240,
+          "5": 28
+        }
+      },
+      "skill_expression": 0.0675,
+      "dominance": -0.0375
+    },
+    {
+      "heavy_mitigation": 0.9,
+      "stack_decay": 0.7,
+      "smart": {
+        "n": 400,
+        "cleared": 42,
+        "clear_rate": 0.105,
+        "avg_floor": 4.7475,
+        "avg_guard": 2.5525,
+        "death_floor": {
+          "3": 2,
+          "4": 97,
+          "5": 259
+        }
+      },
+      "always": {
+        "n": 400,
+        "cleared": 1,
+        "clear_rate": 0.0025,
+        "avg_floor": 3.95,
+        "avg_guard": 76.7375,
+        "death_floor": {
+          "3": 69,
+          "4": 282,
+          "5": 48
+        }
+      },
+      "skill_expression": 0.0675,
+      "dominance": -0.034999999999999996
+    }
+  ],
+  "_comment": "ジャストガード感度分析（OPEN-018 数値確定用・インメモリで係数を振る観測値）。config.json は不変。数値の最終確定はデザイナー（人間）判断・Goodhart回避。"
+}
