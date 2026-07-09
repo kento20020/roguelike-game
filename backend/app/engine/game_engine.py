@@ -224,6 +224,7 @@ class GameEngine:
             },
             "battle": {
                 "turns": b.turns, "ramp_value": b.ramp_value, "kouki_cooldown": b.kouki_cooldown,
+                "guard_uses": b.guard_uses,
                 "node_id": b.node_id, "floor": b.floor,
             },
             "enemy": {

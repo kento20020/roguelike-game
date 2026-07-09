@@ -1,6 +1,7 @@
 """ボット方策 — strong / random。同じ GameEngine を駆動する。
 
-strong: HP管理・脅威の低い敵選択・無料宝箱回収・危険時のゲート保証。
+strong: HP管理・脅威の低い敵選択・無料宝箱回収・危険時のゲート保証・
+        受け（ジャストガード）は公開済みの次手（yomi/tell の next_action）にのみ張る。
 random: 合法手から一様抽選（独立 bot RNG）。
 クリア率が帯域外なら方策ではなく JSON 数値を人間が調整（Goodhart回避）。
 """
@@ -8,6 +9,7 @@ from __future__ import annotations
 
 import math
 
+from app.engine import combat_resolver as cr
 from app.engine import gate_resolver as gr
 from app.engine.floor_generator import build_enemy_instance
 from app.engine.game_engine import GameEngine
@@ -18,7 +20,8 @@ MAX_STEPS = 8000
 
 # bot方策の版（OPEN-024: RunRecord.strategy_version に刻印し統計を方策世代でフィルタする）。
 # 方策ロジックを変えたらバンプする。human ランは NULL。
-STRATEGY_VERSION = "strong-v1"
+# v2: 受け（ジャストガード）を行動空間に追加（OPEN-018: bot行動空間とUIの一致）。
+STRATEGY_VERSION = "strong-v2"
 
 
 # ─────────────────────── threat estimation ───────────────────────
@@ -125,6 +128,21 @@ def _battle(eng: GameEngine) -> None:
         if p.chips >= cost:
             eng.use_sink("attack_boost")
             return
+    # このターンで倒せるなら攻撃（勝利優先ルールで被弾しない）
+    boost_mult = eng.data.config["attack_boost"]["multiplier"] if p.attack_boost_pending else 1.0
+    if round(p.attack * p.stance_multiplier * boost_mult) >= b.enemy.hp:
+        eng.attack()
+        return
+    # 受け（ジャストガード）: 公開済みの次手にのみ張る（盲guardしない）。
+    # 使う情報は UI にも next_action として公開される pending_action のみ＝行動空間の一致（OPEN-018）。
+    # 3回目以降は減衰で期待値が立たないため張らない。
+    if b.pending_action is not None and b.guard_uses < 2:
+        if b.pending_action == cr.HEAVY:
+            eng.guard()
+            return
+        if b.pending_action == cr.COUNTER and p.hp <= b.enemy.attack * 2:
+            eng.guard()
+            return
     eng.attack()
 
 
@@ -174,6 +192,8 @@ def _apply(eng: GameEngine, a: dict) -> None:
         eng.select_node(a["node"])
     elif t == "attack":
         eng.attack()
+    elif t == "guard":
+        eng.guard()
     elif t == "use_sink":
         eng.use_sink(a["sink"])
     elif t == "treasure_open":

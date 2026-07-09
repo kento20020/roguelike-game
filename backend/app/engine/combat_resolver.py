@@ -112,8 +112,10 @@ def resolve_turn(battle: Battle, player: Player, data: GameData,
                  guard: bool = False, player_attacks: bool = True) -> dict:
     """1ターン解決。battle/player を破壊的更新し、結果 dict を返す。
 
-    guard=True（受け）: 与ダメ ×guard.deal_factor（boost は消費しない）、
-    被ダメ ×guard.incoming_factor（重装甲の軽減後にさらに乗算）。先読みを活かす攻防の選択。
+    guard=True（受け・ジャストガード）: 与ダメ ×guard.deal_factor（boost は消費しない）。
+    被ダメ軽減率は敵の実際の行動に連動（mitigation_by_action。none/evade は空振り＝軽減なし）し、
+    同一戦闘内の使用ごとに軽減量が stack_decay 倍へ減衰する（ゲート保証の重ねがけ半減と同哲学）。
+    軽減は重装甲の軽減後に適用。先読み（yomi/tell/scout）を活かした賭けの選択。
     player_attacks=False（OPEN-020）: 行動を sink（回復）に使ったターン。与ダメ0で敵行動のみ解決。
     """
     enemy = battle.enemy
@@ -190,10 +192,22 @@ def resolve_turn(battle: Battle, player: Player, data: GameData,
             incoming = max(0, base_inc - reduction)
             if reduction > 0:
                 battle.add_log(f"重装甲 — 被ダメ {reduction} 軽減", "mod")
-    # b. player 被弾（受けは重装甲の軽減後にさらに incoming_factor 倍）
-    if guard and incoming > 0:
-        incoming = round(incoming * cfg["combat"]["guard"]["incoming_factor"])
-        battle.add_log("受け — 被ダメを大きく抑えた", "mod")
+    # b. player 被弾（受けは重装甲の軽減後にジャストガード軽減を乗算）
+    guard_mitigation = 0.0
+    if guard:
+        gcfg = cfg["combat"]["guard"]
+        # 減衰カウント（当回含む）。count_whiff=true なら空振りでも消費する。
+        if gcfg.get("count_whiff", True) or action in (COUNTER, HEAVY, RAMP_HIT):
+            battle.guard_uses += 1
+        base_mit = gcfg["mitigation_by_action"].get(action, 0.0)
+        if base_mit > 0 and incoming > 0:
+            guard_mitigation = base_mit * gcfg["stack_decay"] ** (battle.guard_uses - 1)
+            before = incoming
+            incoming = round(incoming * (1 - guard_mitigation))
+            if action == HEAVY:
+                battle.add_log(f"受け切った — 大振りをいなし被ダメ {before - incoming} 軽減", "mod")
+            else:
+                battle.add_log(f"受け — 被ダメ {before - incoming} 軽減", "mod")
     player.hp -= incoming
     if action == COUNTER:
         battle.add_log(f"反撃 — {incoming} ダメージを受けた", "hurt")
@@ -247,4 +261,6 @@ def resolve_turn(battle: Battle, player: Player, data: GameData,
         "enemy_dead": enemy_dead,
         "player_dead": player_dead,
         "ramp_value": battle.ramp_value,
+        "guard_uses": battle.guard_uses,
+        "guard_mitigation": guard_mitigation,
     }

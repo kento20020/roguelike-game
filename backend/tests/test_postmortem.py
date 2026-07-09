@@ -90,7 +90,7 @@ def test_postmortem_unavoidable(data):
 
 
 def test_postmortem_avoidable_guard(data):
-    # guard=False致命ターン。guard=True(受け)なら被ダメが1/4になり生存でき、敵も倒れない。
+    # guard=False致命ターン。guard=True(ジャストガード・heavy軽減90%)なら生存でき、敵も倒れない。
     e = make_enemy(hp=500, attack=50, heavy_factor=1.8)
     p = make_player(hp=80, attack=15)
     b = make_battle(e)
@@ -108,13 +108,14 @@ def test_postmortem_avoidable_guard(data):
     cf = pm["counterfactual_result"]
     assert cf["player_dead"] is False
     assert cf["enemy_dead"] is False
-    assert cf["player_hp"] == 58  # 80 - round(round(50*1.8)*0.25) = 80 - 22
+    assert cf["player_hp"] == 71  # 80 - round(round(50*1.8)*(1-0.9)) = 80 - 9
 
 
 def test_postmortem_mutual_kill_victory(data):
-    # guard=True致命ターン（受けても被ダメが致死）。guard=Falseなら与ダメが倍増し、
-    # enemy_dead優先ルールにより「player_dead=False」＝相打ちで敵を先に倒せていた、に転じる。
-    e = make_enemy(hp=20, attack=200, heavy_factor=1.8)
+    # guard=True致命ターン（ジャストガードheavy軽減90%でも被ダメが致死）。guard=Falseなら与ダメが
+    # 倍増し、enemy_dead優先ルールにより「player_dead=False」＝相打ちで敵を先に倒せていた、に転じる。
+    # attack 300: round(round(300*1.8)*0.1) = 54 ≥ hp50 で受けても致死。
+    e = make_enemy(hp=20, attack=300, heavy_factor=1.8)
     p = make_player(hp=50, attack=30)
     b = make_battle(e)
     eng = _make_engine(data, p, b)

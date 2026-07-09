@@ -40,6 +40,9 @@ def compute_postmortem(engine: GameEngine) -> dict:
         enemy=enemy, node_id=b_snap["node_id"], floor=b_snap["floor"],
         turns=b_snap["turns"], ramp_value=b_snap["ramp_value"],
         kouki_cooldown=b_snap["kouki_cooldown"],
+        # ジャストガードの軽減は使用回数依存のため、致命ターン直前の回数を反実仮想にも引き継ぐ
+        # （旧データの snapshot にはキーが無いので .get で後方互換）。
+        guard_uses=b_snap.get("guard_uses", 0),
     )
 
     original_guard = last["guard"]
