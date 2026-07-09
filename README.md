@@ -94,6 +94,10 @@ cd backend && pip install -r requirements.txt && uvicorn main:app --reload
 cd frontend && npm install && npm run dev
 ```
 
+テスト（`pytest`）を回す場合は `requirements-dev.txt` も追加でインストールする（`pip install -r requirements.txt -r requirements-dev.txt`）。依存関係の更新手順は `docs/runbook.md` §6 を参照。
+
+より詳しいセットアップ手順は[ONBOARDING.md](docs/ONBOARDING.md)を参照。
+
 ## ディレクトリ構成
 
 ```
