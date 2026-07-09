@@ -7,8 +7,8 @@ RunRecord の list を入力に、単一mod寄与・初手別感度・死亡フ�
 from __future__ import annotations
 
 from collections import Counter
+from collections.abc import Sequence
 from statistics import mean
-from typing import Sequence
 
 from app.data.loader import get_data
 from app.simulation import balance_stats as bs
@@ -23,7 +23,7 @@ def mod_marginal_contribution(records: Sequence[dict], delta: float = 0.08,
     CIが0を含まない＝有意効果、±delta外＝壊れ/死にmod候補（自動FAILにしない＝非対称運用）。"""
     with_clear: dict[str, list[int]] = {}
     without_clear: dict[str, list[int]] = {}
-    all_mods = set()
+    all_mods: set[str] = set()
     for r in records:
         all_mods.update(r.get("mods_acquired") or [])
     for m in all_mods:
@@ -83,7 +83,7 @@ def first_move_sensitivity(cohort_by_node: dict, delta: float = 0.05, alpha: flo
 
 def death_floor_concentration(records: Sequence[dict], threshold: float = 0.5, alpha: float = 0.05) -> dict:
     """死亡フロア分布が一フロアに集中していないか（§18.1 集中しない）。"""
-    counts = Counter()
+    counts: Counter[int] = Counter()
     for r in records:
         df = r.get("death_floor")
         if df is not None:
@@ -133,7 +133,8 @@ def sink_roi_observational(records: Sequence[dict], alpha: float = 0.05, seed: i
     sink無効化bot方策の別コホートが必要（balance_report側で拡張可能・現状は観察値）。"""
     out = {}
     for s in GOLD_SINKS:
-        used, not_used = [], []
+        used: list[int] = []
+        not_used: list[int] = []
         for r in records:
             spent = (r.get("gold_spent") or {}).get(s, 0)
             (used if spent > 0 else not_used).append(1 if r.get("cleared") else 0)

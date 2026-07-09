@@ -5,24 +5,25 @@ combat_log（表示専用）と RunRecord（統計専用）は別管理で同期
 """
 from __future__ import annotations
 
+import uuid
 from typing import Any, Optional
 
 from app.data.loader import GameData, get_data
 from app.engine import chaos_weights as cw
 from app.engine import combat_resolver as cr
 from app.engine import gate_resolver as gr
+from app.engine import postmortem as pm
+from app.engine import snapshot as snap
 from app.engine.floor_generator import build_enemy_instance, generate_floor
 from app.engine.rng import (
+    STREAM_BEHAVIOR,
     STREAM_CHAOS,
     STREAM_GATE,
-    STREAM_GENERAL,
     STREAM_HEAL,
     STREAM_TREASURE,
-    STREAM_BEHAVIOR,
     GameRNG,
 )
 from app.schemas.models import (
-    HANSHA,
     PHASE_BATTLE,
     PHASE_CLEARED,
     PHASE_DEAD,
@@ -69,6 +70,9 @@ class GameEngine:
         self.pending: dict[str, Any] = {}
         self.gate_guarantee_uses: int = 0
         self.resolved: dict[str, bool] = {}
+        self._postmortem: Optional[dict] = None  # _die() で計算済みの検死レポート（致命ターンの反実仮想）
+        # ディーラー調書用: (enemy_id, behavior) の観測イベント。API層がDBへ反映しdrainする。
+        self._pending_observations: list[tuple[str, str]] = []
 
     # ─────────────────────────── new run ───────────────────────────
     def new_run(self, seed: int, upgrades: Optional[dict[str, int]] = None,
@@ -94,7 +98,9 @@ class GameEngine:
         self.battle = None
         self.pending = {}
         self.gate_guarantee_uses = 0
-        self.run = RunRecord(run_id=f"run-{seed}", seed=seed, bot_type=bot_type,
+        # run_id はseedに依存させない（seedはクライアントが任意指定でき、同一seedの
+        # 複数ランでrun_idが衝突するとRunRecord/検死レポートの取り違えにつながるため）。
+        self.run = RunRecord(run_id=f"run-{uuid.uuid4().hex}", seed=seed, bot_type=bot_type,
                              floor_reached=1, permanent_upgrades_state=dict(up))
         return self.snapshot()
 
@@ -142,25 +148,59 @@ class GameEngine:
 
     # ─────────────────────────── battle ───────────────────────────
     def _enter_battle(self, node: Node) -> None:
-        enemy = build_enemy_instance(node.enemy_id, self.current_floor, self.data, self.chaos_weights)
+        enemy = build_enemy_instance(node.enemy_id, self.current_floor, self.data,
+                                     self.chaos_weights, row=node.row)
         self.battle = Battle(enemy=enemy, node_id=node.id, floor=self.current_floor)
         self.battle.add_log(f"{enemy.name} が席についた。", "info")
         self.phase = PHASE_BATTLE
         # 先読み（yomi）: turn1 の行動を先引き
         cr.prepare_preview(self.battle, self.player, self.data, self.rng.stream(STREAM_BEHAVIOR))
 
-    def attack(self) -> dict:
-        return self._combat_turn(guard=False)
+    def attack(self, side_bet: Optional[dict] = None) -> dict:
+        return self._combat_turn(guard=False, side_bet=side_bet)
 
-    def guard(self) -> dict:
+    def guard(self, side_bet: Optional[dict] = None) -> dict:
         """受け（ガード）: 与ダメ半減・被ダメ大幅軽減。先読みを活かす攻防の選択。"""
-        return self._combat_turn(guard=True)
+        return self._combat_turn(guard=True, side_bet=side_bet)
 
-    def _combat_turn(self, guard: bool) -> dict:
+    def _combat_turn(self, guard: bool, side_bet: Optional[dict] = None) -> dict:
         self._require(PHASE_BATTLE)
+        return self._resolve_battle_turn(guard=guard, side_bet=side_bet, player_attacks=True,
+                                         player_move="guard" if guard else "attack")
+
+    def _resolve_battle_turn(self, *, guard: bool, side_bet: Optional[dict],
+                             player_attacks: bool, player_move: str) -> dict:
         b, p = self.battle, self.player
-        res = cr.resolve_turn(b, p, self.data, self.rng.stream(STREAM_BEHAVIOR), guard=guard)
+        # サイドベット検証はターン解決の前（原子性）。解決後に InvalidMove を投げると
+        # 「HTTP 400 なのに live エンジンは1ターン進んでいる」状態になり、アクションログに
+        # 記録されないターンが生まれて再生（OPEN-007）が live と乖離する。
+        # 拒否されるリクエストは状態を一切進めない（RNGも消費しない）。
+        if side_bet is not None:
+            self._validate_side_bet(b, p, side_bet)
+        pre_snapshot = self._pre_turn_snapshot()
+        b.side_bet_result = None  # 前ターン分の表示をクリア
+        res = cr.resolve_turn(b, p, self.data, self.rng.stream(STREAM_BEHAVIOR),
+                              guard=guard, player_attacks=player_attacks)
+        # 表示契約: 直近ターンの実現結果（この時点でログにも出力済みの公開情報）。
+        # UIがログ文言を解析して演出分岐する文字列依存をさせないための構造化フィールド。
+        b.last_action, b.last_guard = res["action"], guard
+        self._pending_observations.append((b.enemy.id, res["action"]))
         self.run.total_turns += 1
+        self.run.action_counts[player_move] = self.run.action_counts.get(player_move, 0) + 1
+        self.run.turn_history.append({
+            "node_id": b.node_id, "enemy_id": b.enemy.id, "guard": guard,
+            "action": res["action"], "dealt": res["dealt"], "incoming": res["incoming"],
+            "player_move": player_move,
+            "player_hp_before": pre_snapshot["player"]["hp"], "player_hp_after": p.hp,
+            "enemy_hp_before": pre_snapshot["enemy"]["hp"], "enemy_hp_after": b.enemy.hp,
+            "ramp_value": res["ramp_value"], "kouki_cooldown": b.kouki_cooldown,
+            "pre_turn_snapshot": pre_snapshot,
+        })
+
+        # サイドベット『読み宣言』: stream2(behavior_roll) の既存結果(res["action"])で判定。
+        # 新規RNG消費は一切しない（このメソッドはここまでで rng.stream() を追加で呼ばない）。
+        if side_bet is not None:
+            b.side_bet_result = self._settle_side_bet(b, p, side_bet, res["action"])
 
         if res["player_dead"]:
             self._die(cause=f"{b.enemy.id}:{res['action']}")
@@ -172,21 +212,83 @@ class GameEngine:
         cr.prepare_preview(b, p, self.data, self.rng.stream(STREAM_BEHAVIOR))
         return self.snapshot()
 
+    def _pre_turn_snapshot(self) -> dict:
+        """ターン解決"直前"の player/battle/enemy の軽量スナップショット（検死の反実仮想用）。
+        値はすべて不変（str/int/float/bool/tuple）なので list(...) で十分＝実オブジェクトとは無関係。"""
+        p, b, e = self.player, self.battle, self.battle.enemy
+        return {
+            "player": {
+                "hp": p.hp, "max_hp": p.max_hp, "attack": p.attack, "chips": p.chips,
+                "mods": list(p.mods), "stance_multiplier": p.stance_multiplier,
+                "attack_boost_pending": p.attack_boost_pending,
+            },
+            "battle": {
+                "turns": b.turns, "ramp_value": b.ramp_value, "kouki_cooldown": b.kouki_cooldown,
+                "guard_uses": b.guard_uses,
+                "node_id": b.node_id, "floor": b.floor,
+            },
+            "enemy": {
+                "id": e.id, "name": e.name, "experience": e.experience, "max_hp": e.max_hp,
+                "hp": e.hp, "attack": e.attack, "difficulty": e.difficulty, "gold_base": e.gold_base,
+                "chaos": e.chaos, "behaviors": list(e.behaviors), "ramp_increment": e.ramp_increment,
+                "heavy_factor": e.heavy_factor, "counter_factor": e.counter_factor,
+                "is_strong": e.is_strong,
+            },
+        }
+
+    def _validate_side_bet(self, battle: Battle, player: Player, side_bet: dict) -> None:
+        """サイドベット『読み宣言』の検証（ターン解決前に呼ぶ）。
+
+        検証: 賭け額が min/max 範囲内・チップ足りているか・per_battle_cap 超過なし。
+        違反時は InvalidMove（HTTP 400）＝そのターンは解決されない（状態不変・RNG非消費）。
+        チップ検証がターン解決前になるため「このターンの撃破報酬を当てにしたベット」はできない
+        （賭けは配られる前に置くのが筋であり、再生の原子性にも必須）。
+        """
+        cfg = self.data.config["side_bet"]
+        amount = side_bet.get("amount")
+        if not isinstance(amount, int) or not (cfg["min_amount"] <= amount <= cfg["max_amount"]):
+            raise InvalidMove(f"invalid side bet amount: {amount}")
+        if player.chips < amount:
+            raise InvalidMove("not enough chips for side bet")
+        if battle.side_bet_total + amount > cfg["per_battle_cap"]:
+            raise InvalidMove("side bet per-battle cap exceeded")
+
+    def _settle_side_bet(self, battle: Battle, player: Player, side_bet: dict, action: str) -> dict:
+        """サイドベット『読み宣言』の判定（検証は _validate_side_bet でターン解決前に済んでいる）。
+
+        的中は payout_multiplier 倍の差分を加算、外れは没収。
+        """
+        cfg = self.data.config["side_bet"]
+        amount = side_bet.get("amount")
+        behavior = side_bet.get("behavior")
+        battle.side_bet_total += amount
+        hit = behavior == action
+        if hit:
+            payout = round(amount * (cfg["payout_multiplier"] - 1))
+            player.chips += payout
+        else:
+            payout = -amount
+            player.chips -= amount
+        return {"hit": hit, "payout": payout}
+
     def _victory(self, b: Battle) -> None:
         e = b.enemy
+        node = self.floor.nodes[b.node_id]
         bonus = self.data.config["strong_enemy"]["gold_bonus_multiplier"] if e.is_strong else 1.0
         gold_mult = 1.0 + self.data.config["permanent_upgrades"]["items"]["gold_drop"]["per_level"] * self._upgrades["gold_drop"]
-        gold = round(e.gold_base * self.floor.floor_multiplier * bonus * gold_mult)
+        # row深度傾斜（depth_scaling.gold_per_row・乗算合成）: 深い敵ほど報酬も増える
+        depth_mult = 1.0 + self.data.config.get("depth_scaling", {}).get("gold_per_row", 0.0) * (node.row - 1)
+        gold = round(e.gold_base * self.floor.floor_multiplier * bonus * gold_mult * depth_mult)
         self.player.chips += gold
         self.run.gold_earned += gold
         self.run.enemies_defeated.append({
             "enemy_id": e.id, "experience": e.experience, "floor": self.current_floor, "turns": b.turns,
+            "is_strong": e.is_strong,
         })
         self.resolved[b.node_id] = True
         self.battle = None
         victory = {"enemy": e.name, "gold": gold, "turns": b.turns}
         # 撃破ドロップ（多親×enemy・GDD §11.4）: has_treasure なら宝箱を開く。
-        node = self.floor.nodes[b.node_id]
         if node.has_treasure:
             self.phase = PHASE_TREASURE_PREVIEW
             self.pending = {"node": b.node_id, "source": "enemy", "victory": victory}
@@ -196,9 +298,14 @@ class GameEngine:
 
     def _die(self, cause: str) -> None:
         self.player.hp = 0
+        self._postmortem = self._compute_postmortem()
         self.battle = None
         self.phase = PHASE_DEAD
         self._finalize(cleared=False, death_cause=cause)
+
+    def _compute_postmortem(self) -> dict:
+        """致命ターン（turn_historyの最後）の反実仮想。詳細は postmortem.compute_postmortem。"""
+        return pm.compute_postmortem(self)
 
     # ─────────────────────────── treasure ───────────────────────────
     def treasure_open(self) -> dict:
@@ -218,11 +325,15 @@ class GameEngine:
 
     def treasure_reroll(self) -> dict:
         self._require(PHASE_TREASURE_PREVIEW)
+        node = self.floor.nodes[self.pending["node"]]
+        if node.fixed_mod:
+            raise InvalidMove("fixed-mod treasure cannot be rerolled")  # OPEN-017: 30G空費防止
         cost = self._sink_cost(self.data.config["sinks"]["treasure_reroll"])
         if self.player.chips < cost:
             raise InvalidMove("not enough chips for reroll")
         self.player.chips -= cost
         self.run.gold_spent["treasure_reroll"] += cost
+        self._record_sink_use("treasure_reroll")
         # 中身を引き直す（stream を1回進める＝次の open が変わる）
         self.rng.stream(STREAM_TREASURE).next_u32()
         return self.snapshot()
@@ -245,6 +356,7 @@ class GameEngine:
         if self.gate_guarantee_uses:
             table = gr.apply_guarantee(table, self.gate_guarantee_uses, self.data)
         outcome = gr.roll_gate(table, self.rng.stream(STREAM_GATE))
+        self.run.gate_results.append({"floor": self.current_floor, "outcome": outcome})
         dmg = gr.gate_damage(outcome, self.player.max_hp, self.data)
         self.player.hp = max(0, self.player.hp - dmg)
         gate_node = next(n for n in self.floor.nodes.values() if n.kind == "gate")
@@ -283,7 +395,19 @@ class GameEngine:
     # ─────────────────────────── sinks ───────────────────────────
     def _sink_cost(self, base: float) -> int:
         disc = -self.data.config["permanent_upgrades"]["items"]["sink_cost"]["per_level"] * self._upgrades["sink_cost"]
-        return max(0, round(base - disc))
+        # OPEN-019: 割引で 0G（無料スパム）にしない。下限1。
+        return max(1, round(base - disc))
+
+    def _heal_sink_cost(self, small: bool) -> int:
+        """回復 sink（小/大）の実コスト。基礎額×フロア倍率に恒久割引を適用（use_sink と提示側で共用）。"""
+        h = self.data.config["heal"]
+        base = h["sink_small_base"] if small else h["sink_large_base"]
+        mult = h["sink_floor_multiplier"][str(self.current_floor)]
+        return self._sink_cost(base * mult)
+
+    def _guarantee_table(self) -> dict[str, float]:
+        """現在の重ねがけ回数（gate_guarantee_uses）を適用した実効ゲート確率テーブル（判定・表示で共用）。"""
+        return gr.apply_guarantee(dict(self.floor.gate_result_table), self.gate_guarantee_uses, self.data)
 
     def use_sink(self, sink_type: str) -> dict:
         p = self.data.config
@@ -294,23 +418,30 @@ class GameEngine:
             self.battle.scout_hint = cr.scout_hint_for(self.battle.enemy)
         elif sink_type == "attack_boost":
             self._require_in(PHASE_BATTLE)
+            if self.player.attack_boost_pending:
+                raise InvalidMove("attack boost already pending")  # OPEN-021: 二重課金防止
             cost = self._sink_cost(p["attack_boost"]["cost"])
             self._spend(cost, "attack_boost")
             self.player.attack_boost_pending = True
         elif sink_type in ("heal_small", "heal_large"):
             self._require_in(PHASE_EXPLORING, PHASE_BATTLE)
             small = sink_type == "heal_small"
-            base = p["heal"]["sink_small_base"] if small else p["heal"]["sink_large_base"]
-            mult = p["heal"]["sink_floor_multiplier"][str(self.current_floor)]
-            cost = self._sink_cost(base * mult)
+            cost = self._heal_sink_cost(small)
             if self.player.hp >= self.player.max_hp:
                 raise InvalidMove("already full hp")
             self._spend(cost, sink_type)
             # 回復量は固定値（GDD §13.2 v0.9確定）: 小回復 +15固定 / 大回復 +30固定。
             amt = p["heal"]["node_small" if small else "node_large"]
             self.player.hp = min(self.player.max_hp, self.player.hp + amt)
+            # OPEN-020: battle 中の回復は1ターン消費（敵行動のみが解決される）。
+            if self.phase == PHASE_BATTLE:
+                return self._resolve_battle_turn(guard=False, side_bet=None,
+                                                 player_attacks=False, player_move=sink_type)
         elif sink_type == "gate_guarantee":
             self._require(PHASE_GATE_PREVIEW)
+            # OPEN-016: 大ダメ0%到達後の重ねがけは効果ゼロの課金なので拒否。
+            if self._guarantee_table()["major"] <= 1e-9:
+                raise InvalidMove("gate guarantee has no effect: major already 0")
             self.gate_guarantee_uses += 1
             cost = gr.guarantee_cost(self.gate_guarantee_uses, self.data)
             cost = self._sink_cost(cost)
@@ -319,10 +450,10 @@ class GameEngine:
                 raise InvalidMove("not enough chips for guarantee")
             self.player.chips -= cost
             self.run.gold_spent["gate_guarantee"] += cost
+            self._record_sink_use("gate_guarantee")
             # ラン合計の重ねがけ回数（GDD §19.1）。gate_guarantee_uses は L266 でフロア毎にリセットされるため別管理。
             self.run.gate_guarantee_stacks += 1
-            self.pending["table"] = gr.apply_guarantee(dict(self.floor.gate_result_table),
-                                                       self.gate_guarantee_uses, self.data)
+            self.pending["table"] = self._guarantee_table()
         else:
             raise InvalidMove(f"unknown sink {sink_type}")
         return self.snapshot()
@@ -332,6 +463,11 @@ class GameEngine:
             raise InvalidMove(f"not enough chips for {key}")
         self.player.chips -= cost
         self.run.gold_spent[key] += cost
+        self._record_sink_use(key)
+
+    def _record_sink_use(self, key: str) -> None:
+        """sink別の使用回数（OPEN-025: 金額だけでなく回数もROI分析に使う）。"""
+        self.run.sink_use_counts[key] = self.run.sink_use_counts.get(key, 0) + 1
 
     # ─────────────────────────── dismiss modal ───────────────────────────
     def dismiss(self) -> dict:
@@ -349,6 +485,12 @@ class GameEngine:
             self.run.death_cause = death_cause
             self.run.death_floor = self.current_floor
         self.run.floor_reached = self.current_floor
+
+    # ─────────────────────────── observations (dossier) ───────────────────────────
+    def drain_observations(self) -> list[tuple[str, str]]:
+        """蓄積した (enemy_id, behavior) 観測を取り出し内部バッファを空にする。DB書き込みはAPI層の責務。"""
+        obs, self._pending_observations = self._pending_observations, []
+        return obs
 
     # ─────────────────────────── guards ───────────────────────────
     def _require(self, phase: str) -> None:
@@ -376,15 +518,18 @@ class GameEngine:
             self._add_heal_boost_sinks(acts, boost=True)
         elif self.phase == PHASE_TREASURE_PREVIEW:
             acts.append({"type": "treasure_open"})
+            node = self.floor.nodes.get(self.pending.get("node", ""))
             reroll_cost = self._sink_cost(self.data.config["sinks"]["treasure_reroll"])
-            if pl.chips >= reroll_cost:
+            # OPEN-017: 確定mod宝箱にはリロールを提示しない
+            if (node is None or not node.fixed_mod) and pl.chips >= reroll_cost:
                 acts.append({"type": "treasure_reroll", "cost": reroll_cost})
         elif self.phase in (PHASE_TREASURE_OPENED, PHASE_HEAL, PHASE_NEXT_FLOOR):
             acts.append({"type": "dismiss"})
         elif self.phase == PHASE_GATE_PREVIEW:
             acts.append({"type": "gate_resolve"})
+            # OPEN-016: major=0 到達後は保証を提示しない
             nxt = self._sink_cost(gr.guarantee_cost(self.gate_guarantee_uses + 1, self.data))
-            if pl.chips >= nxt:
+            if self._guarantee_table()["major"] > 1e-9 and pl.chips >= nxt:
                 acts.append({"type": "use_sink", "sink": "gate_guarantee", "cost": nxt})
         return acts
 
@@ -392,9 +537,8 @@ class GameEngine:
         pl = self.player
         cfg = self.data.config
         if pl.hp < pl.max_hp:
-            mult = cfg["heal"]["sink_floor_multiplier"][str(self.current_floor)]
-            small = self._sink_cost(cfg["heal"]["sink_small_base"] * mult)
-            large = self._sink_cost(cfg["heal"]["sink_large_base"] * mult)
+            small = self._heal_sink_cost(True)
+            large = self._heal_sink_cost(False)
             if pl.chips >= small:
                 acts.append({"type": "use_sink", "sink": "heal_small", "cost": small})
             if pl.chips >= large:
@@ -406,42 +550,7 @@ class GameEngine:
 
     # ─────────────────────────── snapshot ───────────────────────────
     def _node_view(self, node) -> dict:
-        """ノードの表示用 dict。敵ノードには L2/L3 開示（体験タイプ・強敵・名前・最大HP）を付す。
-        確率テーブルの数値は出さない（暗黙知型・GDD §5）。"""
-        d = node.snapshot(self.node_state(node))
-        if node.kind == "enemy" and node.enemy_id:
-            e = self.data.enemy(node.enemy_id)
-            d["experience"] = e["experience"]
-            d["name"] = e["name"]
-            d["is_strong"] = self.data.is_strong(e)
-            d["max_hp"] = self.data.scaled_hp(e, self.current_floor)
-        return d
+        return snap.build_node_view(self, node)
 
     def snapshot(self) -> dict:
-        floor_state = None
-        if self.floor:
-            floor_state = {
-                "floor_number": self.current_floor,
-                "nodes": {nid: self._node_view(n) for nid, n in self.floor.nodes.items()},
-            }
-        battle_state = None
-        if self.battle:
-            b = self.battle
-            battle_state = {
-                "enemy": b.enemy.snapshot(),
-                "turns": b.turns, "ramp_value": b.ramp_value,
-                "scout_hint": b.scout_hint, "preview": b.preview,
-                # 先読み(yomi)が公開した「確定の次手」の種別（counter/heavy_blow/...）。未公開は None。
-                "next_action": b.pending_action,
-                "log": list(b.log),
-            }
-        return {
-            "phase": self.phase,
-            "current_floor": self.current_floor,
-            "player": self.player.snapshot() if self.player else None,
-            "floor": floor_state,
-            "battle": battle_state,
-            "pending": dict(self.pending),
-            "available_actions": self.available_actions(),
-            "run_record": self.run.snapshot() if self.run else None,
-        }
+        return snap.build_snapshot(self)

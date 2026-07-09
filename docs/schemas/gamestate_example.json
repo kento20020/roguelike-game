@@ -19,7 +19,7 @@
   "pending": {},
   "available_actions": [
     { "type": "select_node", "node": "L" },
-    { "type": "use_sink", "sink": "heal_small", "cost": 20 }
+    { "type": "use_sink", "sink": "heal_small", "cost": 25 }
   ],
   "run_record": null
 }

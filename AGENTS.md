@@ -1,7 +1,7 @@
 # AGENTS.md — カジノタワー ローグライト
 
 確率ベースの戦闘を核にした、カジノタワーを登り詰める5フロアのパーマデス制ローグライト。
-React(表示) + FastAPI(全ロジック) のモノレポ。**詳細設計は `docs/game_design_document.md` が正本（バージョンレス固定名・現行v1.2）。**
+React(表示) + FastAPI(全ロジック) のモノレポ。**詳細設計は `docs/game_design_document.md` が正本（バージョンレス固定名・現行v1.3）。**
 
 ---
 

@@ -70,6 +70,9 @@ def test_forced_first_node_unchanged_when_none(data):
     """forced_first_node=None は従来挙動と完全一致（決定性）。"""
     a = bots.play_strong(GameEngine(data), seed=5)
     b = bots.play_strong(GameEngine(data), seed=5, forced_first_node=None)
+    # run_id はラン識別用の一意IDであり、seedの決定論の対象外
+    a, b = dict(a), dict(b)
+    a.pop("run_id"), b.pop("run_id")
     assert a == b
 
 

@@ -10,18 +10,21 @@ from __future__ import annotations
 
 import sys
 from collections import Counter
+from collections.abc import Callable
 
 from app.engine.game_engine import GameEngine
 from app.simulation import bots
-from app.simulation.balance_stats import wilson  # 単一ソース（再エクスポート: test_simulation 互換）
+from app.simulation.balance_stats import (
+    wilson,  # 単一ソース（再エクスポート: test_simulation 互換）
+)
 
 
-def run_cohort(play, n: int, **kw) -> dict:
+def run_cohort(play: Callable[..., dict], n: int, **kw) -> dict:
     """コホートを回し集計＋各 RunRecord snapshot を records に保持して返す。
     records は balance_report / balance_analysis / fun_metrics の入力になる。"""
     eng = GameEngine()
     cleared = 0
-    death_floor = Counter()
+    death_floor: Counter[int] = Counter()
     total_turns = 0
     records = []
     for seed in range(n):
@@ -44,7 +47,7 @@ def run_cohort(play, n: int, **kw) -> dict:
 PROFILES = {
     "base (fresh acct)": {},
     "mid (~6 clears)": {"max_hp": 2, "attack": 2, "init_gold": 2, "gold_drop": 1, "sink_cost": 1},
-    "maxed (26 clears)": {"max_hp": 5, "attack": 5, "init_gold": 5, "gold_drop": 3, "sink_cost": 3},
+    "maxed (21 clears)": {"max_hp": 5, "attack": 5, "init_gold": 5, "gold_drop": 3, "sink_cost": 3},
 }
 
 

@@ -2,14 +2,18 @@ import { useState } from "react";
 import type { Player } from "../../api/types";
 import { floorName, modLabel, MOD_ICON } from "../../lib/labels";
 import { useGameStore } from "../../store/gameStore";
+import FloorProgressDots from "./FloorProgressDots";
 import HpBar from "./HpBar";
 import Icon from "./Icon";
+import MuteToggle from "./MuteToggle";
+import { useChipFx } from "../../hooks/useChipFx";
 
 // 探索/戦闘の固定ヘッダー（design 忠実）。フロア章・HP・攻・チップ・技mod（ドロップダウン）。
 export default function Header({ player, floorNumber }: { player: Player; floorNumber: number }) {
   const [open, setOpen] = useState(false);
   const catalog = useGameStore((s) => s.catalog);
   const uniqueMods = [...new Set(player.mods)];
+  const chipFx = useChipFx(player.chips);
 
   return (
     <header
@@ -31,6 +35,8 @@ export default function Header({ player, floorNumber }: { player: Player; floorN
             {floorName(floorNumber)}
           </span>
         </div>
+        {/* フロア進行ドット。常時表示ヘッダーなので静的点灯のみ（gate-dot--lit はアニメ無し） */}
+        <FloorProgressDots current={floorNumber} orientation="horizontal" />
       </div>
 
       <div className="flex-1" />
@@ -57,12 +63,18 @@ export default function Header({ player, floorNumber }: { player: Player; floorN
 
       <div style={{ width: 1, height: 26, background: "var(--rule)" }} />
 
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2" style={{ position: "relative" }}>
         <span style={{ width: 13, height: 13, borderRadius: 999, border: "1.5px solid var(--brass)", display: "inline-block" }} />
         <span className="label">Chips</span>
         <span className="font-mono" style={{ fontSize: 14, color: "var(--brass)" }}>
-          {player.chips}
+          {chipFx.displayValue}
         </span>
+        {chipFx.popup && (
+          <span key={chipFx.popup.id} className="fx-chip-pop">
+            {chipFx.popup.delta > 0 ? "+" : "−"}
+            {Math.abs(chipFx.popup.delta)}
+          </span>
+        )}
       </div>
 
       {uniqueMods.length > 0 && (
@@ -75,11 +87,18 @@ export default function Header({ player, floorNumber }: { player: Player; floorN
               style={{ background: "transparent", border: "1px solid var(--rule)", borderRadius: 999, padding: "4px 9px 4px 11px", cursor: "pointer" }}
             >
               <span className="label">技</span>
-              {uniqueMods.map((m) => (
+              {/* mod が増えてもヘッダーが横に膨らまないよう、先頭3件のみチップ表示＋残りは +N に畳む
+                  （全件は下のドロップダウンで確認できる） */}
+              {uniqueMods.slice(0, 3).map((m) => (
                 <span key={m} className="pill">
                   {modLabel(m)}
                 </span>
               ))}
+              {uniqueMods.length > 3 && (
+                <span className="pill" style={{ color: "var(--brass)" }}>
+                  +{uniqueMods.length - 3}
+                </span>
+              )}
               <span style={{ fontSize: 9, color: "var(--ink3)" }}>▾</span>
             </button>
             {open && (
@@ -117,6 +136,9 @@ export default function Header({ player, floorNumber }: { player: Player; floorN
           </div>
         </>
       )}
+
+      <div style={{ width: 1, height: 26, background: "var(--rule)" }} />
+      <MuteToggle />
     </header>
   );
 }

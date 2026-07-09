@@ -19,7 +19,7 @@ DUMMY = Sfc32(0)
 def make_enemy(hp=50, attack=10, behaviors=None, heavy_factor=1.8,
                counter_factor=1.0, ramp_increment=0, chaos=False):
     return EnemyInstance(
-        id="t", name="敵", experience="削り合い", max_hp=hp, hp=hp, attack=attack,
+        id="t", name="敵", experience="grind", max_hp=hp, hp=hp, attack=attack,
         difficulty=2, gold_base=10, chaos=chaos,
         behaviors=behaviors if behaviors is not None else [("counter", 100)],
         ramp_increment=ramp_increment, heavy_factor=heavy_factor,
@@ -187,12 +187,20 @@ def test_yomi_pre_rolls_and_consumes(data):
 
 
 def test_yomi_single_only_turn1(data):
-    e = make_enemy(behaviors=[("counter", 100)])
-    p, b = mk(e, mods=[YOMI])
-    cr.prepare_preview(b, p, data, Sfc32(5))
-    cr.resolve_turn(b, p, data, DUMMY)         # turn1 完了
-    cr.prepare_preview(b, p, data, Sfc32(5))   # turn2: 公開しない
-    assert b.pending_action is None
+    """yomi 1枚は本来turn1のみ公開。tell_system フラグは「常に先引き」する試作仕様なので、
+    このテストの意図（1枚ならturn2は非公開）を保つには明示的にOFFにして検証する。
+    """
+    prev_flag = data.config.get("feature_flags", {}).get("tell_system")
+    data.config.setdefault("feature_flags", {})["tell_system"] = False
+    try:
+        e = make_enemy(behaviors=[("counter", 100)])
+        p, b = mk(e, mods=[YOMI])
+        cr.prepare_preview(b, p, data, Sfc32(5))
+        cr.resolve_turn(b, p, data, DUMMY)         # turn1 完了
+        cr.prepare_preview(b, p, data, Sfc32(5))   # turn2: 公開しない
+        assert b.pending_action is None
+    finally:
+        data.config["feature_flags"]["tell_system"] = prev_flag
 
 
 def test_yomi_stack_two_turns(data):
@@ -203,6 +211,40 @@ def test_yomi_stack_two_turns(data):
     cr.resolve_turn(b, p, data, DUMMY)
     cr.prepare_preview(b, p, data, Sfc32(5))   # turn2 も公開
     assert b.pending_action == "counter"
+
+
+# ── テル試作 (feature_flags.tell_system) ──
+def test_tell_system_flag_previews_turn1_without_yomi(data):
+    """フラグON時、yomi未所持でもturn1でpending_actionがセットされる（既存roll_behaviorと同じ経路）。"""
+    prev_flag = data.config.get("feature_flags", {}).get("tell_system")
+    data.config.setdefault("feature_flags", {})["tell_system"] = True
+    try:
+        e = make_enemy(behaviors=[("counter", 100)])
+        p, b = mk(e, mods=[])                      # yomi 無し
+        cr.prepare_preview(b, p, data, Sfc32(5))
+        assert b.pending_action == "counter"
+        assert b.preview is not None
+    finally:
+        data.config["feature_flags"]["tell_system"] = prev_flag
+
+
+def test_tell_system_flag_does_not_shrink_existing_yomi_preview(data):
+    """フラグONでも既存yomi所持者のpreview_turnsは既存値以上になるだけ（縮まない）。
+
+    yomi 2枚（preview_turns=2）保持時、フラグONでもturn1・turn2いずれも変わらず公開される。
+    """
+    prev_flag = data.config.get("feature_flags", {}).get("tell_system")
+    data.config.setdefault("feature_flags", {})["tell_system"] = True
+    try:
+        e = make_enemy(behaviors=[("counter", 100)])
+        p, b = mk(e, mods=[YOMI, YOMI])
+        cr.prepare_preview(b, p, data, Sfc32(5))
+        assert b.pending_action == "counter"
+        cr.resolve_turn(b, p, data, DUMMY)
+        cr.prepare_preview(b, p, data, Sfc32(5))   # turn2 も公開（yomi 2枚分は維持）
+        assert b.pending_action == "counter"
+    finally:
+        data.config["feature_flags"]["tell_system"] = prev_flag
 
 
 # ── interactions ──
@@ -236,14 +278,14 @@ def test_mikiri_kouki_coexist(data):
     assert r["extra"] == 15
 
 
-# ── ガード（受け）──
+# ── ガード（受け・ジャストガード）──
 def test_guard_reduces_incoming_and_dealt(data):
     e = make_enemy(hp=100, attack=20)
     p, b = mk(e, attack=20)
     r = cr.resolve_turn(b, p, data, DUMMY, forced_action=cr.COUNTER, guard=True)
     assert e.hp == 90                       # dealt 20*0.5 = 10
-    assert r["incoming"] == 5               # counter 20 → ×0.25 = 5
-    assert p.hp == 95
+    assert r["incoming"] == 10              # counter 20 → 軽減50% = 10
+    assert p.hp == 90
 
 
 def test_guard_does_not_consume_boost(data):
@@ -263,9 +305,9 @@ def test_guard_none_action_no_incoming(data):
 
 
 def test_guard_with_juso_stacks(data):
-    # 重装甲(-4)後に guard ×0.25
+    # 重装甲(-4)後に guard 軽減率（counter 50%）を乗算
     e = make_enemy(hp=100, attack=20)
     p, b = mk(e, attack=20, mods=[JUSO])
     r = cr.resolve_turn(b, p, data, DUMMY, forced_action=cr.COUNTER, guard=True)
-    # base 20 - juso 4 = 16 → ×0.25 = 4
-    assert r["incoming"] == 4
+    # base 20 - juso 4 = 16 → ×0.5 = 8
+    assert r["incoming"] == 8

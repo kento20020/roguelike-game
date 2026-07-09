@@ -96,6 +96,11 @@ def prepare_preview(battle: Battle, player: Player, data: GameData, stream: Sfc3
     if battle.pending_action is not None:
         return
     preview_turns = mod_value(player, data, YOMI, default=0) or 0
+    if data.config.get("feature_flags", {}).get("tell_system"):
+        # テル試作＝turn1のみ強制公開（このメソッドは毎ターン呼ばれるため、閾値は
+        # battle.turns基準の動的値ではなく固定の1にする。battle.turns+1だと
+        # 「常に現在ターン+1」＝毎ターン公開になり続けてしまうバグがあった）。
+        preview_turns = max(preview_turns, 1)
     if battle.turns < preview_turns:  # turn1..preview_turns を公開
         action = roll_behavior(effective_behaviors(player, battle.enemy), stream)
         battle.pending_action = action
@@ -104,11 +109,14 @@ def prepare_preview(battle: Battle, player: Player, data: GameData, stream: Sfc3
 
 def resolve_turn(battle: Battle, player: Player, data: GameData,
                  behavior_stream: Sfc32, *, forced_action: Optional[str] = None,
-                 guard: bool = False) -> dict:
+                 guard: bool = False, player_attacks: bool = True) -> dict:
     """1ターン解決。battle/player を破壊的更新し、結果 dict を返す。
 
-    guard=True（受け）: 与ダメ ×guard.deal_factor（boost は消費しない）、
-    被ダメ ×guard.incoming_factor（重装甲の軽減後にさらに乗算）。先読みを活かす攻防の選択。
+    guard=True（受け・ジャストガード）: 与ダメ ×guard.deal_factor（boost は消費しない）。
+    被ダメ軽減率は敵の実際の行動に連動（mitigation_by_action。none/evade は空振り＝軽減なし）し、
+    同一戦闘内の使用ごとに軽減量が stack_decay 倍へ減衰する（ゲート保証の重ねがけ半減と同哲学）。
+    軽減は重装甲の軽減後に適用。先読み（yomi/tell/scout）を活かした賭けの選択。
+    player_attacks=False（OPEN-020）: 行動を sink（回復）に使ったターン。与ダメ0で敵行動のみ解決。
     """
     enemy = battle.enemy
     cfg = data.config
@@ -122,7 +130,11 @@ def resolve_turn(battle: Battle, player: Player, data: GameData,
         battle.ramp_value = round(base_initial + eff_inc * (n - 1))
 
     # 2. 与ダメ = attack × multiplier（stance × boost）。受けは deal_factor 倍・boost 非消費。
-    if guard:
+    boost_consumed = False
+    if not player_attacks:
+        dealt = 0
+        battle.add_log("回復に専念した — このターンは攻撃なし", "calm")
+    elif guard:
         gcfg = cfg["combat"]["guard"]
         dealt = round(player.attack * player.stance_multiplier * gcfg["deal_factor"])
     else:
@@ -131,8 +143,10 @@ def resolve_turn(battle: Battle, player: Player, data: GameData,
         dealt = round(player.attack * multiplier)
         if player.attack_boost_pending:
             player.attack_boost_pending = False
-    enemy.hp -= dealt
-    battle.add_log(f"{'受け · ' if guard else ''}{enemy.name} に {dealt} ダメージ", "hit")
+            boost_consumed = True
+    if player_attacks:
+        enemy.hp -= dealt
+        battle.add_log(f"{'受け · ' if guard else ''}{enemy.name} に {dealt} ダメージ", "hit")
     enemy_dead = enemy.hp <= 0
 
     # 3. 行動ロール（先読みで先引き済みなら消費）
@@ -156,10 +170,15 @@ def resolve_turn(battle: Battle, player: Player, data: GameData,
     elif action == RAMP_HIT:
         base_inc = battle.ramp_value
     elif action == EVADE:
-        # 与ダメを取り消す（空振り）
-        enemy.hp += dealt
-        enemy_dead = enemy.hp <= 0  # 戻したので基本 False
-        battle.add_log("見切られた — 攻撃が空を切った", "calm")
+        if player_attacks:
+            # 与ダメを取り消す（空振り）。OPEN-021: 消費した boost は持越し（30Gの丸損禁止）
+            enemy.hp += dealt
+            enemy_dead = enemy.hp <= 0  # 戻したので基本 False
+            if boost_consumed:
+                player.attack_boost_pending = True
+            battle.add_log("見切られた — 攻撃が空を切った", "calm")
+        else:
+            battle.add_log("相手は身構えた — 何も起きなかった", "calm")
 
     # 5. post_damage フック
     incoming = base_inc
@@ -173,10 +192,22 @@ def resolve_turn(battle: Battle, player: Player, data: GameData,
             incoming = max(0, base_inc - reduction)
             if reduction > 0:
                 battle.add_log(f"重装甲 — 被ダメ {reduction} 軽減", "mod")
-    # b. player 被弾（受けは重装甲の軽減後にさらに incoming_factor 倍）
-    if guard and incoming > 0:
-        incoming = round(incoming * cfg["combat"]["guard"]["incoming_factor"])
-        battle.add_log("受け — 被ダメを大きく抑えた", "mod")
+    # b. player 被弾（受けは重装甲の軽減後にジャストガード軽減を乗算）
+    guard_mitigation = 0.0
+    if guard:
+        gcfg = cfg["combat"]["guard"]
+        # 減衰カウント（当回含む）。count_whiff=true なら空振りでも消費する。
+        if gcfg.get("count_whiff", True) or action in (COUNTER, HEAVY, RAMP_HIT):
+            battle.guard_uses += 1
+        base_mit = gcfg["mitigation_by_action"].get(action, 0.0)
+        if base_mit > 0 and incoming > 0:
+            guard_mitigation = base_mit * gcfg["stack_decay"] ** (battle.guard_uses - 1)
+            before = incoming
+            incoming = round(incoming * (1 - guard_mitigation))
+            if action == HEAVY:
+                battle.add_log(f"受け切った — 大振りをいなし被ダメ {before - incoming} 軽減", "mod")
+            else:
+                battle.add_log(f"受け — 被ダメ {before - incoming} 軽減", "mod")
     player.hp -= incoming
     if action == COUNTER:
         battle.add_log(f"反撃 — {incoming} ダメージを受けた", "hurt")
@@ -209,10 +240,12 @@ def resolve_turn(battle: Battle, player: Player, data: GameData,
     if not kouki_fired and battle.kouki_cooldown > 0:
         battle.kouki_cooldown -= 1
 
-    # 6. 判定（敵が先に死ねば勝利優先）
+    # 6. 判定（敵が先に死ねば勝利優先。OPEN-010: 勝利時 hp=max(1,hp) でHP0生存を禁止）
     if enemy.hp < 0:
         enemy.hp = 0
     player_dead = player.hp <= 0 and not enemy_dead
+    if enemy_dead and player.hp < 1:
+        player.hp = 1
     if player.hp < 0:
         player.hp = 0
 
@@ -228,4 +261,6 @@ def resolve_turn(battle: Battle, player: Player, data: GameData,
         "enemy_dead": enemy_dead,
         "player_dead": player_dead,
         "ramp_value": battle.ramp_value,
+        "guard_uses": battle.guard_uses,
+        "guard_mitigation": guard_mitigation,
     }

@@ -26,7 +26,7 @@
 ```
 RunRecord:
   # ラン識別
-  run_id: string               # = "run-{seed}"（session_id=uuid とは別物・同一seedで衝突し得る）
+  run_id: string               # = "run-{uuid4}"（session_id=uuid とは別物だが、seed非依存の一意ID）
   seed: int
   timestamp: datetime          # 実装では created_at（DB server_default=now）として永続化
 
@@ -57,37 +57,46 @@ RunRecord:
   bot_type: string             # "strong" / "random"
   permanent_upgrades_state: { max_hp: int, attack: int,
                               init_gold: int, gold_drop: int, sink_cost: int }
+
+  # 世代札・テレメトリ（v1.4 追加・OPEN-024/025 解消）
+  data_version: string         # 4JSON(config/enemies/mods/floors)内容のsha256短縮(12hex)
+  strategy_version: string|null  # bot方策の版（bots.STRATEGY_VERSION）。human は null
+  sink_use_counts: { <sink_type>: int }          # sink別の使用回数（ROI=回数×効果の逆算用）
+  gate_results: [ { floor: int, outcome: str } ] # per-floorゲート結果（特殊発生率・保証ROI検証用）
+  action_counts: { attack: int, guard: int, heal_small: int, heal_large: int }  # player_move別ターン数
 ```
 
 > **フィールド定義の明確化（実装準拠）**：
-> - `run_id = "run-{seed}"`。`session_id`（uuid・`session_store`）とは**別物**で、同一seedを使う bot パネルでは run_id が衝突し得る（`RunRecordRow.run_id` は index で unique 制約なし）。ラン⇄セッションの紐付けは §25。
-> - `mods_acquired` は同mod複数取得を**重複保持（取得順）**。`total_turns` は戦闘ターン総和。`permanent_upgrades_state` の各intは**レベル値**（0〜上限Lv）。`bot_type` は `human`/`strong`/`random`。`enemies_defeated[].experience` は**日本語文字列**（§20・OPEN-012）。
+> - `run_id = "run-{uuid4}"`。`session_id`（uuid・`session_store`）とは**別物**の識別子だが、`new_run()` 内で毎回 `uuid.uuid4()` から生成するためseedとは独立＝同一seedの複数ランでも衝突しない（`RunRecordRow`/`PostmortemRow`/`RunActionsRow` の `run_id` は unique 制約つき・マイグレーション `0004_run_id_unique`）。ラン⇄セッションの紐付けは §25。
+> - `mods_acquired` は同mod複数取得を**重複保持（取得順）**。`total_turns` は戦闘ターン総和。`permanent_upgrades_state` の各intは**レベル値**（0〜上限Lv）。`bot_type` は `human`/`strong`/`random`。`enemies_defeated[].experience` は **romaji enum**（§20.7・v1.4 で OPEN-012 解消。旧レコードには日本語が残るが data_version で世代が分かれる）。
 >
-> **不足フィールド（要追加・コード変更）**：
-> - **`data_version`（OPEN-024）**：4JSONの内容ハッシュ or 版文字列。敵HP/gold/sink/恒久強化はPhase1〜4で調整中で、`/stats/history` に版違いレコードが混ざると統計が壊れる。全統計クエリを版でフィルタするため必須。現 `RunRecordRow` に無い。
-> - **sink別 `use_count`（OPEN-025）**：回復は `20〜40G` とフロア係数で単価変動し -sinkコスト割引も掛かるため、`gold_spent` 合計から**使用回数を復元できない**。Phase4 の sink ROI（回数×効果）に必要。`gate_results`（per-floor：結果＋被ダメ）も同様に未記録で、特殊発生率・保証ROIの検証に要る。
+> **v1.4 で追加済み（OPEN-024/025 解消・Alembic `0002_telemetry`）**：`data_version`・`strategy_version`・`sink_use_counts`・`gate_results`・`action_counts`。マイグレーション前の旧行は NULL のまま保持され、API 層（`to_dict`）が既定値（""/{}/[]）へ丸める。
 
 ### 19.2 用途
 - Phase2以降の全統計検証の入力
 - `enemies_defeated`に体験タイプを含むため「ずれ系敵が出ないランで見切りが腐ったか」を検出可能
-- **リプレイ機能の前提（注意）**：combat_log は表示専用・非永続（§10.5）。将来リプレイを実装する場合、再現に必要なのは **seed＋プレイヤー操作履歴（選択ノード・sink使用・攻撃・宝箱開封/リロール・ゲート保証回数）＋データファイル版**。**seed だけでは操作分岐を再現できない**ため、その時点で操作履歴の永続化を別途追加する（現状RunRecordには操作履歴を保存していない）。
+- **操作履歴の永続化（v1.4 実装）**：戦闘ターンの操作履歴（`turn_history`：player_move/action/与被ダメ/前後HP/ターン開始前スナップショット）は、**全ラン**（クリア/死亡とも）終局時に `run_actions` テーブルへ一括保存される（improvement_ideas アイディア1 の共通基盤）。検死専用の `postmortems` とは別物。combat_log は従来どおり表示専用・非永続（§10.5）。ノード選択・ゲート等の非戦闘操作はまだ含まれないため、完全リプレイ（seed＋全操作列）への拡張は将来課題。
 
 ---
 
 ## 20. データモデル
 
-### 20.1 フロアデータ
+### 20.1 フロアデータ（v1.4・可変深度スキーマ）
 
 | フィールド | 型 | 内容 |
 |---------|---|------|
-| `id` | string | フロアID |
 | `floor_number` | int | 1〜5 |
-| `tree_shape` | int[] | ツリー形状 |
-| `row1_pool` / `row2_pool` / `row3_pool` | string[] | 各row敵プール |
-| `unlock_rules` | object | アンロック連鎖（§4.2の多親/単親マッピング） |
-| `gate_result_table` | object[] | ゲート確率テーブル（フロア別） |
+| `fixed_layout` | bool | 1Fのみ true（`nodes_layout` による固定チュートリアル） |
+| `depth` | int | 生成フロアの row 数（2F=3/3F=4/4F=5/5F=6・叩き台） |
+| `enemy_pool` | string[] | フロア統合敵プール（袋方式で抽選・枯渇時のみ重複解禁） |
+| `generation` | object | `main_width_min/max`（2〜3）・`dead_ends_max_per_row` |
+| `gate_result_table` | object | ゲート確率テーブル（フロア別・合計1.0を機械検証） |
 | `floor_multiplier` | float | ゴールド倍率 |
-| `heal_node_config` | object\|null | 回復ノード設定 |
+| `heal_node` | bool | 回復ノードの有無（配置先は生成された dead-end から stream4 で選択・§4.3） |
+
+> 旧スキーマ（`tree_shape`・`row1_pool`/`row2_pool`/`row3_pool`・`unlock_map`・`heal_node_position`）は
+> v1.4 の接続ランタイム生成化で**廃止**（1Fの `nodes_layout` を除く）。接続の不変条件は
+> `floor_generator.validate_floor()` が生成毎に検証する（§4.2）。
 
 ### 20.2 敵データ
 §11.2参照
@@ -112,14 +121,17 @@ RunRecord:
 - 敵ID一意
 - 全非カオス敵の behaviors weight 合計＝100／カオスは behaviors 空＋`chaos:true`
 - `ramp_hit` を持つ敵は `ramp_increment` 必須（レース系7体は inc 2〜8）
-- mod ID一意／floor の pool ID が実在／アンロック親整合（多親=2親・単親=1親・親の実在）
+- mod ID一意／floor の pool ID が実在／1F固定レイアウトの親整合／生成フロアの depth・enemy_pool・generation 妥当性
+- 全フロアのゲートテーブル＝キー4種・合計1.0（v1.4・OPEN-013）
+- `experience` が romaji enum のみ（v1.4・OPEN-012 受入条件）
 
-**未実装の検査（OPEN-013・追加予定）**：
-- 全フロアのゲートテーブル合計＝1.0（現データは満たすが CI 未検査）
-- dead-end に敵を置かない kind 整合／5F row3→ゲート経路≥2／dead-end 導出が形状図と一致
-- 恒久強化の上限Lv合計＝21（§12.3）
-- `snapshot()` に seed・rng_streams・behaviors weight・chaos_weights を含めない（スナップショットテスト）
-- RunRecord は `data_version` を持つ（OPEN-024）
+**生成毎の機械検証（`floor_generator.validate_floor()`・v1.4）**：
+- 多親=2親／単親=1親／dead-end（treasure/heal）は単親／GATE親≥2／全ノード到達可能／最終rowに非カオス≥1
+
+**テストで担保（v1.4）**：
+- `snapshot()` に seed・rng_streams・chaos_weights を含めない＋進行中 run_record=null（`test_invariants.py`）
+- 恒久強化の上限Lv合計＝21（`test_data_validation.py`）
+- RunRecord の `data_version` 刻印（`test_telemetry.py`）
 
 ### 20.6 メタ進行の永続エンティティ（PlayerProfile・実装準拠）
 
@@ -134,6 +146,18 @@ RunRecord:
 - `POST /run/new` が `profile_levels()` を読み初期 GameState へ反映（`new_run(upgrades=…)`）。`POST /upgrade` が `allocate_upgrade` で Profile を更新。`RunRecord.permanent_upgrades_state` は**ラン開始時スナップショット（統計用）**で可変正本ではない。
 - マルチユーザ化する場合は `owner`/`client_id` 列を足す（現状は単一プロファイル前提・OPEN-026）。
 
+### 20.6b その他の永続テーブル（v1.4 時点の全体像）
+
+| テーブル | 内容 | 由来 |
+|---------|------|------|
+| `run_records` | ラン統計（§19.1・data_version 等のテレメトリ込み） | 従来＋v1.4拡張 |
+| `profiles` | 恒久強化（id=1 固定・§20.6） | 従来 |
+| `postmortems` | 検死レポート（turn_history＋致命ターンの反実仮想。戦闘死のみ・§15.2） | 検死機能 |
+| `observations` | ディーラー調書の観測カウント（enemy_id×behavior×data_version・真のweightは持たない・§15.3） | 調書機能 |
+| `run_actions` | 全ラン共通の操作履歴（terminal時に turn_history を一括保存） | v1.4（improvement_ideas アイディア1 基盤） |
+
+- スキーマ進化は **Alembic**（`backend/migrations/`・SQLite は batch mode）。手順は runbook.md。`main.py` の `create_all` は開発/テスト用フォールバック（既存テーブルへの列追加はしない）。
+
 ### 20.7 値集合（enum の正準源）
 
 `api_schemas.py`（Pydantic）と `types.ts`（Literal/union）の正準：
@@ -147,7 +171,7 @@ RunRecord:
 | `sink_type` | `scout` / `heal_small` / `heal_large` / `gate_guarantee` / `attack_boost`（`treasure_reroll` は専用ルート） |
 | `phase` | §6.1（実装10種＋pause将来） |
 
-- `experience` の正準キーは**現状日本語**（削り合い/賭け/レース/ずれ/カオス）で API・統計キーに流れる。romaji enum（grind/gamble/race/dodge/chaos）化はコード＋`labels.ts`＋統計キー変更を伴うため **OPEN-012**。
+- `experience` の正準キーは **romaji enum**（`grind`/`gamble`/`race`/`dodge`/`chaos`）。表示名（削り合い/賭け/レース/ずれ/カオス）は `labels.ts` の EXPERIENCE で変換する（v1.4 で OPEN-012 解消。受入条件「日本語が API/統計キーに出ない」を loader.validate でも強制）。
 
 ### 20.8 pending の phase別スキーマ（実装準拠）
 
@@ -162,5 +186,7 @@ RunRecord:
 | `next_floor` | `{ gate_outcome, advanced_to, special_bonus }` |
 | `cleared` | `{ gate_outcome, special_bonus }` |
 | 空宝箱 / 勝利 | `{ empty_treasure }` / `{ victory }` |
+
+> **dismiss との対応（要確定）**：`empty_treasure`・`victory` がどの phase に属し、どの操作（`/continue` か次操作での自動消去か）で解消されるかは本書未定義。実装準拠の追記が必要（OPEN-013 の契約検査とあわせて確定）。
 
 ---

@@ -10,8 +10,9 @@ from __future__ import annotations
 
 import math
 from collections import Counter
+from collections.abc import Sequence
 from statistics import mean, pstdev
-from typing import Optional, Sequence
+from typing import Optional
 
 from app.data.loader import get_data
 
@@ -85,7 +86,7 @@ def gate_guarantee_dependence(records: Sequence[dict]) -> dict:
     return {"mean_stacks": mean(stacks), "used_rate": used / len(records)}
 
 
-def race_avg_turns(records: Sequence[dict], experience: str = "レース") -> dict:
+def race_avg_turns(records: Sequence[dict], experience: str = "race") -> dict:
     """レース系（蓄積）敵を倒すのにかかった平均ターン。短い=圧勝（緊張なし）、適度=ヒリつき。"""
     turns = []
     for r in records:

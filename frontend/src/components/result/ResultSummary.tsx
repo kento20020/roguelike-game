@@ -14,6 +14,9 @@ function Stat({ label, value }: { label: string; value: string | number }) {
 }
 
 export default function ResultSummary({ record }: { record: RunRecord }) {
+  // GDD §15.1: 獲得/消費チップ・強敵撃破数は死亡画面の必須表示（クリア画面でも決算として同値を出す）。
+  const goldSpent = Object.values(record.gold_spent ?? {}).reduce((a, b) => a + b, 0);
+  const strongKills = record.enemies_defeated.filter((e) => e.is_strong === true).length;
   return (
     <div className="flex w-full flex-col items-center gap-6">
       <div className="flex flex-wrap items-start justify-center gap-x-10 gap-y-5">
@@ -21,7 +24,9 @@ export default function ResultSummary({ record }: { record: RunRecord }) {
         <Stat label="総ターン" value={record.total_turns} />
         <Stat label="最終HP" value={record.final_hp} />
         <Stat label="稼いだチップ" value={record.gold_earned} />
+        <Stat label="使ったチップ" value={goldSpent} />
         <Stat label="撃破数" value={record.enemies_defeated.length} />
+        <Stat label="うち大物" value={strongKills} />
       </div>
       {record.mods_acquired.length > 0 && (
         <div className="flex flex-col items-center gap-2">

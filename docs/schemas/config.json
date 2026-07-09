@@ -14,8 +14,10 @@
     "stance_multiplier_default": 1.0,
     "guard": {
       "deal_factor": 0.5,
-      "incoming_factor": 0.25,
-      "_comment": "受け（ガード）: 与ダメ×deal_factor・被ダメ×incoming_factor（重装甲の軽減後に乗算）。回数無制限（攻撃を捨てる機会コストが抑制）。数値は叩き台・bot再検証で調整。"
+      "mitigation_by_action": { "heavy_blow": 0.9, "counter": 0.5, "ramp_hit": 0.5 },
+      "stack_decay": 0.5,
+      "count_whiff": true,
+      "_comment": "受け（ジャストガード）: 与ダメ×deal_factor。被ダメ軽減率は敵の実際の行動に連動し（none/evadeは空振り＝軽減なし）、同一戦闘内の使用ごとに軽減量がstack_decay倍へ減衰（ゲート保証の重ねがけ半減と同哲学・戦闘毎リセット）。count_whiff=trueなら空振りもカウント。数値は叩き台・感度分析とbot再検証で調整（OPEN-018）。"
     },
     "_comment": "counter_factor/heavy_factorは全敵共通の既定値。敵がenemies.jsonで個別に上書き可能。ramp_value(n) = ramp_base_initial + ramp_increment*(n-1)"
   },
@@ -65,6 +67,12 @@
     "_comment": "enemy.hp = base_hp * (1.0 + 0.15*(tier-1))"
   },
 
+  "depth_scaling": {
+    "hp_per_row": 0.10,
+    "gold_per_row": 0.10,
+    "_comment": "フロア可変深度化のrow深度傾斜: hp = tier補正後 × (1 + hp_per_row×(row-1))、goldも同形。数値は叩き台・要デザイナーレビュー（docs/proposals/floor_depth_randomization.md §6）。"
+  },
+
   "gate_special": {
     "bonus_gold": 40,
     "_comment": "ゲート『特殊(special)』通過の当たり報酬（GDD §7.4）。無傷通過＋ボーナスチップ。数値は叩き台・bot再検証で調整。"
@@ -84,7 +92,15 @@
       "gold_drop":  { "per_level": 0.10, "max_level": 3 },
       "sink_cost":  { "per_level": -5, "max_level": 3 }
     },
-    "_comment": "1クリア=1ポイント。全項目MAXは26点=26クリア。gold_dropは率(+10%/Lv)、sink_costは割引(-5G/Lv)。"
+    "_comment": "1クリア=1ポイント。全項目MAXは21点=21クリア(5+5+5+3+3)。gold_dropは率(+10%/Lv)、sink_costは割引(-5G/Lv)。"
+  },
+
+  "side_bet": {
+    "min_amount": 5,
+    "max_amount": 20,
+    "payout_multiplier": 3,
+    "per_battle_cap": 40,
+    "_comment": "サイドベット『読み宣言』プロトタイプ仮値・要デザイナーレビュー。stream2(behavior_roll)の既存ロールをそのまま使い新規RNG消費はしない。"
   },
 
   "rng_streams": {
@@ -94,8 +110,13 @@
     "3": "treasure_mod",
     "4": "heal_node",
     "5": "gate_event",
-    "6": "stance_reserved",
+    "6": "floor_topology",
     "7": "general",
     "8": "chaos_weights"
+  },
+
+  "feature_flags": {
+    "tell_system": true,
+    "_comment": "テル（行動の前兆）システム・プロトタイプ仮値。v2.x候補・ADR未了・現在はフィーチャーフラグでの試作段階（このブランチではtrueで試作、本採用判断まではfalseが既定になる想定）。"
   }
 }

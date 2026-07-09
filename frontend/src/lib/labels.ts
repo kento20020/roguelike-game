@@ -2,7 +2,7 @@
 // 色・傾向は design の EXP/MOD/sink 定義を踏襲。
 import type { NodeKind, SinkType } from "../api/types";
 
-// 体験タイプ（enemies.json の experience は日本語）。color/tend は design 由来。
+// 体験タイプ（enemies.json の experience は romaji 正準キー・OPEN-012）。表示名はここで日本語化。
 export interface ExpMeta {
   jp: string;
   en: string;
@@ -12,11 +12,11 @@ export interface ExpMeta {
 }
 
 export const EXPERIENCE: Record<string, ExpMeta> = {
-  削り合い: { jp: "削り合い", en: "Attrition", iconType: "grind", color: "#6E93B8", tend: "じわじわ削る・堅実" },
-  賭け: { jp: "賭け", en: "Wager", iconType: "gamble", color: "#C2493B", tend: "大当たりか空振り" },
-  レース: { jp: "レース", en: "Ramp", iconType: "race", color: "#C9A24B", tend: "長引くほど重い" },
-  ずれ: { jp: "ずれ", en: "Slip", iconType: "evade", color: "#5E9A78", tend: "攻撃を空振りさせる" },
-  カオス: { jp: "カオス", en: "Chaos", iconType: "chaos", color: "#9C79BC", tend: "予測不能" },
+  grind: { jp: "削り合い", en: "Attrition", iconType: "grind", color: "#6E93B8", tend: "じわじわ削る・堅実" },
+  gamble: { jp: "賭け", en: "Wager", iconType: "gamble", color: "#C2493B", tend: "大当たりか空振り" },
+  race: { jp: "レース", en: "Ramp", iconType: "race", color: "#C9A24B", tend: "長引くほど重い" },
+  dodge: { jp: "ずれ", en: "Slip", iconType: "evade", color: "#5E9A78", tend: "攻撃を空振りさせる" },
+  chaos: { jp: "カオス", en: "Chaos", iconType: "chaos", color: "#9C79BC", tend: "予測不能" },
 };
 
 export function experienceMeta(exp: string | null | undefined): ExpMeta {
@@ -31,6 +31,8 @@ export const FLOOR_NAMES: Record<number, string> = {
   4: "4F",
   5: "5F 頂上",
 };
+// 総フロア数（floors.json 正本の5フロア構成に対応する表示用定数）。
+export const TOTAL_FLOORS = 5;
 export function floorName(n: number): string {
   return FLOOR_NAMES[n] ?? `${n}F`;
 }
@@ -76,20 +78,29 @@ export interface BehaviorMeta {
   jp: string;
   meaning: string;
   color: string;
+  iconType: string; // Icon のキー。色とセットでバー/CIひげ/リプレイの行タグ/サイドベットUI等の配色にも流用
   guardAdvice: string; // 先読みで確定したとき、受け（ガード）と連動した一言
 }
 export const BEHAVIOR: BehaviorMeta[] = [
-  { key: "counter", jp: "反撃", meaning: "ほぼ等倍で殴り返す（被ダメ＝相手の攻撃力ぶん）", color: "var(--danger)", guardAdvice: "受けると被害を抑えられる" },
-  { key: "heavy_blow", jp: "強打", meaning: "たまに大振り。当たると重い（約1.8倍）", color: "var(--danger)", guardAdvice: "重い一撃。受けると大きく軽減できる" },
-  { key: "evade", jp: "回避", meaning: "こちらの攻撃を空振りさせる（ダメージが通らない）", color: "var(--moss)", guardAdvice: "攻撃が空を切る手。偵察/強化に回すのも手" },
-  { key: "ramp_hit", jp: "蓄積の一撃", meaning: "長引くほど蓄積が増え、まとめて返してくる", color: "var(--brass)", guardAdvice: "蓄積の一撃。受けで軽減できる" },
-  { key: "none", jp: "様子見", meaning: "何もしてこない（被ダメ 0）", color: "var(--ink2)", guardAdvice: "様子見。攻めどき" },
+  { key: "counter", jp: "反撃", meaning: "ほぼ等倍で殴り返す（被ダメ＝相手の攻撃力ぶん）", color: "var(--danger)", iconType: "reflect", guardAdvice: "受けると被害を抑えられる" },
+  { key: "heavy_blow", jp: "強打", meaning: "たまに大振り。当たると重い（約1.8倍）", color: "var(--danger)", iconType: "sword", guardAdvice: "重い一撃。受けると大きく軽減できる" },
+  { key: "evade", jp: "回避", meaning: "こちらの攻撃を空振りさせる（ダメージが通らない）", color: "var(--moss)", iconType: "evade", guardAdvice: "攻撃が空を切る手。偵察/強化に回すのも手" },
+  { key: "ramp_hit", jp: "蓄積の一撃", meaning: "長引くほど蓄積が増え、まとめて返してくる", color: "var(--brass)", iconType: "race", guardAdvice: "蓄積の一撃。受けで軽減できる" },
+  { key: "none", jp: "様子見", meaning: "何もしてこない（被ダメ 0）", color: "var(--ink2)", iconType: "eye", guardAdvice: "様子見。攻めどき" },
 ];
 
 const BEHAVIOR_BY_KEY: Record<string, BehaviorMeta> = Object.fromEntries(BEHAVIOR.map((b) => [b.key, b]));
 export function behaviorMeta(key: string | null | undefined): BehaviorMeta | undefined {
   return key ? BEHAVIOR_BY_KEY[key] : undefined;
 }
+
+// テル（行動の前兆）: バックエンドの気配信頼度ラベル(high/mid/low)を表示用の日本語＋色に変換する。
+// 確率・weightの計算はしない。先読み（確定情報）と混同しないよう安心/中立/警戒の3色に振り分ける。
+export const TELL_META: Record<string, { jp: string; color: string; bg: string; hint: string }> = {
+  high: { jp: "高", color: "var(--moss)", bg: "rgba(94, 138, 102, 0.14)", hint: "読みやすい" },
+  mid: { jp: "中", color: "var(--brass)", bg: "var(--brassSoft)", hint: "普通" },
+  low: { jp: "低", color: "var(--danger)", bg: "rgba(199, 64, 42, 0.14)", hint: "読みにくい" },
+};
 
 // ゲート出目（floors.json gate_result_table のキー）。
 export const GATE_OUTCOME: Record<string, { jp: string; color: string }> = {
@@ -100,4 +111,22 @@ export const GATE_OUTCOME: Record<string, { jp: string; color: string }> = {
 };
 export function gateOutcome(key: string) {
   return GATE_OUTCOME[key] ?? { jp: key, color: "var(--ink2)" };
+}
+
+// death_cause（機械語）の日本語化（GDD §15.1: 死亡原因は必須表示＝学習を促すため生の機械語を出さない）。
+// 形式は backend/_die 準拠: "gate:{outcome}" ＝関門死／"{enemy_id}:{action}" ＝戦闘死。
+// 敵名は /catalog/enemies の id→name マップを呼び出し側が供給（未取得・未知idは素通しフォールバック）。
+const GATE_DEATH_JP: Record<string, string> = {
+  minor: "関門の小ダメージ",
+  major: "関門の大ダメージ",
+};
+export function deathCauseLabel(cause: string, enemyNames: Record<string, string>): string {
+  const i = cause.indexOf(":");
+  if (i < 0) return cause;
+  const head = cause.slice(0, i);
+  const tail = cause.slice(i + 1);
+  if (head === "gate") return GATE_DEATH_JP[tail] ?? `関門・${gateOutcome(tail).jp}`;
+  const name = enemyNames[head] ?? head;
+  const behavior = behaviorMeta(tail)?.jp ?? tail;
+  return `${name}（${behavior}）`;
 }

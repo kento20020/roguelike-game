@@ -2,7 +2,16 @@
 // React は計算しない（CLAUDE.md）。各操作は gameApi を呼び、返ってきた状態で置換するだけ。
 import { create } from "zustand";
 import { gameApi, ApiError } from "../api/gameApi";
-import type { GameState, ModCatalogItem, SinkType, UpgradeState } from "../api/types";
+import type {
+  DossierEnemy,
+  EnemyCatalogItem,
+  GameState,
+  ModCatalogItem,
+  PostmortemResponse,
+  SideBet,
+  SinkType,
+  UpgradeState,
+} from "../api/types";
 
 interface GameStore {
   state: GameState | null;
@@ -15,10 +24,29 @@ interface GameStore {
   loadUpgradeState: () => Promise<void>;
   allocateUpgrade: (upgradeType: string) => Promise<void>;
 
+  // ディーラー調書（StartPage からのみ到達。state が null＝ラン中ではない時のみ表示される）。
+  dossierOpen: boolean;
+  openDossier: () => void;
+  closeDossier: () => void;
+  dossier: DossierEnemy[] | null;
+  dossierLoading: boolean;
+  loadDossier: () => Promise<void>;
+  enemyCatalog: Record<string, EnemyCatalogItem>; // 敵 id → 表示名（一度だけ取得）
+  loadEnemyCatalog: () => Promise<void>;
+
+  // 検死レポート（DeadPage）。busy/error の集中管理に載せるため store で保持する。
+  // 404=関門死（致命ターンが無い）は unavailable、その他の失敗は postmortemError に入れて
+  // ページ内で表示する（操作エラー用の ErrorToast とは役割を分ける）。
+  postmortem: PostmortemResponse | null;
+  postmortemLoading: boolean;
+  postmortemUnavailable: boolean;
+  postmortemError: string | null;
+  loadPostmortem: (sessionId: string) => Promise<void>;
+
   newRun: (seed?: number) => Promise<void>;
   selectNode: (nodeId: string) => Promise<void>;
-  attack: () => Promise<void>;
-  guard: () => Promise<void>;
+  attack: (sideBet?: SideBet) => Promise<void>;
+  guard: (sideBet?: SideBet) => Promise<void>;
   sink: (sinkType: SinkType) => Promise<void>;
   treasureOpen: () => Promise<void>;
   treasureReroll: () => Promise<void>;
@@ -26,6 +54,18 @@ interface GameStore {
   continueRun: () => Promise<void>;
   clearError: () => void;
   reset: () => void;
+}
+
+// ApiError はメッセージをそのまま、それ以外の例外は Error.message を使う（3箇所で重複していた抽出処理を共通化）。
+function errorMessage(e: unknown): string {
+  return e instanceof ApiError ? e.message : (e as Error).message;
+}
+
+// カタログ配列を id→要素の Record に変換する（loadCatalog/loadEnemyCatalog で重複していた組み立て処理を共通化）。
+function keyById<T extends { id: string }>(items: T[]): Record<string, T> {
+  const map: Record<string, T> = {};
+  for (const it of items) map[it.id] = it;
+  return map;
 }
 
 export const useGameStore = create<GameStore>((set, get) => {
@@ -38,8 +78,7 @@ export const useGameStore = create<GameStore>((set, get) => {
       const next = await fn(cur.session_id);
       set({ state: next, busy: false });
     } catch (e) {
-      const msg = e instanceof ApiError ? e.message : (e as Error).message;
-      set({ busy: false, error: msg });
+      set({ busy: false, error: errorMessage(e) });
     }
   }
 
@@ -49,14 +88,57 @@ export const useGameStore = create<GameStore>((set, get) => {
     error: null,
     catalog: {},
     upgrade: null,
+    dossierOpen: false,
+    openDossier: () => set({ dossierOpen: true }),
+    closeDossier: () => set({ dossierOpen: false }),
+    dossier: null,
+    dossierLoading: false,
+    enemyCatalog: {},
+    postmortem: null,
+    postmortemLoading: false,
+    postmortemUnavailable: false,
+    postmortemError: null,
+
+    loadPostmortem: async (sessionId) => {
+      set({ postmortem: null, postmortemLoading: true, postmortemUnavailable: false, postmortemError: null });
+      try {
+        const res = await gameApi.postmortem(sessionId);
+        set({ postmortem: res, postmortemLoading: false });
+      } catch (e) {
+        if (e instanceof ApiError && e.status === 404) {
+          set({ postmortemLoading: false, postmortemUnavailable: true });
+        } else {
+          set({ postmortemLoading: false, postmortemError: "検死データの取得に失敗した。" });
+        }
+      }
+    },
+
+    loadDossier: async () => {
+      set({ dossierLoading: true });
+      try {
+        const items = await gameApi.dossier();
+        set({ dossier: items, dossierLoading: false });
+      } catch {
+        // 取得失敗は致命ではない（空の調書として扱う）
+        set({ dossier: [], dossierLoading: false });
+      }
+    },
+
+    loadEnemyCatalog: async () => {
+      if (Object.keys(get().enemyCatalog).length > 0) return;
+      try {
+        const items = await gameApi.enemiesCatalog();
+        set({ enemyCatalog: keyById(items) });
+      } catch {
+        /* 取得失敗は致命ではない（敵名の代わりにidが出るだけ） */
+      }
+    },
 
     loadCatalog: async () => {
       if (Object.keys(get().catalog).length > 0) return;
       try {
         const items = await gameApi.modsCatalog();
-        const map: Record<string, ModCatalogItem> = {};
-        for (const it of items) map[it.id] = it;
-        set({ catalog: map });
+        set({ catalog: keyById(items) });
       } catch {
         /* カタログ取得失敗は致命ではない（効果文が出ないだけ） */
       }
@@ -68,8 +150,7 @@ export const useGameStore = create<GameStore>((set, get) => {
         const next = await gameApi.newRun(seed);
         set({ state: next, busy: false });
       } catch (e) {
-        const msg = e instanceof ApiError ? e.message : (e as Error).message;
-        set({ busy: false, error: msg });
+        set({ busy: false, error: errorMessage(e) });
       }
     },
 
@@ -89,14 +170,13 @@ export const useGameStore = create<GameStore>((set, get) => {
         const up = await gameApi.upgrade(cur.session_id, upgradeType);
         set({ upgrade: up, busy: false });
       } catch (e) {
-        const msg = e instanceof ApiError ? e.message : (e as Error).message;
-        set({ busy: false, error: msg });
+        set({ busy: false, error: errorMessage(e) });
       }
     },
 
     selectNode: (nodeId) => run((sid) => gameApi.selectNode(sid, nodeId)),
-    attack: () => run((sid) => gameApi.attack(sid)),
-    guard: () => run((sid) => gameApi.guard(sid)),
+    attack: (sideBet) => run((sid) => gameApi.attack(sid, sideBet)),
+    guard: (sideBet) => run((sid) => gameApi.guard(sid, sideBet)),
     sink: (sinkType) => run((sid) => gameApi.sink(sid, sinkType)),
     treasureOpen: () => run((sid) => gameApi.treasureOpen(sid)),
     treasureReroll: () => run((sid) => gameApi.treasureReroll(sid)),
@@ -104,6 +184,9 @@ export const useGameStore = create<GameStore>((set, get) => {
     continueRun: () => run((sid) => gameApi.continueRun(sid)),
 
     clearError: () => set({ error: null }),
-    reset: () => set({ state: null, error: null, busy: false, upgrade: null }),
+    reset: () => set({
+      state: null, error: null, busy: false, upgrade: null,
+      postmortem: null, postmortemLoading: false, postmortemUnavailable: false, postmortemError: null,
+    }),
   };
 });
