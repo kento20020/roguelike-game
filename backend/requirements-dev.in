@@ -7,4 +7,4 @@ pytest-cov>=5.0
 ruff>=0.15
 # mypy は初回導入なので 1.x 系に固定（2.x への major bump は Dependabot 経由で
 # レビュー付き別 PR に回す。config はこの系列で緑を確認済み）。
-mypy>=1.13,<2
+mypy>=2.2.0,<3
