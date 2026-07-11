@@ -23,6 +23,7 @@
 > **battle 中の回復 sink は1ターン消費（v1.4・OPEN-020）**：`use_sink('heal_*')` を battle 中に使うと phase は battle のまま**敵の行動のみが解決される**（`_resolve_battle_turn(player_attacks=False)`）。敵の反応で dead / 勝利（反射・好機による撃破）へ遷移し得る。探索中の回復は従来どおりターン消費なし。
 > **gate_resolve は瞬間phase**：`POST /gate/resolve` の処理内で next_floor / cleared / dead まで確定するため、`gate_resolve` phase には滞在しない（定数 `PHASE_GATE_RESOLVE` は存在）。**次フロアは gate_resolve 処理内で生成**（RNGストリーム消費）し、`next_floor` 演出 →`continue` で `exploring` に入る。
 > **pause は将来（未実装）**：`models.py` の phase 定数は10種で `pause` は未定義（§6.2 図の対象外）。将来追加時は battle 中の ramp・attack_boost_pending の復元を OPEN 化する。
+> **選択＝コミット（v1.9 明文化・§7.5）**：`treasure_preview`・`gate_preview`・`heal` から `exploring` への復帰遷移は**存在しない**（遷移図に復帰辺が無いのは仕様）。宝箱・ゲートも敵ノード（§7.1）と同様、選択した時点でコミットされる。GATE 選択時の誤タップ防止（確認ダイアログ）は UI 側の責務（§26.4）。
 
 ### 6.2 状態遷移図
 

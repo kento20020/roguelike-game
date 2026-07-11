@@ -39,6 +39,8 @@
 > **攻撃ブースト**：`sink_type: "attack_boost"` は `battle` phaseでのみ有効。次の `attack` 1回だけ `stance_multiplier` に ×2.0 を**乗算**（`guard` では消費しない）。
 > **UpgradeState の形**：`{ points:int, levels:{max_hp,attack,init_gold,gold_drop,sink_cost}, maxes:{…} }`（`UpgradeStateResponse`）。`/upgrade`・`/profile/upgrades` が返す。理想は `/upgrade` も完全GameState（＋upgrade_state内包）だが現状は UpgradeState 単体（原則6の例外）。**スコープの矛盾（OPEN-002）**：恒久強化は Profile（ラン非依存）の資産だが操作口は `/run/{session_id}/upgrade`（ラン依存）。バンクした余剰ポイント（§12.3）を次ラン中に割り振れる phase は未定義——`/api/profile/upgrade`（セッション非依存）への移設 or 許可 phase の明記を OPEN-002 で扱う。
 > **冪等性・認証は非スコープ（OPEN-026）**：全 mutating POST に Idempotency-Key・state_version は無い。再送で `gate_guarantee` 二重課金・`/attack` 二重進行（RNGドリフト）が起き得る。単一プレイヤー・ローカル前提では実害限定だが、公開時は冪等キー＋楽観ロック＋所有者照合を必須化。`/stats/history` は無条件全件（`limit`のみ）＝スコープ化（client_id）＋件数上限を追跡。
+> **サイドベットの検証規則（v1.9 確定・§15.4）**：`side_bet.behavior` は**行動5種すべてを常に受理**する（その敵の行動テーブルによる絞り込み・拒否はしない＝サポート集合の非開示を維持。存在しない行動への賭けは必ず外れる「死にベット」として許容）。額は `config.side_bet` の `min_amount..max_amount`、戦闘毎累計は `per_battle_cap` まで。範囲外・cap 超過・チップ不足は **400**、battle 外での side_bet 付き attack/guard は既存どおり **409**。実装が本規則と異なる場合はクラスFで実装側を合わせる（spec-first）。
+> **bot_type の規約（v1.9 明文化）**：`POST /run/new` の `bot_type` は `human`/`strong`/`random` のみ・**既定は `human`**。**ブラウザUIクライアントは送出しない**（シミュレーションハーネス専用パラメータ）。UIからの通常プレイが bot 側の統計層（§18・strategy_version 別集計）へ混入するのを防ぐ。Literal 検証の追加は OPEN-026 の入力検証群に含める。
 
 ### 25.3 GameStateレスポンスの形
 
