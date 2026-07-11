@@ -161,7 +161,7 @@ def test_meta_levels_feed_new_run(api):
         p.max_hp = 3
         db.commit()
     j = _new(client, seed=1)
-    assert j["player"]["attack"] == 15 + 2 * 5      # 25
+    assert j["player"]["attack"] == 16 + 2 * 5      # 26
     assert j["player"]["max_hp"] == 100 + 10 * 3    # 130
 
 

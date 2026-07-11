@@ -3,7 +3,7 @@
 
   "player": {
     "base_hp": 100,
-    "base_attack": 15,
+    "base_attack": 16,
     "base_gold": 0
   },
 
@@ -30,12 +30,12 @@
   },
 
   "heal": {
-    "node_small": 15,
-    "node_large": 30,
-    "sink_small_base": 20,
-    "sink_large_base": 40,
-    "sink_floor_multiplier": { "1": 1.0, "2": 1.25, "3": 1.5, "4": 1.75, "5": 2.0 },
-    "_comment": "回復量は固定値。回復sinkコストはフロアで上昇（base×floor_multiplier）。回復ノードは無料・大小ランダム。"
+    "node_small": 20,
+    "node_large": 45,
+    "sink_small_base": 15,
+    "sink_large_base": 30,
+    "sink_floor_multiplier": { "1": 1.0, "2": 1.2, "3": 1.4, "4": 1.6, "5": 1.8 },
+    "_comment": "回復量は固定値。回復sinkコストはフロアで上昇（base×floor_multiplier）。回復ノードは無料・大小ランダム。OPEN-030（2026-07-11）で回復経済を増強（node 15/30→20/45・sink base 20/40→15/30・係数上限2.0→1.8）。"
   },
 
   "sinks": {
@@ -63,14 +63,14 @@
   },
 
   "scaling": {
-    "enemy_hp_tier_factor": 0.15,
-    "_comment": "enemy.hp = base_hp * (1.0 + 0.15*(tier-1))"
+    "enemy_hp_tier_factor": 0.10,
+    "_comment": "enemy.hp = base_hp * (1.0 + 0.10*(tier-1))。OPEN-030（2026-07-11）で0.15→0.10（tier×rowの乗算暴発の圧縮）。"
   },
 
   "depth_scaling": {
-    "hp_per_row": 0.10,
+    "hp_per_row": 0.05,
     "gold_per_row": 0.10,
-    "_comment": "フロア可変深度化のrow深度傾斜: hp = tier補正後 × (1 + hp_per_row×(row-1))、goldも同形。数値は叩き台・要デザイナーレビュー（docs/proposals/floor_depth_randomization.md §6）。"
+    "_comment": "フロア可変深度化のrow深度傾斜: hp = tier補正後 × (1 + hp_per_row×(row-1))、goldも同形。OPEN-030（2026-07-11）でhp_per_row 0.10→0.05（docs/balance_model.md §6）。"
   },
 
   "gate_special": {

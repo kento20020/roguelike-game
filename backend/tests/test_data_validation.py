@@ -84,8 +84,8 @@ def test_coeff_fallback_prefers_enemy_override():
 
 def test_scaled_hp_formula(data: GameData):
     e = data.enemy("f2_r1_a")  # base hp 45
-    # tier 2: 45 * (1 + 0.15*1) = 51.75 -> 52
-    assert data.scaled_hp(e, 2) == round(45 * 1.15)
+    # tier 2: 45 * (1 + 0.10*1) = 49.5 -> 50（round=銀行丸め）
+    assert data.scaled_hp(e, 2) == round(45 * 1.10)
     assert data.scaled_hp(e, 1) == 45
 
 
