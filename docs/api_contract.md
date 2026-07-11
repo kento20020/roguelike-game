@@ -7,7 +7,7 @@
 
 - ゲームの全ロジックはバックエンド。フロントは操作を送って新しい状態を受け取るだけ
 - 各レスポンスは**完全なゲーム状態**を返す（フロントは差分計算不要）
-- `session_id`（uuid）でランを識別。**進行中の GameState は `session_store` がプロセス内メモリで保持**し、DBへは**確定 RunRecord と Profile のみ**を永続化する（`session_store.py`）。**サーバ再起動で進行中ランは失われる**（単一プロセス前提・OPEN-007/026）。`GET /run/{id}`（再開）は同一プロセス生存中のみ成立。旧記述「DBに永続化」は実態と不一致だったため訂正。
+- `session_id`（uuid）でランを識別。進行中ランは**「seed＋初期upgrades＋適用アクション列」が `active_sessions`（SQLite）へ記録**され、`session_store` はその**LRU上限（既定500）つきホットキャッシュ**（v1.5・OPEN-007 解消）。**サーバ再起動・LRU追い出し後も `GET /run/{id}` は `replay.rebuild_engine` による再構築で透過的に復元される**（TTL=既定7日・手順詳細は [runbook.md](runbook.md) §1）。確定 RunRecord と Profile は従来どおり終局時に永続化。既知の限界は同一 `session_id` への**複数ワーカー同時書き込み競合**のみ（未ハードニング・workers=1 運用が前提・OPEN-026）。※旧記述「サーバ再起動で進行中ランは失われる」は v1.5 で解消済みのため訂正。
 - **完全状態返却の例外**：`/upgrade`・`/profile/upgrades` は `UpgradeState`、`/catalog/mods` は `ModCatalogItem[]`、`/catalog/enemies` は `EnemyCatalogItem[]`、`/stats/history` は `RunRecord[]`、`/run/{sid}/postmortem` は `PostmortemResponse`、`/profile/dossier` は `DossierEnemyOut[]` を返す（原則6の明示的例外）。
 - **seed 非露出（§17.3・v1.4 実装）**：進行中の GameState は `run_record: null`。RunRecord（seed 含む）は終端 phase（dead/cleared）でのみ返る。
 
@@ -16,7 +16,7 @@
 | メソッド | パス | 用途 | リクエスト | レスポンス |
 |---------|------|------|----------|----------|
 | POST | `/api/run/new` | 新規ラン開始 | `{ seed?: int, bot_type?: str }` | `GameState` |
-| GET | `/api/run/{session_id}` | 状態取得（再開・同一プロセス生存中） | — | `GameState` |
+| GET | `/api/run/{session_id}` | 状態取得（再開。キャッシュミス時はアクションログから透過復元・v1.5） | — | `GameState` |
 | POST | `/api/run/{session_id}/select-node` | ノード選択 | `{ node_id }` | `GameState` |
 | POST | `/api/run/{session_id}/attack` | 攻撃 | `{ side_bet?: {behavior, amount} }` | `GameState` |
 | POST | `/api/run/{session_id}/guard` | 受け（防御・§8.4） | `{ side_bet?: {behavior, amount} }` | `GameState` |
@@ -39,6 +39,8 @@
 > **攻撃ブースト**：`sink_type: "attack_boost"` は `battle` phaseでのみ有効。次の `attack` 1回だけ `stance_multiplier` に ×2.0 を**乗算**（`guard` では消費しない）。
 > **UpgradeState の形**：`{ points:int, levels:{max_hp,attack,init_gold,gold_drop,sink_cost}, maxes:{…} }`（`UpgradeStateResponse`）。`/upgrade`・`/profile/upgrades` が返す。理想は `/upgrade` も完全GameState（＋upgrade_state内包）だが現状は UpgradeState 単体（原則6の例外）。**スコープの矛盾（OPEN-002）**：恒久強化は Profile（ラン非依存）の資産だが操作口は `/run/{session_id}/upgrade`（ラン依存）。バンクした余剰ポイント（§12.3）を次ラン中に割り振れる phase は未定義——`/api/profile/upgrade`（セッション非依存）への移設 or 許可 phase の明記を OPEN-002 で扱う。
 > **冪等性・認証は非スコープ（OPEN-026）**：全 mutating POST に Idempotency-Key・state_version は無い。再送で `gate_guarantee` 二重課金・`/attack` 二重進行（RNGドリフト）が起き得る。単一プレイヤー・ローカル前提では実害限定だが、公開時は冪等キー＋楽観ロック＋所有者照合を必須化。`/stats/history` は無条件全件（`limit`のみ）＝スコープ化（client_id）＋件数上限を追跡。
+> **サイドベットの検証規則（v1.9 確定・§15.4）**：`side_bet.behavior` は**行動5種すべてを常に受理**する（その敵の行動テーブルによる絞り込み・拒否はしない＝サポート集合の非開示を維持。存在しない行動への賭けは必ず外れる「死にベット」として許容）。額は `config.side_bet` の `min_amount..max_amount`、戦闘毎累計は `per_battle_cap` まで。範囲外・cap 超過・チップ不足は **400**、battle 外での side_bet 付き attack/guard は既存どおり **409**。実装が本規則と異なる場合はクラスFで実装側を合わせる（spec-first）。
+> **bot_type の規約（v1.9 明文化）**：`POST /run/new` の `bot_type` は `human`/`strong`/`random` のみ・**既定は `human`**。**ブラウザUIクライアントは送出しない**（シミュレーションハーネス専用パラメータ）。UIからの通常プレイが bot 側の統計層（§18・strategy_version 別集計）へ混入するのを防ぐ。Literal 検証の追加は OPEN-026 の入力検証群に含める。
 
 ### 25.3 GameStateレスポンスの形
 
@@ -61,6 +63,10 @@
 | 400 | 不正な操作（ロック中ノード選択・チップ不足・未対応sink_type等） |
 | 404 | session_idが存在しない |
 | 409 | phase不整合（戦闘中にノード選択等） |
+| 422 | 入力検証エラー（Pydantic。`seed` 範囲外・`limit` 範囲外等・v1.4） |
+| 500 | サーバ内部エラー（想定内経路の例: セッション再構築失敗＝`deps.py`。調査手順は runbook.md §2） |
+
+> ※422/500 は従来この表に無く本節の注記・runbook にのみ散在していたため v1.9 で表へ集約（「表の3種だけ処理すればよい」という誤読の防止）。`GET /postmortem` の**未計算時**（死亡直後の取得タイミング）の応答は実装準拠で未確定＝OPEN-044。
 
 **phase不整合の例（サーバ側で必ず拒否＝409）**：フロントで防いでいてもバックエンドの防御は必須。
 
