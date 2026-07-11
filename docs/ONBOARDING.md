@@ -63,6 +63,7 @@ npm run dev
 | `mypy app main.py` | backend の型検査（設定は `backend/pyproject.toml`） | `backend/` |
 | `npm run lint` | frontend の ESLint | `frontend/` |
 | `npm run typecheck` | frontend の型検査（`tsc --noEmit`） | `frontend/` |
+| `python scripts/check_docs.py` | docs の検査（schemas JSON 妥当性・相対リンク切れ・`backend/app/data` ミラー一致・API 契約表一致）。docs・data・API 変更時は必須（CONTRIBUTING §2） | リポジトリルート |
 
 `npm run build` は `tsc --noEmit && vite build` なので、ビルドが通れば型検査も内包して通っている（`frontend/package.json`）。
 
