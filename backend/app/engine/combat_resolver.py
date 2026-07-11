@@ -55,20 +55,22 @@ def _kasoku_factor(player: Player, data: GameData) -> float:
     return mod_value(player, data, KASOKU, default=1.0)
 
 
-def _mikiri_factor_from_mods(player: Player) -> float:
-    """見切り係数（1枚=0.5 / 2枚以上=0）。data 不要で mods から直接判定。"""
-    count = player.mod_count(MIKIRI)
-    if count == 0:
-        return 1.0
-    return 0.5 if count == 1 else 0.0
+def _mikiri_factor_from_mods(player: Player, data: GameData) -> float:
+    """見切り係数（mods.json の value_1/value_stack を正とする・§0.2/§10.1）。
+
+    旧実装は 0.5/0.0 をハードコードしており mods.json の値が死にデータだった
+    （Phase3 ablation 実験で発覚した doc-code drift・クラスF修正）。
+    現行 JSON 値（value_1=0.5 / value_stack=0.0）では挙動は完全に不変。
+    """
+    return mod_value(player, data, MIKIRI, default=1.0)
 
 
-def effective_behaviors(player: Player, enemy) -> list[tuple[str, float]]:
+def effective_behaviors(player: Player, data: GameData, enemy) -> list[tuple[str, float]]:
     """見切りで evade weight を補正した実効行動テーブル。
 
     カオス敵の behaviors は floor_generator がラン別 weight で構築済み。
     """
-    mik = _mikiri_factor_from_mods(player)
+    mik = _mikiri_factor_from_mods(player, data)
     return [(t, w * mik if t == EVADE else w) for t, w in enemy.behaviors]
 
 
@@ -102,7 +104,7 @@ def prepare_preview(battle: Battle, player: Player, data: GameData, stream: Sfc3
         # 「常に現在ターン+1」＝毎ターン公開になり続けてしまうバグがあった）。
         preview_turns = max(preview_turns, 1)
     if battle.turns < preview_turns:  # turn1..preview_turns を公開
-        action = roll_behavior(effective_behaviors(player, battle.enemy), stream)
+        action = roll_behavior(effective_behaviors(player, data, battle.enemy), stream)
         battle.pending_action = action
         battle.preview = _SCOUT_HINT.get(action, "")
 
@@ -156,7 +158,7 @@ def resolve_turn(battle: Battle, player: Player, data: GameData,
         action = battle.pending_action
         battle.pending_action = None
     else:
-        action = roll_behavior(effective_behaviors(player, enemy), behavior_stream)
+        action = roll_behavior(effective_behaviors(player, data, enemy), behavior_stream)
     battle.preview = None
 
     # 4. 被ダメ算出
