@@ -2,6 +2,12 @@
 
 各版で確定した内容の経緯。現行仕様は本文を正本とし、ここは時系列の記録。
 
+- **v1.12**（2026-07-12）：**Phase3 実施＝mod寄与 ablation（OPEN-023 解消）と mikiri/yomi の是正**（[reports/2026-07-12_phase3_report.md](reports/2026-07-12_phase3_report.md)）。
+  - **ツール新設（PR #36・クラスR）**：`mod_ablation.py`＝宝箱抽選プールの leave-one/two-out 除去実験（CRN・N=1000×22コホート）。単体寄与は対差の anytime-valid CI＋McNemar e-process、ペア交互作用 I=Δxy−Δx−Δy は bernoulli CS/e値、e-BH 2ファミリで FDR 制御。テスト15件。装置検証＝full が Phase2 実測 31.1% と完全一致。
+  - **バグ修正（PR #37・クラスF）**：是正感度実験で「mikiri の値を変えても 22,000 ラン無変化」から、`_mikiri_factor_from_mods` の 0.5/0.0 ハードコード（mods.json＝数値の正本が死にデータ）を発見・`mod_value()` 参照へ修正（現行値では挙動不変＝回帰ベースライン不変で証明）。
+  - **初回測定**：kouki **+18.2pt=broken**／juso +12.6pt／mikiri **−5.5pt=trap（FDR有意）**／yomi **−4.1pt=dead**。ペア交互作用は FDR 有意なし（juso|hansha・juso|yomi に substitute 傾向＝設計シナジーと逆方向の観測）。
+  - **是正（PR #38・クラスB・デザイナー決定）**：yomi 先読み 1枚=2ターン/2枚=4ターン（dead→中立化 −0.5pt）・mikiri evade削減 50%→75%（**trap のまま＝数値では救えないことを実証**→効果リワークを **OPEN-047** 起票）。**kouki は §10.4 非対称運用により残す（デザイナー決定）**。世界全体：mid 31.1%→**34.4%（帯 25〜40% 内を維持）**・base 2.0%・maxed 83.0%。
+
 - **v1.11**（2026-07-11）：**Phase2（スキル幅・選択感度）実施＋効果量閾値の事前登録**（[reports/2026-07-11_phase2_report.md](reports/2026-07-11_phase2_report.md)）。
   - **事前登録（デザイナー確定・測定前）**：X=20pt（スキル幅）／Y=2pt（選択感度）／Z=50%（死亡集中・最終フロア以外）／W=10pt（modペア・Phase3用）を §18.1 へ記入。
   - **スキル幅（厳格ゲート）PASS**：maxed−random 差の下限≈79.6pt・mid−random ≈27.9pt（いずれも X=20pt を大幅超過。McNemar CRN対標本 reject・Wilson CI 非重なり）。

@@ -13,8 +13,8 @@
 | 初手別クリア率差 | ±5pt以内（最大−最小の効果量で判定） | 実測（v1.11）：maxed 2.0pt=PASS・**mid 6.3pt=超過（warn・L有利・OPEN-045）** |
 | 選択感度 | 効果量 ≥ **Y=2pt**（p値のみで判定しない・v1.11事前登録） | **実測PASS（v1.11・midパネル）**：6.3pt・FDR有意。maxedは天井効果で検出されず |
 | 死亡フロア分布 | 終盤集中は許容。最終フロア以外の単一フロアが死亡の **Z=50%** を超えない（v1.11事前登録） | 実測PASS（v1.11）：最終以外の最大＝4F 33.8% |
-| 単一mod寄与 | ±8pt以内（平均寄与のみ） | 暫定 |
-| modペア寄与（synergy） | 主要ペアの交互作用が ±**W=10pt** 以内（v1.11事前登録） | 暫定（追加・OPEN-023／Phase3 で測定） |
+| 単一mod寄与 | ±8pt以内（平均寄与のみ・ablation で因果測定） | 実測（v1.12・mid/N=1000）：kouki **+19.5pt=broken→§10.4非対称運用で残す（デザイナー決定）**・juso +11.5pt（超過疑い・観測継続）・kasoku +6.1=帯内・yomi −0.5=**是正で中立化**・hansha=1F交絡inconclusive・mikiri **−6.2=trap→OPEN-047** |
+| modペア寄与（synergy） | 主要ペアの交互作用が ±**W=10pt** 以内（v1.11事前登録） | 実測（v1.12）：**FDR有意な交互作用なし**。juso\|hansha +8.1／juso\|yomi +4.7 に substitute（冗長）傾向＝設計シナジー（§10.4）と逆方向の観測（hansha は1F交絡付き）。OPEN-023 解消 |
 | 初クリアまでの期待ラン数（人間相当bot） | 観測のみ・閾値なし（win-to-progress の体験曲線監視・OPEN-029) | 暫定（追加） |
 | 全死亡に占めるゲート死率 | 観測のみ・閾値なし（柱②「運だけで死なせない」の納得感監視。`gate_results` から算出可） | 暫定（追加・v1.9） |
 | チップ枯渇率 | 観測のみ・閾値なし（枯渇状態での戦闘突入比率。§13.3 の枯渇側監視） | 暫定（追加・v1.9） |
@@ -43,6 +43,7 @@
 > **注記**：Phase0「バグゼロ」は検証不能のため「全テストgreen／既知P0=0」に置換。`fun_metrics.py` は特定Phaseに紐づかない**探索的ツール（合格条件外）**。Phase3 の e-BH は `balance_stats.py`、mod アブレーションは `balance_analysis.py`（旧記述は balance_analysis 単独に見えたため訂正）。guard（§8.4）を正式化する場合は bot 戦略に guard を含めて Phase1-4 を再測定（OPEN-018）。Phase5 の GitHub Actions は **docs-ci に加えて balance.yml（pytest＋バランス回帰 `test_balance_regression`）が稼働済み**（旧記述「未整備」は古い）。回帰基準の再生成は `python -m app.simulation.gen_baseline`（意図的変更の承認手順）。
 > **v1.4 の基準値変化（要デザイナーレビュー）**：フロア可変深度化（§4.1）と heal 1ターン消費（OPEN-020）により、maxed 強bot のクリア数は 18/120 → **6/120（5%）** に低下した（ベースライン再生成済み）。確定帯 25〜40% は未強化パネル基準のため直接比較ではないが、**深度カーブ・depth_scaling・回復経済の数値調整（デザイナー）を Phase1 前に行う**こと。調整ノブ: floors.json `depth`・config `depth_scaling`・heal コスト・OPEN-018 guard 係数。
 > **v1.8 の基準値変化**：ジャストガード再設計＋strong-v2（受け方策）により maxed クリア率は 5% → **10.2%（N=1000・ベースライン 15/120）** へ回復。base/mid は依然 0% で帯 25〜40% には未達＝**上記の数値調整（デザイナー）は引き続き Phase1 前に必要**。
+> **Phase3 実施（v1.12・2026-07-12）**：mod寄与 ablation（`mod_ablation.py`・leave-one/two-out・CRN・e-BH 2ファミリ）を実装し初回測定＋是正まで完了（[reports/2026-07-12_phase3_report.md](reports/2026-07-12_phase3_report.md)）。**kouki=broken（残す・デザイナー決定）／yomi=dead→数値是正で中立化（PR #38）／mikiri=trap→数値では救えず OPEN-047（リワーク）**。副産物として mikiri 係数のハードコード（mods.json 死にデータ）を発見・修正（PR #37）。OPEN-023 解消。次は Phase4（経済・OPEN-046 の bot sink カバレッジが前提）。
 > **Phase2 実施（v1.11・2026-07-11）**：スキル幅（厳格ゲート）PASS・選択感度は mid パネルで実証（6.3pt・FDR有意）。同時に **mid での初手別±5pt 違反（L+6.3pt・OPEN-045）**と **strong bot が scout/ゲート保証/リロールを未使用（OPEN-046）**を検出。測定ツールの改修推奨（初手測定を mid パネルへ・死亡集中の最終フロア除外）は Phase2 レポート §3。次は Phase3（mod 寄与・要 ablation）。
 > **v1.10 の基準値変化（OPEN-030 解消）**：G1セット（attack16・tier係数0.10・hp_per_row0.05・gate被ダメ8/18%・回復経済増強）により **mid 31.1% CI[28.3,34.0]＝帯内達成**（N=1000・CRN）。base 1.2%・maxed 82.5%・random 0%。死亡分布は終盤集中を維持。ベースライン再生成済み（base1/mid35/maxed92 per 120）。選定過程は PR #33・候補比較は balance_model.md。**Phase1 は開始可能**。残課題: random 1〜5%（暫定）未達・チップ収支の再定義（§13.1・OPEN-003/Phase4）。
 
@@ -55,7 +56,8 @@
 | phase12_harness.py | Bot大量試行（強/random・CRN対応） | 実在 |
 | bots.py | botプレイヤー（戦略実装） | 実在 |
 | balance_stats.py | e-value統一（BernoulliCS・e-BH・McNemar・TOST・ハザード・レーシング） | 実在 |
-| balance_analysis.py | sink ROIアブレーション・hoarder検出 | 実在 |
+| balance_analysis.py | sink ROI（観察）・hoarder検出・初手感度 | 実在 |
+| mod_ablation.py | mod寄与 ablation（leave-one/two-out・CRN・交互作用＋e-BH 2ファミリ・v1.12） | 実在 |
 | balance_report.py | レポート生成 | 実在 |
 | fun_metrics.py | 体験指標（面白さ系メトリクス） | 実在 |
 | gen_baseline.py | ベースライン生成 | 実在 |
@@ -167,7 +169,7 @@
 > 解消済み項目の確定経緯は巻末「付録: 変更履歴」を参照。本章は現時点の残課題のみを扱う。
 > 内部議論ラベル（問E/問G/問J）は管理ID `OPEN-xxx` に振り直した（旧ラベルは括弧で併記）。
 > **受け入れ条件（done定義）**：各OPENの方針欄末尾に測定可能な受入条件を付す。データ駆動項目は Phase 判断に委ね、非データ項目（OPEN-011/013/015/018/024 等）は具体的 done を定義する。
-> **v1.2 で追加**：OPEN-011〜027 は実装コードとの実差分監査（doc-code drift audit）で洗い出した項目。**v1.3 で OPEN-028/029 を追加**し、OPEN-004/017/018/020/024/025 を改訂（分割後の横断整合レビュー反映）。多くは「コードは実装済みだが GDD 記述が古い/欠落」または「GDD/JSON にもコードにも無い真の欠落」。**2026-07-11 の設計書ギャップ監査で OPEN-030〜044 を追加**（[reports/2026-07-11_gdd_gap_audit.md](reports/2026-07-11_gdd_gap_audit.md) 参照。既存 OPEN・構成監査 F-xx と重複しない未追跡分のみ）。**Phase2 実施（v1.11）で OPEN-045/046 を追加**。
+> **v1.2 で追加**：OPEN-011〜027 は実装コードとの実差分監査（doc-code drift audit）で洗い出した項目。**v1.3 で OPEN-028/029 を追加**し、OPEN-004/017/018/020/024/025 を改訂（分割後の横断整合レビュー反映）。多くは「コードは実装済みだが GDD 記述が古い/欠落」または「GDD/JSON にもコードにも無い真の欠落」。**2026-07-11 の設計書ギャップ監査で OPEN-030〜044 を追加**（[reports/2026-07-11_gdd_gap_audit.md](reports/2026-07-11_gdd_gap_audit.md) 参照。既存 OPEN・構成監査 F-xx と重複しない未追跡分のみ）。**Phase2 実施（v1.11）で OPEN-045/046 を追加**。**Phase3 実施（v1.12）で OPEN-047 を追加**。
 
 ### 21.1 確定状態マトリクス
 
@@ -222,7 +224,7 @@
 | OPEN-020 | heal sink のターン消費 | battle中healで敵が反応するか（§13.2） | — | **解消（v1.4）** | 推奨の「1ターン消費」案を実装（heal後に敵ロール発火・§13.2）。guard 数値（OPEN-018）との複合再測定は Phase1 で実施 | 解消 |
 | OPEN-021 | 攻撃ブースト異常系 | evade巻戻し丸損・pending中二重課金（§13.2/§25.4） | — | **解消（v1.4）** | evade時は boost 持越し＋pending中の再購入400 | 解消 |
 | OPEN-022 | 反射チュートリアル確実化 | 1Fで反射の取得/発火を保証（§14.2）。FTUE設計目標（§14.3・「modを取る/発動する」を初回ランで必ず体験）の実現手段 | **中**（v1.9 で低→中。FTUE レビュー反映） | 実装後半 | 必須経路配置 or A必須経由＋1F内で発火する被弾機会の設計。受入=1F内で取得&発火 | 未着手 |
-| OPEN-023 | modペア交互作用ゲート | synergy寄与の統計ゲート（§18.1） | 中 | Phase3 | `balance_analysis` アブレーションをペア拡張（e-BH） | 未着手 |
+| OPEN-023 | modペア交互作用ゲート | synergy寄与の統計ゲート（§18.1） | 中 | **解消（v1.12）** | `mod_ablation.py` を新設（leave-two-out・交互作用 I=Δxy−Δx−Δy・e-BH 第2ファミリ）し初回測定完了＝FDR有意な帯外交互作用なし。juso\|hansha 等の substitute 傾向は観測継続 | 解消 |
 | OPEN-024 | RunRecord data_version | 版混在の統計汚染防止（§19.1） | — | **解消（v1.4）** | 4JSON sha256短縮ハッシュ＋strategy_version を Alembic `0002_telemetry` で追加（§19.1） | 解消 |
 | OPEN-025 | sink use_count / gate_results / guard記録 | ROI/寄与の逆算用テレメトリ（§19.1） | — | **解消（v1.4）** | sink_use_counts・gate_results・action_counts（attack/guard/heal_*）を記録。全ランの操作履歴も run_actions へ永続化 | 解消 |
 | OPEN-026 | 認証・冪等性・stats scope | 進行中DB永続・冪等キー・stats/history のスコープ（§25） | 中 | 実装後半 | 単一プレイヤーは非スコープ明記（§0.4）＋ stats scope＋全mutating POSTに冪等キー | 未着手 |
@@ -246,3 +248,4 @@
 | OPEN-044 | postmortem 未計算時の応答 | `GET /run/{sid}/postmortem` の**未計算時**（死亡直後の取得タイミング）の応答が契約未定義（提案時の「未完なら202」は正本化時に消失・§25.2は404=関門死のみ記載）。DeadPage のエラーハンドリングの拠り所が無い | 低 | 実装後半 | 実装準拠で確定（同期計算なら「常に計算済み」と明記・非同期なら202等を契約化）し §25.2/§25.4 へ追記＋契約テスト | 未着手 |
 | OPEN-045 | 1F初手の有利不利 | Phase2（v1.11）で mid パネルの初手別クリア率差が **L 31.1%／M 24.8%／R 24.9%＝spread 6.3pt（±5pt超過・L>M/L>R が FDR有意）**。1F固定敵の難度差（削り合い vs 賭け×2）が帯基準パネルで初手支配を作っている | 中 | Phase1後（バランス） | f1_fixed_b/c（賭け系）の数値調整 or 報酬差で是正（クラスB）。±5pt以内へ収めつつ選択感度（≥2pt）は維持する。是正後に mid・n=1000/初手で再測定 | 未着手 |
 | OPEN-046 | strong bot の sink カバレッジ | Phase2（v1.11）で strong bot が **scout・ゲート保証・宝箱リロールを一度も使わない**（n_used=0/3000）ことを確認。これら3sinkの ROI・価値検証が bot では不可能＝バランス検証の人間代表性（§18.1 前提）の穴。ゲート保証の価値（balance_model §3）も未検証 | 中 | Phase4前 | bots.py strong 方策へ3sinkの使用条件を追加（strategy_version バンプ・帯の再測定を伴う）or「bot 検証対象外の sink」と明記して人間プレイテスト（playtest_plan.md）へ委ねる | 未着手 |
+| OPEN-047 | mikiri の効果リワーク | Phase3 ablation（v1.12）で **trap**（Δ−5.5〜−6.2pt・FDR有意＝プールから外した方が強い）。効果量倍化（evade削減 50%→75%）でも trap のまま＝**数値では救えない**。構造要因：効果が「ずれ系4体＋カオス一部」限定なのに、機会費用は常時有効な kouki/juso と競合（§19.2 予見の因果確証） | 中 | 実装後半（クラスS） | 効果の作り変えを docs PR 先行で設計（例: evade削減に加えずれ以外にも効く副効果を付与・空振りを利へ変換等）。受入=ablation で Δ の CI 下限 > 0 | 未着手 |
