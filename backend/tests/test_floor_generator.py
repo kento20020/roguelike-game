@@ -186,15 +186,15 @@ def test_heal_exactly_one_on_heal_floors(data):
 # ── tier/深度 補正 ──
 def test_tier_hp_scaling(data):
     inst = build_enemy_instance("f2_r1_a", 2, data)  # base 45, tier2, row1
-    assert inst.max_hp == round(45 * 1.15)
+    assert inst.max_hp == round(45 * 1.10)
     inst5 = build_enemy_instance("f5_r1_a", 5, data)  # base 100, tier5
-    assert inst5.max_hp == round(100 * (1 + 0.15 * 4))
+    assert inst5.max_hp == round(100 * (1 + 0.10 * 4))
 
 
 def test_depth_scaled_hp(data):
     per = data.config["depth_scaling"]["hp_per_row"]
     deep = build_enemy_instance("f2_r1_a", 2, data, row=3)
-    assert deep.max_hp == round(45 * 1.15 * (1 + per * 2))
+    assert deep.max_hp == round(45 * 1.10 * (1 + per * 2))
 
 
 def test_strong_flag(data):

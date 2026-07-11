@@ -37,7 +37,7 @@ def test_new_run_initial_state(data):
     assert snap["phase"] == "exploring"
     assert snap["current_floor"] == 1
     assert snap["player"]["hp"] == 100
-    assert snap["player"]["attack"] == 15
+    assert snap["player"]["attack"] == 16
     assert snap["player"]["chips"] == 0
     assert snap["player"]["mods"] == []
 
@@ -55,7 +55,7 @@ def test_upgrades_applied(data):
     eng = GameEngine(data)
     snap = eng.new_run(1, upgrades={"max_hp": 2, "attack": 3, "init_gold": 1})
     assert snap["player"]["max_hp"] == 100 + 10 * 2
-    assert snap["player"]["attack"] == 15 + 2 * 3
+    assert snap["player"]["attack"] == 16 + 2 * 3
     assert snap["player"]["chips"] == 0 + 15 * 1
 
 
@@ -239,8 +239,8 @@ def test_enemy_drop_routes_to_treasure(data):
 
 
 def test_heal_amounts_are_fixed_not_percent(data):
-    """回復量は固定値（GDD §7.3/§13.2 v0.9確定）。max_hp を強化しても +15/+30 固定。
-    %方式なら max_hp=150 で 22/45 になるため、それと区別する。"""
+    """回復量は固定値（GDD §7.3/§13.2 v0.9確定・OPEN-030で20/45へ改定）。max_hp を強化しても +20/+45 固定。
+    %方式（20%/45%）なら max_hp=150 で 30/68 になるため、それと区別する。"""
     from app.schemas.models import Node
 
     # max_hp 強化 (+50 → 150) で固定値であることを確認
@@ -248,25 +248,25 @@ def test_heal_amounts_are_fixed_not_percent(data):
     eng.new_run(1, upgrades={"max_hp": 5})
     assert eng.player.max_hp == 150
 
-    # 回復ノード: 大小いずれでも config の固定値（15 or 30）。max_hp比なら 22/45。
+    # 回復ノード: 大小いずれでも config の固定値（20 or 45）。max_hp比なら 30/68。
     eng.player.hp = 50
     node = Node(id="H", kind="heal", row=2, parents=["L"], parent_type="single")
     eng._resolve_heal(node)
     amt = eng.pending["heal"]
-    expected = 30 if eng.pending["big"] else 15
+    expected = 45 if eng.pending["big"] else 20
     assert amt == expected, f"回復ノードは固定値であるべき: got {amt}"
-    assert amt not in (22, 45), "max_hp の % になっている（固定値違反）"
+    assert amt not in (30, 68), "max_hp の % になっている（固定値違反）"
 
-    # 回復sink（小=+15固定 / 大=+30固定）
+    # 回復sink（小=+20固定 / 大=+45固定）
     eng2 = GameEngine(data)
     eng2.new_run(1, upgrades={"max_hp": 5})
     eng2.player.chips = 9999
     eng2.player.hp = 50
     eng2.use_sink("heal_small")
-    assert eng2.player.hp == 65, "小回復は +15 固定であるべき"
+    assert eng2.player.hp == 70, "小回復は +20 固定であるべき"
     eng2.player.hp = 50
     eng2.use_sink("heal_large")
-    assert eng2.player.hp == 80, "大回復は +30 固定であるべき"
+    assert eng2.player.hp == 95, "大回復は +45 固定であるべき"
 
 
 def _drive_to_gate_preview(data, upgrades):

@@ -7,10 +7,10 @@ from app.engine.rng import Sfc32
 
 def test_gate_damage_ratios(data):
     assert gr.gate_damage("unhurt", 100, data) == 0
-    assert gr.gate_damage("minor", 100, data) == 10
-    assert gr.gate_damage("major", 100, data) == 25
+    assert gr.gate_damage("minor", 100, data) == 8
+    assert gr.gate_damage("major", 100, data) == 18
     assert gr.gate_damage("special", 100, data) == 0
-    assert gr.gate_damage("minor", 120, data) == 12
+    assert gr.gate_damage("minor", 120, data) == 10  # round(120*0.08=9.6)
 
 
 def test_roll_distribution_approx(data):

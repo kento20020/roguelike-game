@@ -80,10 +80,10 @@
 
   "gate_damage": {
     "unhurt": 0.0,
-    "minor": 0.10,
-    "major": 0.25,
+    "minor": 0.08,
+    "major": 0.18,
     "special": 0.0,
-    "_comment": "minor/majorはmax_hpに対する割合。specialは無傷+次フロア強化等。"
+    "_comment": "minor/majorはmax_hpに対する割合。specialは無傷+次フロア強化等。OPEN-030（2026-07-11）で0.10/0.25→0.08/0.18（1ラン累計ゲート期待被ダメ≈56%→≈42%・docs/balance_model.md §3）。"
   },
 
   "gate_guarantee_rule": {
