@@ -12,7 +12,8 @@
 | 1 | クリア率帯域 | `band_test`（BernoulliCS）/ `wilson` | 強25-40%・random1-5% | warn | `phase12_harness.py` / `balance_report.py` |
 | 2 | スキル幅 | `mcnemar_eprocess`（CRN対標本）＋ Wilson非重なり | CIが0をまたがない | **fail** | `balance_report.py` |
 | 2 | 初手別差・選択感度 | `first_move_sensitivity`（forced_first_node）＋`mcnemar_eprocess`＋`ebh_fdr` | 初手別±5pt・有意差 | warn | `balance_analysis.py` |
-| 3 | 単一mod寄与（FDR） | `mod_marginal_contribution`＋`diff_bootstrap_ci`＋`equivalence_check` | ±8pt以内（平均寄与のみ） | warn | `balance_analysis.py` |
+| 3 | 単一mod寄与（FDR） | 観察: `mod_marginal_contribution`＋`diff_bootstrap_ci`＋`equivalence_check`。**正**: ablation・因果推定は `mod_ablation.py`（CRN対標本＋McNemar e-process＋e-BH） | ±8pt以内（平均寄与のみ） | warn | `balance_analysis.py`（観察）／`mod_ablation.py`（正） |
+| 3 | ペア交互作用（OPEN-023） | `mod_ablation.py`（2mod同時除外・CRN・純交互作用I＋e-BH 第2ファミリ） | ±10pt(W)以内 | warn | `mod_ablation.py` |
 | 3 | 死亡フロア集中 | `concentration_evalue`（BernoulliCS） | 集中しない | warn | `balance_analysis.py` |
 | 4 | 経済・sink ROI・hoarder | `sink_roi_observational`・`hoarder_detection` | （記述・監視） | info | `balance_analysis.py` |
 | 5 | 回帰（CI） | `regression_snapshot`（決定論・整数厳密比較） | 基準からの逸脱なし | **fail** | `tests/test_balance_regression.py` |
@@ -32,12 +33,15 @@ hedged capital `K_t = ½∏(1+λ_i(x_i-m)) + ½∏(1-λ_i(x_i-m))`（λ_i 予測
 - レポート: `python -m app.simulation.balance_report --n 1000 --out report.json`
 - 回帰基準の再生成（バランス変更を承認する時）: `python -m app.simulation.gen_baseline`
 - Phase1 簡易: `python -m app.simulation.phase12_harness 1000`
+- mod ablation（単体寄与＋ペア交互作用・OPEN-023）: `python -m app.simulation.mod_ablation --n 1000 --profile mid --out baselines/mod_ablation_result.json`
 
 ## 依存
 `numpy`（e-value/CS のベクトル化）。エンジン本体は依存しない（simulation/分析専用）。
 
 ## 未実装（将来・別軸）
 - 真の sink ROIアブレーション（sink無効化bot方策の別コホート）。現状は観察的ROI。
+  mod の ablation（宝箱抽選プール除外・`mod_ablation.py`）は実装済み（Phase3表の行を参照）
+  — sink ROI は対象が異なる別軸のため、これとは別に引き続き未実装。
 - `llm_content_pipeline.py`（Generator→Validator→Simulator→Critic）。
 - per-battle `trace.py`（緊張感/逆転/退屈さの直接計測）。
 - `forced_first_mod`（build固定）。現状は `forced_first_node`（初手位置固定）で初手別を測る。
