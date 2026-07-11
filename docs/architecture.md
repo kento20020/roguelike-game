@@ -33,6 +33,7 @@
 - 本書本文の数表（敵HP表・ゲート確率表など）は**要約・参考**であり、実装は必ずJSONを読む（§20.5）。
 - 「矛盾ゼロ」を保証する運用はしない。代わりに**機械検証**でドリフトを検出する。検証器は `backend/app/data/loader.py` の `GameData.validate()`（データロード時に必ず走る fail-fast）＝**実在**。検査項目：敵ID一意／非カオス敵の behaviors weight 合計=100／カオス敵は behaviors 空＋`chaos:true`／`ramp_hit` を持つ敵は `ramp_increment` 必須／mod ID一意／floor の pool ID が実在／アンロック親整合（多親=2親・単親=1親・親の実在）。pytest（`backend/tests/`）でも同じ不変条件を回帰する。
 - **未カバーの検査（OPEN-013）**：ゲート確率合計=1.0／dead-end に敵を置かない kind 整合／5F row3→ゲート経路≥2／恒久強化の上限Lv合計=21 は現 `validate()` に無い（§20.5 の検査項目へ追加予定）。
+- **design/（Claude Design 作業ファイル）は正本ではない**（v1.9 明記）：`design/*.dc.html`・`design/spec_*.md` は UI 制作フロー（CLAUDE.md「画面は Claude Design で作る」）の**入力・検討記録**であり、React 化された時点で画面仕様の正本は frontend_design.md（構成・責務）＋実装（視覚の実体）へ移る。doc-CI の検査対象外。design/ と frontend_design.md が食い違ったら frontend_design.md＋実装を正として design/ 側は更新しない（作業履歴として残す）。
 
 ---
 

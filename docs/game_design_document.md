@@ -24,6 +24,7 @@
 | [adr/](adr/) | アーキテクチャ決定記録（FastAPI / サーバ権威 / SQLite先行） | §22 由来 |
 | [schemas/](schemas/) | データ正本ミラー＋API例JSON（config/enemies/mods/floors ＋ gamestate/battle/mod_interactions） | §10.4, §25.3 |
 | [proposals/](proposals/) | 改善アイディア集（**提案・正本ではない**。採用時はクラスSとして正本へ反映してから実装） | — |
+| [../design/](../design/) | Claude Design の入力・作業ファイル（`.dc.html`・`spec_*.md`・**非正本**・doc-CI 対象外）。React 化された時点で画面仕様の正本は frontend_design.md＋実装へ移る | — |
 
 ## 正本の優先順位（要約）
 
