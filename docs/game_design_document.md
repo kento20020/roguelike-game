@@ -17,6 +17,8 @@
 | [backend_design.md](backend_design.md) | 状態遷移(phase)・ランタイム状態・ドメインロジック方針 | §6, §20.4 |
 | [data_model.md](data_model.md) | DB・永続化・RunRecord・データモデル・通貨正準 | §0.3, §19, §20（除 §20.4） |
 | [operations.md](operations.md) | バランス検証・未決事項（OPEN-001〜044）・運用方針 | §18, §21 |
+| [balance_model.md](balance_model.md) | 統合バランスモデル（フロア別目標カーブ・ゲート/チップ収支・調整ノブ対応。**目標側**のクラスS文書＝数値の正本は JSON・v1.9 新設） | — |
+| [playtest_plan.md](playtest_plan.md) | 人間プレイテスト実施計画（§18.6 の実施正本・v1.9 新設） | — |
 | [runbook.md](runbook.md) | 障害時手順（骨子・多くは OPEN-027 で未整備） | — |
 | [changelog.md](changelog.md) | 変更履歴（v0.6〜現行。**現行版の正本＝先頭エントリ**） | 付録 |
 | [adr/](adr/) | アーキテクチャ決定記録（FastAPI / サーバ権威 / SQLite先行） | §22 由来 |

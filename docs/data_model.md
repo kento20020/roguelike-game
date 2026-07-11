@@ -189,4 +189,38 @@ RunRecord:
 
 > **dismiss との対応（要確定）**：`empty_treasure`・`victory` がどの phase に属し、どの操作（`/continue` か次操作での自動消去か）で解消されるかは本書未定義。実装準拠の追記が必要（**OPEN-037** で確定。旧記述は解消済み OPEN-013 に紐づいていたため付替え）。
 
+### 20.9 コンテンツ追加手順（v1.9 追加）
+
+> 敵・mod を追加する際の作業手順。数値の正本は §20.5 のとおり `backend/app/data/*.json`。検証への合流は operations.md §18.7（バランス変更手順）。
+
+**変更クラスの判定（着手前に必ず行う）**：CONTRIBUTING §3 に従い、まず「データ追加のみか／新しい挙動を伴うか」を判定する。
+
+- **データ追加のみ**（既存フィールド・既存フックの範囲で敵/modを1件追加するだけ）→ **クラスB**（docs PR 先行不要。ただし schemas ミラー同期は同PRでCI強制）
+- **新しい挙動を伴う**（新しいフィールド・新しいフック挿入点・新しい mod_interactions の `type` 等、既存スキーマの拡張が要る）→ **クラスS**（docs PR を先にマージしてから実装PR。「迷ったらS」）
+
+**敵を追加する場合：**
+
+1. `backend/app/data/enemies.json` に追加。`id` は snake_case・一意（loader.validate が検証）
+2. `experience` は romaji enum（`grind`/`gamble`/`race`/`dodge`/`chaos`・§20.7）のみ。日本語は使わない（OPEN-012 の不変条件）
+3. 非カオス敵は `behaviors` の weight 合計＝100。カオス敵は `behaviors` 空＋`chaos:true`（CLAUDE.md 不変条件）
+4. `ramp_hit` を行動テーブルに含める場合は `ramp_increment` 必須（レース系の目安 inc=2〜8）。無指定は loader.validate が弾く
+5. `heavy_factor`/`counter_factor` は任意上書き。無ければ config 既定（1.8/1.0）にフォールバック（§8.3）
+6. `floors.json` の該当フロア `enemy_pool` に id を登録。row 制約（§9.1：同一row内は同一体験タイプ最大2体・最終rowはカオス以外を最低1体。1F固定配置は対象外）を踏まえてプール構成を決める
+7. `loader.validate()` を通す（`pytest` 実行時にロードされる。生成フロアの整合は `validate_floor()` が生成毎に検証）
+8. `docs/schemas/enemies.json`（`enemy_pool` を変えた場合は `floors.json` も）のミラーを同PRで同期（CI `check-docs` 強制）
+9. bot smoke（`python -m app.simulation.phase12_harness` 少数試行）でエラーなく完走することを確認
+10. 表示名・調書への影響を確認：`name` はそのまま UI 表示名になる。調書（§15.3・`/profile/dossier`）・敵カタログ（`/catalog/enemies`）に新規敵が正しく出るか確認
+11. `difficulty ≥ 閾値`（暫定4）に該当する場合は強敵リワード（gold×1.5・宝箱+20pt・§11.4）の対象になる点を意識する（終盤退化の議論は OPEN-004）
+
+**mod を追加する場合：**
+
+1. `backend/app/data/mods.json` に `id`（romaji）・効果値・`effect_1`/`effect_stack` を追加（mod ID 一意は loader.validate が検証。効果文は UI 表示の正本）
+2. スタック挙動を定義：2枚目適用値＋「3枚目以降は2枚目と同じ」の既存規約（§10.2）に合わせる
+3. 既存 mod との `cancel`/`synergy` があれば `mod_interactions`（**正本は mods.json 内のキー**・§10.4）へ追記。`type` と `is_intended` を持たせる
+4. 効果ハンドラは3つのフック挿入点のいずれかに収める（§8.2・§10.4）：**攻撃前**／**行動ロール後**／**被ダメ計算後**。この範囲に収まればクラスB、**新しい挿入点が要る効果はクラスS**
+5. RunRecord の `mods_acquired` は取得時に自動記録（§19.1）。romaji id で記録されることを確認
+6. `docs/schemas/mods.json` を同PRで同期
+7. `loader.validate()` を通す
+8. ablation（`balance_analysis.py`）で寄与を確認。**死にmod は潰す・壊れmod は残す**の非対称運用（§18.4）に従い、単体寄与 ±8pt の目安（§18.1）から外れたらデザイナーへ差し戻す。系統の成立目標（PRD §27.7）に足りない場合は mod 追加より synergy 行の追加を優先する
+
 ---
