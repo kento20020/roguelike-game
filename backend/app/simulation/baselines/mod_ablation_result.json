@@ -1,0 +1,756 @@
+{
+  "n": 1000,
+  "profile": "mid",
+  "upgrades": {
+    "max_hp": 2,
+    "attack": 2,
+    "init_gold": 2,
+    "gold_drop": 1,
+    "sink_cost": 1
+  },
+  "alpha": 0.05,
+  "pool": [
+    "mikiri",
+    "kasoku_dome",
+    "juso",
+    "hansha",
+    "yomi",
+    "kouki"
+  ],
+  "thresholds": {
+    "delta_single": 0.08,
+    "w_pair": 0.1,
+    "dead_hi": 0.01,
+    "broken_lo": 0.08
+  },
+  "full": {
+    "cleared": 311,
+    "rate": 0.311,
+    "ci_wilson": [
+      0.28307808979096444,
+      0.3403684778746912
+    ],
+    "avg_floor": 4.719,
+    "death_floor": {
+      "3": 44,
+      "4": 193,
+      "5": 452
+    },
+    "power_note": ""
+  },
+  "singles": {
+    "mikiri": {
+      "cohort": {
+        "cleared": 366,
+        "rate": 0.366,
+        "avg_floor": 4.749,
+        "death_floor": {
+          "3": 43,
+          "4": 165,
+          "5": 426
+        }
+      },
+      "contribution": -0.055,
+      "ci": [
+        -0.09599999999999997,
+        -0.0020000000000000018
+      ],
+      "within_pm_delta": false,
+      "mcnemar": {
+        "reject": true,
+        "direction": -1,
+        "ci": [
+          0.315,
+          0.49
+        ],
+        "n_disc": 263,
+        "evalue": 35.79281496865624
+      },
+      "evalue": 35.79281496865624,
+      "verdict": "trap",
+      "semantics": "presence_vs_absence",
+      "fdr_significant": true
+    },
+    "kasoku_dome": {
+      "cohort": {
+        "cleared": 253,
+        "rate": 0.253,
+        "avg_floor": 4.728,
+        "death_floor": {
+          "3": 41,
+          "4": 190,
+          "5": 516
+        }
+      },
+      "contribution": 0.058,
+      "ci": [
+        0.010000000000000009,
+        0.1080000000000001
+      ],
+      "within_pm_delta": false,
+      "mcnemar": {
+        "reject": true,
+        "direction": 1,
+        "ci": [
+          0.523,
+          0.6940000000000001
+        ],
+        "n_disc": 274,
+        "evalue": 87.95404364903409
+      },
+      "evalue": 87.95404364903409,
+      "verdict": "healthy",
+      "semantics": "presence_vs_absence",
+      "fdr_significant": true
+    },
+    "juso": {
+      "cohort": {
+        "cleared": 185,
+        "rate": 0.185,
+        "avg_floor": 4.655,
+        "death_floor": {
+          "3": 50,
+          "4": 245,
+          "5": 520
+        }
+      },
+      "contribution": 0.126,
+      "ci": [
+        0.07400000000000007,
+        0.16399999999999992
+      ],
+      "within_pm_delta": false,
+      "mcnemar": {
+        "reject": true,
+        "direction": 1,
+        "ci": [
+          0.649,
+          0.809
+        ],
+        "n_disc": 264,
+        "evalue": 1080143.074397732
+      },
+      "evalue": 1080143.074397732,
+      "verdict": "healthy",
+      "semantics": "presence_vs_absence",
+      "fdr_significant": true
+    },
+    "hansha": {
+      "cohort": {
+        "cleared": 341,
+        "rate": 0.341,
+        "avg_floor": 4.742,
+        "death_floor": {
+          "3": 43,
+          "4": 172,
+          "5": 444
+        }
+      },
+      "contribution": -0.03,
+      "ci": [
+        -0.07399999999999995,
+        0.026000000000000023
+      ],
+      "within_pm_delta": true,
+      "mcnemar": {
+        "reject": false,
+        "direction": 0,
+        "ci": [
+          0.371,
+          0.541
+        ],
+        "n_disc": 292,
+        "evalue": 1.221430411995145
+      },
+      "evalue": 1.221430411995145,
+      "verdict": "inconclusive",
+      "semantics": "incremental_beyond_fixed_1F",
+      "fdr_significant": false
+    },
+    "yomi": {
+      "cohort": {
+        "cleared": 352,
+        "rate": 0.352,
+        "avg_floor": 4.744,
+        "death_floor": {
+          "3": 43,
+          "4": 170,
+          "5": 435
+        }
+      },
+      "contribution": -0.041,
+      "ci": [
+        -0.09399999999999997,
+        0.0040000000000000036
+      ],
+      "within_pm_delta": false,
+      "mcnemar": {
+        "reject": false,
+        "direction": 0,
+        "ci": [
+          0.338,
+          0.503
+        ],
+        "n_disc": 281,
+        "evalue": 15.710856680900218
+      },
+      "evalue": 15.710856680900218,
+      "verdict": "dead",
+      "semantics": "presence_vs_absence",
+      "fdr_significant": false
+    },
+    "kouki": {
+      "cohort": {
+        "cleared": 129,
+        "rate": 0.129,
+        "avg_floor": 4.591,
+        "death_floor": {
+          "3": 61,
+          "4": 287,
+          "5": 523
+        }
+      },
+      "contribution": 0.182,
+      "ci": [
+        0.14400000000000013,
+        0.23399999999999999
+      ],
+      "within_pm_delta": false,
+      "mcnemar": {
+        "reject": true,
+        "direction": 1,
+        "ci": [
+          0.787,
+          0.912
+        ],
+        "n_disc": 262,
+        "evalue": 552586047930.7109
+      },
+      "evalue": 552586047930.7109,
+      "verdict": "broken",
+      "semantics": "presence_vs_absence",
+      "fdr_significant": true
+    }
+  },
+  "pairs": {
+    "mikiri|kasoku_dome": {
+      "cohort": {
+        "cleared": 288,
+        "rate": 0.288,
+        "avg_floor": 4.788,
+        "death_floor": {
+          "3": 39,
+          "4": 134,
+          "5": 539
+        }
+      },
+      "joint_contribution": 0.023,
+      "joint_ci": [
+        -0.020000000000000018,
+        0.08200000000000007
+      ],
+      "joint_evalue": 4.159630792440567,
+      "interaction": 0.02,
+      "interaction_ci": [
+        -0.052000000000000046,
+        0.08800000000000008
+      ],
+      "interaction_evalue": 1.0,
+      "interaction_ci_bootstrap": [
+        -0.03,
+        0.069
+      ],
+      "within_w": true,
+      "sign": "none",
+      "confounded_by_fixed_1F": false,
+      "joint_fdr_significant": false,
+      "interaction_fdr_significant": false
+    },
+    "mikiri|juso": {
+      "cohort": {
+        "cleared": 229,
+        "rate": 0.229,
+        "avg_floor": 4.723,
+        "death_floor": {
+          "3": 49,
+          "4": 179,
+          "5": 543
+        }
+      },
+      "joint_contribution": 0.082,
+      "joint_ci": [
+        0.03600000000000003,
+        0.12400000000000011
+      ],
+      "joint_evalue": 3619.144389123615,
+      "interaction": 0.011,
+      "interaction_ci": [
+        -0.052000000000000046,
+        0.07600000000000007
+      ],
+      "interaction_evalue": 1.01513671875,
+      "interaction_ci_bootstrap": [
+        -0.032,
+        0.055
+      ],
+      "within_w": true,
+      "sign": "none",
+      "confounded_by_fixed_1F": false,
+      "joint_fdr_significant": true,
+      "interaction_fdr_significant": false
+    },
+    "mikiri|hansha": {
+      "cohort": {
+        "cleared": 427,
+        "rate": 0.427,
+        "avg_floor": 4.799,
+        "death_floor": {
+          "3": 39,
+          "4": 123,
+          "5": 411
+        }
+      },
+      "joint_contribution": -0.116,
+      "joint_ci": [
+        -0.16600000000000004,
+        -0.06999999999999995
+      ],
+      "joint_evalue": 284310.08766620693,
+      "interaction": -0.031,
+      "interaction_ci": [
+        -0.10799999999999987,
+        0.03200000000000003
+      ],
+      "interaction_evalue": 3.306458512288106,
+      "interaction_ci_bootstrap": [
+        -0.081,
+        0.018
+      ],
+      "within_w": false,
+      "sign": "none",
+      "confounded_by_fixed_1F": true,
+      "joint_fdr_significant": true,
+      "interaction_fdr_significant": false
+    },
+    "mikiri|yomi": {
+      "cohort": {
+        "cleared": 433,
+        "rate": 0.433,
+        "avg_floor": 4.811,
+        "death_floor": {
+          "3": 39,
+          "4": 111,
+          "5": 417
+        }
+      },
+      "joint_contribution": -0.122,
+      "joint_ci": [
+        -0.14200000000000002,
+        -0.05599999999999994
+      ],
+      "joint_evalue": 43770.57014751369,
+      "interaction": -0.026,
+      "interaction_ci": [
+        -0.08399999999999985,
+        0.052000000000000046
+      ],
+      "interaction_evalue": 1.03125,
+      "interaction_ci_bootstrap": [
+        -0.076,
+        0.021
+      ],
+      "within_w": true,
+      "sign": "none",
+      "confounded_by_fixed_1F": false,
+      "joint_fdr_significant": true,
+      "interaction_fdr_significant": false
+    },
+    "mikiri|kouki": {
+      "cohort": {
+        "cleared": 178,
+        "rate": 0.178,
+        "avg_floor": 4.631,
+        "death_floor": {
+          "3": 55,
+          "4": 259,
+          "5": 508
+        }
+      },
+      "joint_contribution": 0.133,
+      "joint_ci": [
+        0.08800000000000008,
+        0.17399999999999993
+      ],
+      "joint_evalue": 11816908.873981101,
+      "interaction": 0.006,
+      "interaction_ci": [
+        -0.06000000000000005,
+        0.052000000000000046
+      ],
+      "interaction_evalue": 1.4901688376735662,
+      "interaction_ci_bootstrap": [
+        -0.033025,
+        0.046
+      ],
+      "within_w": true,
+      "sign": "none",
+      "confounded_by_fixed_1F": false,
+      "joint_fdr_significant": true,
+      "interaction_fdr_significant": false
+    },
+    "kasoku_dome|juso": {
+      "cohort": {
+        "cleared": 80,
+        "rate": 0.08,
+        "avg_floor": 4.691,
+        "death_floor": {
+          "3": 49,
+          "4": 211,
+          "5": 660
+        }
+      },
+      "joint_contribution": 0.231,
+      "joint_ci": [
+        0.17999999999999994,
+        0.266
+      ],
+      "joint_evalue": 2972407910985252.0,
+      "interaction": 0.047,
+      "interaction_ci": [
+        -0.016000000000000014,
+        0.10400000000000009
+      ],
+      "interaction_evalue": 4.059126876088936,
+      "interaction_ci_bootstrap": [
+        0.002,
+        0.089
+      ],
+      "within_w": false,
+      "sign": "none",
+      "confounded_by_fixed_1F": false,
+      "joint_fdr_significant": true,
+      "interaction_fdr_significant": false
+    },
+    "kasoku_dome|hansha": {
+      "cohort": {
+        "cleared": 270,
+        "rate": 0.27,
+        "avg_floor": 4.77,
+        "death_floor": {
+          "3": 39,
+          "4": 152,
+          "5": 539
+        }
+      },
+      "joint_contribution": 0.041,
+      "joint_ci": [
+        0.0040000000000000036,
+        0.1080000000000001
+      ],
+      "joint_evalue": 25.887892994522087,
+      "interaction": 0.013,
+      "interaction_ci": [
+        -0.052000000000000046,
+        0.08400000000000007
+      ],
+      "interaction_evalue": 1.4206947078764198,
+      "interaction_ci_bootstrap": [
+        -0.039,
+        0.06
+      ],
+      "within_w": true,
+      "sign": "none",
+      "confounded_by_fixed_1F": true,
+      "joint_fdr_significant": true,
+      "interaction_fdr_significant": false
+    },
+    "kasoku_dome|yomi": {
+      "cohort": {
+        "cleared": 282,
+        "rate": 0.282,
+        "avg_floor": 4.785,
+        "death_floor": {
+          "3": 38,
+          "4": 139,
+          "5": 541
+        }
+      },
+      "joint_contribution": 0.029,
+      "joint_ci": [
+        -0.020000000000000018,
+        0.08400000000000007
+      ],
+      "joint_evalue": 1.695217759136586,
+      "interaction": 0.012,
+      "interaction_ci": [
+        -0.05600000000000005,
+        0.08400000000000007
+      ],
+      "interaction_evalue": 1.283546243616911,
+      "interaction_ci_bootstrap": [
+        -0.037,
+        0.056
+      ],
+      "within_w": true,
+      "sign": "none",
+      "confounded_by_fixed_1F": false,
+      "joint_fdr_significant": false,
+      "interaction_fdr_significant": false
+    },
+    "kasoku_dome|kouki": {
+      "cohort": {
+        "cleared": 93,
+        "rate": 0.093,
+        "avg_floor": 4.606,
+        "death_floor": {
+          "3": 54,
+          "4": 286,
+          "5": 567
+        }
+      },
+      "joint_contribution": 0.218,
+      "joint_ci": [
+        0.17199999999999993,
+        0.26
+      ],
+      "joint_evalue": 3.0355474561167308e+16,
+      "interaction": -0.022,
+      "interaction_ci": [
+        -0.08799999999999986,
+        0.02400000000000002
+      ],
+      "interaction_evalue": 3.624291209947639,
+      "interaction_ci_bootstrap": [
+        -0.062,
+        0.016024999999999862
+      ],
+      "within_w": true,
+      "sign": "none",
+      "confounded_by_fixed_1F": false,
+      "joint_fdr_significant": true,
+      "interaction_fdr_significant": false
+    },
+    "juso|hansha": {
+      "cohort": {
+        "cleared": 139,
+        "rate": 0.139,
+        "avg_floor": 4.674,
+        "death_floor": {
+          "3": 53,
+          "4": 220,
+          "5": 588
+        }
+      },
+      "joint_contribution": 0.172,
+      "joint_ci": [
+        0.12200000000000011,
+        0.21799999999999997
+      ],
+      "joint_evalue": 964029083.517492,
+      "interaction": 0.076,
+      "interaction_ci": [
+        0.01200000000000001,
+        0.14400000000000013
+      ],
+      "interaction_evalue": 44.37529569254504,
+      "interaction_ci_bootstrap": [
+        0.028,
+        0.121
+      ],
+      "within_w": false,
+      "sign": "substitute",
+      "confounded_by_fixed_1F": true,
+      "joint_fdr_significant": true,
+      "interaction_fdr_significant": false
+    },
+    "juso|yomi": {
+      "cohort": {
+        "cleared": 171,
+        "rate": 0.171,
+        "avg_floor": 4.696,
+        "death_floor": {
+          "3": 50,
+          "4": 204,
+          "5": 575
+        }
+      },
+      "joint_contribution": 0.14,
+      "joint_ci": [
+        0.09800000000000009,
+        0.19399999999999995
+      ],
+      "joint_evalue": 20976843.67880182,
+      "interaction": 0.055,
+      "interaction_ci": [
+        0.008000000000000007,
+        0.13200000000000012
+      ],
+      "interaction_evalue": 33.83336522143753,
+      "interaction_ci_bootstrap": [
+        0.009,
+        0.098
+      ],
+      "within_w": false,
+      "sign": "substitute",
+      "confounded_by_fixed_1F": false,
+      "joint_fdr_significant": true,
+      "interaction_fdr_significant": false
+    },
+    "juso|kouki": {
+      "cohort": {
+        "cleared": 40,
+        "rate": 0.04,
+        "avg_floor": 4.465,
+        "death_floor": {
+          "3": 70,
+          "4": 395,
+          "5": 495
+        }
+      },
+      "joint_contribution": 0.271,
+      "joint_ci": [
+        0.22399999999999998,
+        0.31400000000000006
+      ],
+      "joint_evalue": 1.3214620826530203e+23,
+      "interaction": -0.037,
+      "interaction_ci": [
+        -0.09599999999999986,
+        0.016000000000000014
+      ],
+      "interaction_evalue": 4.047919632607443,
+      "interaction_ci_bootstrap": [
+        -0.077,
+        0.0
+      ],
+      "within_w": true,
+      "sign": "none",
+      "confounded_by_fixed_1F": false,
+      "joint_fdr_significant": true,
+      "interaction_fdr_significant": false
+    },
+    "hansha|yomi": {
+      "cohort": {
+        "cleared": 394,
+        "rate": 0.394,
+        "avg_floor": 4.77,
+        "death_floor": {
+          "3": 43,
+          "4": 144,
+          "5": 419
+        }
+      },
+      "joint_contribution": -0.083,
+      "joint_ci": [
+        -0.128,
+        -0.02400000000000002
+      ],
+      "joint_evalue": 553.7287922704679,
+      "interaction": -0.012,
+      "interaction_ci": [
+        -0.08799999999999986,
+        0.07200000000000006
+      ],
+      "interaction_evalue": 1.3119466621375955,
+      "interaction_ci_bootstrap": [
+        -0.067,
+        0.04102499999999987
+      ],
+      "within_w": true,
+      "sign": "none",
+      "confounded_by_fixed_1F": true,
+      "joint_fdr_significant": true,
+      "interaction_fdr_significant": false
+    },
+    "hansha|kouki": {
+      "cohort": {
+        "cleared": 119,
+        "rate": 0.119,
+        "avg_floor": 4.575,
+        "death_floor": {
+          "3": 58,
+          "4": 309,
+          "5": 514
+        }
+      },
+      "joint_contribution": 0.192,
+      "joint_ci": [
+        0.14200000000000013,
+        0.23199999999999998
+      ],
+      "joint_evalue": 725414880891.4469,
+      "interaction": 0.04,
+      "interaction_ci": [
+        -0.03200000000000003,
+        0.09200000000000008
+      ],
+      "interaction_evalue": 1.5567960632539697,
+      "interaction_ci_bootstrap": [
+        -0.004,
+        0.081
+      ],
+      "within_w": true,
+      "sign": "none",
+      "confounded_by_fixed_1F": true,
+      "joint_fdr_significant": true,
+      "interaction_fdr_significant": false
+    },
+    "yomi|kouki": {
+      "cohort": {
+        "cleared": 132,
+        "rate": 0.132,
+        "avg_floor": 4.612,
+        "death_floor": {
+          "3": 54,
+          "4": 280,
+          "5": 534
+        }
+      },
+      "joint_contribution": 0.179,
+      "joint_ci": [
+        0.1280000000000001,
+        0.21599999999999997
+      ],
+      "joint_evalue": 89350567066.18056,
+      "interaction": 0.038,
+      "interaction_ci": [
+        -0.03200000000000003,
+        0.09600000000000009
+      ],
+      "interaction_evalue": 1.665875873503823,
+      "interaction_ci_bootstrap": [
+        -0.004,
+        0.077
+      ],
+      "within_w": true,
+      "sign": "none",
+      "confounded_by_fixed_1F": false,
+      "joint_fdr_significant": true,
+      "interaction_fdr_significant": false
+    }
+  },
+  "fdr": {
+    "family_direct_rejected": [
+      "mikiri",
+      "kasoku_dome",
+      "juso",
+      "kouki",
+      "mikiri|juso",
+      "mikiri|hansha",
+      "mikiri|yomi",
+      "mikiri|kouki",
+      "kasoku_dome|juso",
+      "kasoku_dome|hansha",
+      "kasoku_dome|kouki",
+      "juso|hansha",
+      "juso|yomi",
+      "juso|kouki",
+      "hansha|yomi",
+      "hansha|kouki",
+      "yomi|kouki"
+    ],
+    "family_interaction_rejected": []
+  },
+  "verdict": "warn",
+  "_comment": "mod寄与 ablation（GDD §18.2 Phase3・OPEN-023）。プール差し替えは実行中のみで data/*.json・エンジンは不変。分類は §18.4 の非対称運用でデザイナー（人間）判断＝厳格ゲートなし・Goodhart回避。hansha は 1F 確定分を除いた追加取得寄与を測る。"
+}
