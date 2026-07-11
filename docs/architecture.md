@@ -128,6 +128,7 @@
 | API通信は `gameApi.ts` に集約（直接fetchしない） | TanStack Query移行時にこのファイルだけ変更 |
 | DB操作はSQLAlchemy経由（生SQLを書かない） | PostgreSQL移行コストを最小化（型・並行性差＝JSON列/`server_default`/autoincrement 等の検証は別途必要。「1行で移行」は楽観表現のため撤回） |
 | ダメージ計算は `attack × multiplier` で記述 | フェーズB（stance）追加に備える |
+| uvicorn は **workers=1（単一ワーカー）**で運用する | 同一 `session_id` への複数ワーカー同時書き込み競合は未ハードニング（[runbook.md](runbook.md) §1）。※v1.3 で明文化済みの制約が分割時に脱落していたため復元 |
 
 ---
 
