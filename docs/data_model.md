@@ -187,6 +187,6 @@ RunRecord:
 | `cleared` | `{ gate_outcome, special_bonus }` |
 | 空宝箱 / 勝利 | `{ empty_treasure }` / `{ victory }` |
 
-> **dismiss との対応（要確定）**：`empty_treasure`・`victory` がどの phase に属し、どの操作（`/continue` か次操作での自動消去か）で解消されるかは本書未定義。実装準拠の追記が必要（OPEN-013 の契約検査とあわせて確定）。
+> **dismiss との対応（要確定）**：`empty_treasure`・`victory` がどの phase に属し、どの操作（`/continue` か次操作での自動消去か）で解消されるかは本書未定義。実装準拠の追記が必要（**OPEN-037** で確定。旧記述は解消済み OPEN-013 に紐づいていたため付替え）。
 
 ---
