@@ -105,15 +105,15 @@ def test_hansha_not_on_heavy(data):
 def test_mikiri_halves_evade_weight(data):
     e = make_enemy(behaviors=[("evade", 60), ("counter", 40)])
     p = Player(hp=100, max_hp=100, attack=15, chips=50, mods=[MIKIRI])
-    eff = cr.effective_behaviors(p, e)
-    assert dict(eff)["evade"] == 30           # 60 * 0.5
+    eff = cr.effective_behaviors(p, data, e)
+    assert dict(eff)["evade"] == 30           # 60 * value_1(0.5)（mods.json が正本）
     assert dict(eff)["counter"] == 40
 
 
 def test_mikiri_stack_zeroes_evade(data):
     e = make_enemy(behaviors=[("evade", 60), ("counter", 40)])
     p = Player(hp=100, max_hp=100, attack=15, chips=50, mods=[MIKIRI, MIKIRI])
-    eff = cr.effective_behaviors(p, e)
+    eff = cr.effective_behaviors(p, data, e)
     assert dict(eff)["evade"] == 0
     # 実際にロールしても evade は出ない
     for i in range(50):
