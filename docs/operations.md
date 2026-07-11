@@ -15,7 +15,11 @@
 | 死亡フロア分布 | 終盤集中は許容。最終フロア以外の単一フロアが死亡の Z% を超えない | 暫定 |
 | 単一mod寄与 | ±8pt以内（平均寄与のみ） | 暫定 |
 | modペア寄与（synergy） | 主要ペアの交互作用が ±W pt 以内 | 暫定（追加・OPEN-023） |
-| 初クリアまでの期待ラン数（人間相当bot） | 観測のみ・閾値なし（win-to-progress の体験曲線監視・OPEN-029） | 暫定（追加） |
+| 初クリアまでの期待ラン数（人間相当bot） | 観測のみ・閾値なし（win-to-progress の体験曲線監視・OPEN-029) | 暫定（追加） |
+| 全死亡に占めるゲート死率 | 観測のみ・閾値なし（柱②「運だけで死なせない」の納得感監視。`gate_results` から算出可） | 暫定（追加・v1.9） |
+| チップ枯渇率 | 観測のみ・閾値なし（枯渇状態での戦闘突入比率。§13.3 の枯渇側監視） | 暫定（追加・v1.9） |
+| サイドベット収支・的中率 | 観測のみ（informed=+EV / naive=−EV の帯検証は Phase4・OPEN-031） | 暫定（追加・v1.9） |
+| 1ラン実時間（duration） | 観測のみ（目標は PRD §27.3 の 20〜30分叩き台。テレメトリ追加は OPEN-031 と併走） | 暫定（追加・v1.9） |
 
 > **有意性ハック回避（§18.4 Goodhart）**：bot大量試行では n が大きく僅差でも p<0.05・CI0非跨ぎを満たすため、スキル幅・選択感度・初手差は**最小効果量（X/Y pt）を CI下限とともに要求**する（`balance_stats.py` の TOST=同値検定も併用）。
 > **死亡フロア分布**：難度ランプのあるパーマデスでは終盤集中が正常。「集中しない」は偽陽性を生むため、終盤集中を許容し「最終フロア以外の単一フロアが過度に偏らない」基準へ置換。
@@ -32,7 +36,7 @@
 | Phase 1 | クリア率帯域 | phase12_harness.py |
 | Phase 2 | スキル幅・選択感度 | + balance_stats.py |
 | Phase 3 | mod単体・ペア影響（FDR） | balance_stats.py(e-BH) + balance_analysis.py(ablation) |
-| Phase 4 | 経済・sink ROI・hoarder | balance_analysis.py |
+| Phase 4 | 経済・sink ROI・hoarder・**サイドベット込み経済シナリオ（OPEN-031）** | balance_analysis.py |
 | Phase 5 | 回帰テスト（CI） | GitHub Actions |
 
 > **注記**：Phase0「バグゼロ」は検証不能のため「全テストgreen／既知P0=0」に置換。`fun_metrics.py` は特定Phaseに紐づかない**探索的ツール（合格条件外）**。Phase3 の e-BH は `balance_stats.py`、mod アブレーションは `balance_analysis.py`（旧記述は balance_analysis 単独に見えたため訂正）。guard（§8.4）を正式化する場合は bot 戦略に guard を含めて Phase1-4 を再測定（OPEN-018）。Phase5 の GitHub Actions は **docs-ci に加えて balance.yml（pytest＋バランス回帰 `test_balance_regression`）が稼働済み**（旧記述「未整備」は古い）。回帰基準の再生成は `python -m app.simulation.gen_baseline`（意図的変更の承認手順）。
@@ -88,6 +92,15 @@
 - ラン終了時に RunRecord が保存され、`cleared`/`dead` が正しく記録される
 
 > **TS版SFC32の用途**：本番のクライアント計算は無い（原則1「Reactは計算しない」）。TS黄金テストは将来のオフライン/演出用途に向けた**RNGパリティの凍結**であり、演出で使う場合も rng 状態は露出しない演出専用シードに限定する。
+
+### 18.6 人間プレイテスト計画（v1.9 追加・骨子）
+
+バランス検証全体が bot の人間代表性に依存する（§18.1 注記）ため、Phase1 の帯確定後に最小構成の人間プレイテストを行う。**人数・観察項目の最終確定はデザイナー**。
+
+- **対象（叩き台）**：3〜5人（ローグライト経験者2以上＋未経験1以上）・各3ラン以上
+- **観察**：初クリアまでのラン数（OPEN-029）／ラン放棄点＝どのフロア・どの敵で投げたか（OPEN-032 の記録が前提）／guard・サイドベット・スカウトの使用率（テレメトリ実装済み）／操作に詰まった画面のメモ
+- **収集**：RunRecord（`bot_type=human`。UIクライアントは bot_type を送出しない規約＝§25.2）＋口頭フィードバック。統計比較は `data_version` で世代を固定して行う
+- テスト結果は「合格条件」ではなく**デザイナーの判断材料**（§18.4 Goodhart 回避に準拠）
 
 ---
 

@@ -255,7 +255,55 @@ next_floor:
 ### 26.8 レスポンシブ方針
 
 - デスクトップファースト（情報密度の高いツリー表示が主役）。**サポート最低幅 `min-width: 1024px`**（それ未満は将来対応・モバイルは非スコープ§0.4）
+- 対応ブラウザの範囲は product_requirements.md §27.2（Chromium系/Firefox 最新2版・Safari ベストエフォート・叩き台）
 - 将来のモバイル対応は共通コンポーネントのTailwindレスポンシブクラスで吸収
 - TreeCanvasのみモバイルで縦スクロール対応が必要（将来課題）
+
+---
+
+## 28. フロント実装規約（v1.9 追加）
+
+> サーバ側の原則（完全状態返却・available_actions 正本・冪等性なし=OPEN-026）の**フロント側の受け**を規約化する章。
+
+### 28.1 通信規約（冪等性なし期間の防波堤）
+
+- **in-flight 中の操作ロック**：mutating POST の応答待ちの間、全アクションボタンを disabled にする（連打・ダブルクリックによる二重POSTの防止）
+- **mutating POST は自動リトライしない**：タイムアウト・失敗時に同じ POST を再送しない（`gate_guarantee` 二重課金・`/attack` 二重進行＝RNGドリフトの防止・§25.2 注記）。復旧は **`GET /run/{session_id}` による状態再同期を正**とする
+- gameApi.ts 以外から fetch しない（§22.3）。backend URL の解決方式（Vite dev proxy か `VITE_API_BASE_URL`）は ONBOARDING §8 へ明記する（現状未文書化・OPEN-027 の Docker 化受入条件に含める）
+
+### 28.2 エラーUX（status→挙動の対応表）
+
+| status | 表示 | 回復アクション |
+|---|---|---|
+| 400 | ErrorToast（操作不可の理由） | 状態はそのまま（`available_actions` に従っていれば原則発生しない） |
+| 404 | 「セッションが見つからない」 | 保存済み session_id を破棄して StartPage へ |
+| 409 | ErrorToast（phase不整合） | `GET /run/{id}` で状態再同期（多重タブ・stale 画面が典型原因） |
+| 422 | ErrorToast（入力不正） | 入力修正（seed 範囲外等） |
+| 500 / ネットワーク断 | 「通信に失敗した」＋再試行導線 | 再試行は **GET（状態再同期）のみ**。mutating POST の再送はしない（§28.1） |
+
+将来のエラーbody構造化（`error_code`・OPEN-026）はこの表の分岐キーとして接続する。
+
+### 28.3 セッション復帰（骨子・詳細は OPEN-032 で確定）
+
+- session_id は **localStorage に保存**（叩き台）。起動時に `GET /run/{id}` を試行し、**進行中なら該当 phase の Page へ復帰**、404/終端 phase なら破棄して StartPage
+- StartPage に**「続きから」導線**を追加（進行中ランがある場合のみ表示）
+- リロード・ブラウザバックは「保存済み session_id からの再同期」に帰着させる（SPA内の履歴遷移は持たない）
+- 保存キーの命名・TTL失効時（7日・runbook §1）の文言・リタイア導線は OPEN-032 で確定
+
+### 28.4 多重タブ
+
+- **非サポート・後勝ち**：サーバの正が常に勝ち、stale なタブの表示は次のレスポンスで上書きされる（409 は §28.2 に従い再同期）。タブ間同期・同時起動警告は将来課題
+
+### 28.5 gameStore（Zustand）の状態規約
+
+- **サーバの完全状態（snapshot）で全置換**する。差分マージ・フロント側での派生状態キャッシュはしない（原則6「完全なゲーム状態を返す」のフロント側の対・§25.1）
+- store が持つもの：GameState（サーバ由来）／catalog・dossier・postmortem 等の取得データ／UI ローカル状態（loading・error・演出フラグ・dossierOpen）
+- loading / error は store で一元管理し、§28.1 の操作ロックはここから導出する
+- TanStack Query 移行（§22.2）時は gameApi.ts と本節の取得系だけが置き換わる境界とする
+
+### 28.6 フロントのテスト方針（現状宣言）
+
+- v1.x 当面は **lint＋typecheck＋build のみ**（frontend-ci）。ユニット/E2E は未導入＝§18.5 の UI 受入条件は手動確認（「やらない」ことをここで明示する）
+- 導入する場合の優先順位：①Playwright スモーク1本（new→1F突破→ゲート通過）②gameApi / labels のユニット（Vitest）。導入判断は Phase5（CI 回帰整備）で行う
 
 ---
