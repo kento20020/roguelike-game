@@ -16,7 +16,7 @@
 | [frontend_design.md](frontend_design.md) | 画面・コンポーネント・UI責務・死亡/クリア画面 | §15, §24, §26 |
 | [backend_design.md](backend_design.md) | 状態遷移(phase)・ランタイム状態・ドメインロジック方針 | §6, §20.4 |
 | [data_model.md](data_model.md) | DB・永続化・RunRecord・データモデル・通貨正準 | §0.3, §19, §20（除 §20.4） |
-| [operations.md](operations.md) | バランス検証・未決事項（OPEN-001〜027）・運用方針 | §18, §21 |
+| [operations.md](operations.md) | バランス検証・未決事項（OPEN-001〜044）・運用方針 | §18, §21 |
 | [runbook.md](runbook.md) | 障害時手順（骨子・多くは OPEN-027 で未整備） | — |
 | [changelog.md](changelog.md) | 変更履歴（v0.6〜現行。**現行版の正本＝先頭エントリ**） | 付録 |
 | [adr/](adr/) | アーキテクチャ決定記録（FastAPI / サーバ権威 / SQLite先行） | §22 由来 |

@@ -7,7 +7,7 @@
 
 - ゲームの全ロジックはバックエンド。フロントは操作を送って新しい状態を受け取るだけ
 - 各レスポンスは**完全なゲーム状態**を返す（フロントは差分計算不要）
-- `session_id`（uuid）でランを識別。**進行中の GameState は `session_store` がプロセス内メモリで保持**し、DBへは**確定 RunRecord と Profile のみ**を永続化する（`session_store.py`）。**サーバ再起動で進行中ランは失われる**（単一プロセス前提・OPEN-007/026）。`GET /run/{id}`（再開）は同一プロセス生存中のみ成立。旧記述「DBに永続化」は実態と不一致だったため訂正。
+- `session_id`（uuid）でランを識別。進行中ランは**「seed＋初期upgrades＋適用アクション列」が `active_sessions`（SQLite）へ記録**され、`session_store` はその**LRU上限（既定500）つきホットキャッシュ**（v1.5・OPEN-007 解消）。**サーバ再起動・LRU追い出し後も `GET /run/{id}` は `replay.rebuild_engine` による再構築で透過的に復元される**（TTL=既定7日・手順詳細は [runbook.md](runbook.md) §1）。確定 RunRecord と Profile は従来どおり終局時に永続化。既知の限界は同一 `session_id` への**複数ワーカー同時書き込み競合**のみ（未ハードニング・workers=1 運用が前提・OPEN-026）。※旧記述「サーバ再起動で進行中ランは失われる」は v1.5 で解消済みのため訂正。
 - **完全状態返却の例外**：`/upgrade`・`/profile/upgrades` は `UpgradeState`、`/catalog/mods` は `ModCatalogItem[]`、`/catalog/enemies` は `EnemyCatalogItem[]`、`/stats/history` は `RunRecord[]`、`/run/{sid}/postmortem` は `PostmortemResponse`、`/profile/dossier` は `DossierEnemyOut[]` を返す（原則6の明示的例外）。
 - **seed 非露出（§17.3・v1.4 実装）**：進行中の GameState は `run_record: null`。RunRecord（seed 含む）は終端 phase（dead/cleared）でのみ返る。
 
@@ -16,7 +16,7 @@
 | メソッド | パス | 用途 | リクエスト | レスポンス |
 |---------|------|------|----------|----------|
 | POST | `/api/run/new` | 新規ラン開始 | `{ seed?: int, bot_type?: str }` | `GameState` |
-| GET | `/api/run/{session_id}` | 状態取得（再開・同一プロセス生存中） | — | `GameState` |
+| GET | `/api/run/{session_id}` | 状態取得（再開。キャッシュミス時はアクションログから透過復元・v1.5） | — | `GameState` |
 | POST | `/api/run/{session_id}/select-node` | ノード選択 | `{ node_id }` | `GameState` |
 | POST | `/api/run/{session_id}/attack` | 攻撃 | `{ side_bet?: {behavior, amount} }` | `GameState` |
 | POST | `/api/run/{session_id}/guard` | 受け（防御・§8.4） | `{ side_bet?: {behavior, amount} }` | `GameState` |
@@ -63,6 +63,10 @@
 | 400 | 不正な操作（ロック中ノード選択・チップ不足・未対応sink_type等） |
 | 404 | session_idが存在しない |
 | 409 | phase不整合（戦闘中にノード選択等） |
+| 422 | 入力検証エラー（Pydantic。`seed` 範囲外・`limit` 範囲外等・v1.4） |
+| 500 | サーバ内部エラー（想定内経路の例: セッション再構築失敗＝`deps.py`。調査手順は runbook.md §2） |
+
+> ※422/500 は従来この表に無く本節の注記・runbook にのみ散在していたため v1.9 で表へ集約（「表の3種だけ処理すればよい」という誤読の防止）。`GET /postmortem` の**未計算時**（死亡直後の取得タイミング）の応答は実装準拠で未確定＝OPEN-044。
 
 **phase不整合の例（サーバ側で必ず拒否＝409）**：フロントで防いでいてもバックエンドの防御は必須。
 
