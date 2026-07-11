@@ -1,6 +1,6 @@
 # ゲーム設計書（インデックス） — カジノタワー ローグライト
 
-> **v1.10**（OPEN-030 難易度調整＋帯基準改訂。現行版の正本は [changelog.md](changelog.md) 先頭エントリ）。本書は従来1ファイルに集約していた設計書を役割別に分割した**目次（インデックス）**です。各内容は下記の分割ファイルが正本。相互参照の §番号・OPEN-xxx は分割前の番号を維持しています。
+> **v1.11**（Phase2 実施＋効果量閾値の事前登録。現行版の正本は [changelog.md](changelog.md) 先頭エントリ）。本書は従来1ファイルに集約していた設計書を役割別に分割した**目次（インデックス）**です。各内容は下記の分割ファイルが正本。相互参照の §番号・OPEN-xxx は分割前の番号を維持しています。
 > 数値の正本は `backend/app/data/*.json`（config/enemies/mods/floors）。API実形は `engine.snapshot()` / Pydantic（`backend/app/schemas`）。
 
 確率ベースの戦闘を核に、**カジノタワーを登り詰める**5フロアのパーマデス制ローグライト。React(表示) + FastAPI(全ロジック) のモノレポ。ゲームロジックはすべて Python 側に集約し、同じエンジンを API と bot シミュレーションの両方が呼ぶ。
@@ -16,7 +16,7 @@
 | [frontend_design.md](frontend_design.md) | 画面・コンポーネント・UI責務・死亡/クリア画面 | §15, §24, §26 |
 | [backend_design.md](backend_design.md) | 状態遷移(phase)・ランタイム状態・ドメインロジック方針 | §6, §20.4 |
 | [data_model.md](data_model.md) | DB・永続化・RunRecord・データモデル・通貨正準 | §0.3, §19, §20（除 §20.4） |
-| [operations.md](operations.md) | バランス検証・未決事項（OPEN-001〜044）・運用方針 | §18, §21 |
+| [operations.md](operations.md) | バランス検証・未決事項（OPEN-001〜046）・運用方針 | §18, §21 |
 | [balance_model.md](balance_model.md) | 統合バランスモデル（フロア別目標カーブ・ゲート/チップ収支・調整ノブ対応。**目標側**のクラスS文書＝数値の正本は JSON・v1.9 新設） | — |
 | [playtest_plan.md](playtest_plan.md) | 人間プレイテスト実施計画（§18.6 の実施正本・v1.9 新設） | — |
 | [runbook.md](runbook.md) | 障害時手順（骨子・多くは OPEN-027 で未整備） | — |
