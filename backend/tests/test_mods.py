@@ -102,11 +102,11 @@ def test_hansha_not_on_heavy(data):
 
 
 # ── 見切り (mikiri) ──
-def test_mikiri_halves_evade_weight(data):
+def test_mikiri_reduces_evade_weight(data):
     e = make_enemy(behaviors=[("evade", 60), ("counter", 40)])
     p = Player(hp=100, max_hp=100, attack=15, chips=50, mods=[MIKIRI])
     eff = cr.effective_behaviors(p, data, e)
-    assert dict(eff)["evade"] == 30           # 60 * value_1(0.5)（mods.json が正本）
+    assert dict(eff)["evade"] == 15           # 60 * value_1(0.25)（mods.json が正本・Phase3是正）
     assert dict(eff)["counter"] == 40
 
 
@@ -186,9 +186,9 @@ def test_yomi_pre_rolls_and_consumes(data):
     assert b.pending_action is None
 
 
-def test_yomi_single_only_turn1(data):
-    """yomi 1枚は本来turn1のみ公開。tell_system フラグは「常に先引き」する試作仕様なので、
-    このテストの意図（1枚ならturn2は非公開）を保つには明示的にOFFにして検証する。
+def test_yomi_single_two_turns(data):
+    """yomi 1枚は turn2 まで公開（Phase3是正: value_1=2）。turn3 は非公開。
+    tell_system フラグは「常に先引き」する試作仕様なので、明示的にOFFにして検証する。
     """
     prev_flag = data.config.get("feature_flags", {}).get("tell_system")
     data.config.setdefault("feature_flags", {})["tell_system"] = False
@@ -196,21 +196,27 @@ def test_yomi_single_only_turn1(data):
         e = make_enemy(behaviors=[("counter", 100)])
         p, b = mk(e, mods=[YOMI])
         cr.prepare_preview(b, p, data, Sfc32(5))
-        cr.resolve_turn(b, p, data, DUMMY)         # turn1 完了
-        cr.prepare_preview(b, p, data, Sfc32(5))   # turn2: 公開しない
+        assert b.pending_action == "counter"       # turn1 公開
+        cr.resolve_turn(b, p, data, DUMMY)
+        cr.prepare_preview(b, p, data, Sfc32(5))   # turn2 も公開
+        assert b.pending_action == "counter"
+        cr.resolve_turn(b, p, data, DUMMY)
+        cr.prepare_preview(b, p, data, Sfc32(5))   # turn3: 公開しない
         assert b.pending_action is None
     finally:
         data.config["feature_flags"]["tell_system"] = prev_flag
 
 
-def test_yomi_stack_two_turns(data):
+def test_yomi_stack_four_turns(data):
+    """yomi 2枚は turn4 まで公開（Phase3是正: value_stack=4）。turn5 は非公開。"""
     e = make_enemy(behaviors=[("counter", 100)])
     p, b = mk(e, mods=[YOMI, YOMI])
-    cr.prepare_preview(b, p, data, Sfc32(5))
-    assert b.pending_action == "counter"
-    cr.resolve_turn(b, p, data, DUMMY)
-    cr.prepare_preview(b, p, data, Sfc32(5))   # turn2 も公開
-    assert b.pending_action == "counter"
+    for _ in range(4):                          # turn1..4 公開
+        cr.prepare_preview(b, p, data, Sfc32(5))
+        assert b.pending_action == "counter"
+        cr.resolve_turn(b, p, data, DUMMY)
+    cr.prepare_preview(b, p, data, Sfc32(5))    # turn5: 公開しない
+    assert b.pending_action is None
 
 
 # ── テル試作 (feature_flags.tell_system) ──

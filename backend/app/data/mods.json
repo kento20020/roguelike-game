@@ -4,10 +4,10 @@
   "mods": [
     {
       "id": "mikiri", "name": "見切り",
-      "effect_1": "evadeの行動weightを50%削減",
+      "effect_1": "evadeの行動weightを75%削減",
       "effect_stack": "evade weight=0（完全無効化）",
       "hook": "behavior_roll", "target": "evade_weight",
-      "value_1": 0.5, "value_stack": 0.0
+      "value_1": 0.25, "value_stack": 0.0
     },
     {
       "id": "kasoku_dome", "name": "加速止め",
@@ -32,10 +32,10 @@
     },
     {
       "id": "yomi", "name": "先読み",
-      "effect_1": "各戦闘1ターン目の行動を事前公開",
-      "effect_stack": "2ターン目まで公開",
+      "effect_1": "各戦闘2ターン目までの行動を事前公開",
+      "effect_stack": "4ターン目まで公開",
       "hook": "info_reveal", "target": "preview_turns",
-      "value_1": 1, "value_stack": 2
+      "value_1": 2, "value_stack": 4
     },
     {
       "id": "kouki", "name": "好機",
