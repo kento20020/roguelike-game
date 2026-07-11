@@ -24,195 +24,195 @@
     "broken_lo": 0.08
   },
   "full": {
-    "cleared": 311,
-    "rate": 0.311,
+    "cleared": 344,
+    "rate": 0.344,
     "ci_wilson": [
-      0.28307808979096444,
-      0.3403684778746912
+      0.3152039757998436,
+      0.37399001655911024
     ],
-    "avg_floor": 4.719,
+    "avg_floor": 4.75,
     "death_floor": {
-      "3": 44,
-      "4": 193,
-      "5": 452
+      "3": 37,
+      "4": 176,
+      "5": 443
     },
     "power_note": ""
   },
   "singles": {
     "mikiri": {
       "cohort": {
-        "cleared": 366,
-        "rate": 0.366,
-        "avg_floor": 4.749,
+        "cleared": 406,
+        "rate": 0.406,
+        "avg_floor": 4.783,
         "death_floor": {
-          "3": 43,
-          "4": 165,
-          "5": 426
+          "3": 35,
+          "4": 147,
+          "5": 412
         }
       },
-      "contribution": -0.055,
+      "contribution": -0.062,
       "ci": [
-        -0.09599999999999997,
-        -0.0020000000000000018
+        -0.11599999999999999,
+        -0.02200000000000002
       ],
       "within_pm_delta": false,
       "mcnemar": {
         "reject": true,
         "direction": -1,
         "ci": [
-          0.315,
-          0.49
+          0.296,
+          0.46
         ],
-        "n_disc": 263,
-        "evalue": 35.79281496865624
+        "n_disc": 280,
+        "evalue": 250.76887446399
       },
-      "evalue": 35.79281496865624,
+      "evalue": 250.76887446399,
       "verdict": "trap",
       "semantics": "presence_vs_absence",
       "fdr_significant": true
     },
     "kasoku_dome": {
       "cohort": {
-        "cleared": 253,
-        "rate": 0.253,
-        "avg_floor": 4.728,
+        "cleared": 283,
+        "rate": 0.283,
+        "avg_floor": 4.769,
         "death_floor": {
-          "3": 41,
-          "4": 190,
-          "5": 516
+          "3": 32,
+          "4": 167,
+          "5": 518
         }
       },
-      "contribution": 0.058,
+      "contribution": 0.061,
       "ci": [
         0.010000000000000009,
-        0.1080000000000001
+        0.1100000000000001
       ],
       "within_pm_delta": false,
       "mcnemar": {
         "reject": true,
         "direction": 1,
         "ci": [
-          0.523,
-          0.6940000000000001
+          0.52,
+          0.6900000000000001
         ],
-        "n_disc": 274,
-        "evalue": 87.95404364903409
+        "n_disc": 289,
+        "evalue": 80.84347109211696
       },
-      "evalue": 87.95404364903409,
+      "evalue": 80.84347109211696,
       "verdict": "healthy",
       "semantics": "presence_vs_absence",
       "fdr_significant": true
     },
     "juso": {
       "cohort": {
-        "cleared": 185,
-        "rate": 0.185,
-        "avg_floor": 4.655,
+        "cleared": 229,
+        "rate": 0.229,
+        "avg_floor": 4.708,
         "death_floor": {
-          "3": 50,
-          "4": 245,
-          "5": 520
+          "3": 36,
+          "4": 220,
+          "5": 515
         }
       },
-      "contribution": 0.126,
+      "contribution": 0.115,
       "ci": [
-        0.07400000000000007,
-        0.16399999999999992
+        0.050000000000000044,
+        0.13600000000000012
       ],
       "within_pm_delta": false,
       "mcnemar": {
         "reject": true,
         "direction": 1,
         "ci": [
-          0.649,
-          0.809
+          0.602,
+          0.757
         ],
-        "n_disc": 264,
-        "evalue": 1080143.074397732
+        "n_disc": 283,
+        "evalue": 32323.59246345403
       },
-      "evalue": 1080143.074397732,
+      "evalue": 32323.59246345403,
       "verdict": "healthy",
       "semantics": "presence_vs_absence",
       "fdr_significant": true
     },
     "hansha": {
       "cohort": {
-        "cleared": 341,
-        "rate": 0.341,
-        "avg_floor": 4.742,
+        "cleared": 382,
+        "rate": 0.382,
+        "avg_floor": 4.78,
         "death_floor": {
-          "3": 43,
-          "4": 172,
-          "5": 444
+          "3": 33,
+          "4": 154,
+          "5": 431
         }
       },
-      "contribution": -0.03,
+      "contribution": -0.038,
       "ci": [
-        -0.07399999999999995,
-        0.026000000000000023
-      ],
-      "within_pm_delta": true,
-      "mcnemar": {
-        "reject": false,
-        "direction": 0,
-        "ci": [
-          0.371,
-          0.541
-        ],
-        "n_disc": 292,
-        "evalue": 1.221430411995145
-      },
-      "evalue": 1.221430411995145,
-      "verdict": "inconclusive",
-      "semantics": "incremental_beyond_fixed_1F",
-      "fdr_significant": false
-    },
-    "yomi": {
-      "cohort": {
-        "cleared": 352,
-        "rate": 0.352,
-        "avg_floor": 4.744,
-        "death_floor": {
-          "3": 43,
-          "4": 170,
-          "5": 435
-        }
-      },
-      "contribution": -0.041,
-      "ci": [
-        -0.09399999999999997,
-        0.0040000000000000036
+        -0.08599999999999997,
+        0.01200000000000001
       ],
       "within_pm_delta": false,
       "mcnemar": {
         "reject": false,
         "direction": 0,
         "ci": [
-          0.338,
-          0.503
+          0.355,
+          0.52
         ],
-        "n_disc": 281,
-        "evalue": 15.710856680900218
+        "n_disc": 300,
+        "evalue": 4.970491484359171
       },
-      "evalue": 15.710856680900218,
-      "verdict": "dead",
+      "evalue": 4.970491484359171,
+      "verdict": "inconclusive",
+      "semantics": "incremental_beyond_fixed_1F",
+      "fdr_significant": false
+    },
+    "yomi": {
+      "cohort": {
+        "cleared": 349,
+        "rate": 0.349,
+        "avg_floor": 4.739,
+        "death_floor": {
+          "3": 41,
+          "4": 179,
+          "5": 431
+        }
+      },
+      "contribution": -0.005,
+      "ci": [
+        -0.06399999999999995,
+        0.03200000000000003
+      ],
+      "within_pm_delta": true,
+      "mcnemar": {
+        "reject": false,
+        "direction": 0,
+        "ci": [
+          0.396,
+          0.557
+        ],
+        "n_disc": 291,
+        "evalue": 1.8501159325717607
+      },
+      "evalue": 1.8501159325717607,
+      "verdict": "inconclusive",
       "semantics": "presence_vs_absence",
       "fdr_significant": false
     },
     "kouki": {
       "cohort": {
-        "cleared": 129,
-        "rate": 0.129,
-        "avg_floor": 4.591,
+        "cleared": 149,
+        "rate": 0.149,
+        "avg_floor": 4.621,
         "death_floor": {
-          "3": 61,
-          "4": 287,
-          "5": 523
+          "3": 56,
+          "4": 267,
+          "5": 528
         }
       },
-      "contribution": 0.182,
+      "contribution": 0.195,
       "ci": [
-        0.14400000000000013,
+        0.14200000000000013,
         0.23399999999999999
       ],
       "within_pm_delta": false,
@@ -220,13 +220,13 @@
         "reject": true,
         "direction": 1,
         "ci": [
-          0.787,
-          0.912
+          0.775,
+          0.898
         ],
-        "n_disc": 262,
-        "evalue": 552586047930.7109
+        "n_disc": 285,
+        "evalue": 365895771272.6562
       },
-      "evalue": 552586047930.7109,
+      "evalue": 365895771272.6562,
       "verdict": "broken",
       "semantics": "presence_vs_absence",
       "fdr_significant": true
@@ -235,32 +235,32 @@
   "pairs": {
     "mikiri|kasoku_dome": {
       "cohort": {
-        "cleared": 288,
-        "rate": 0.288,
-        "avg_floor": 4.788,
+        "cleared": 330,
+        "rate": 0.33,
+        "avg_floor": 4.82,
         "death_floor": {
-          "3": 39,
-          "4": 134,
-          "5": 539
+          "3": 36,
+          "4": 108,
+          "5": 526
         }
       },
-      "joint_contribution": 0.023,
+      "joint_contribution": 0.014,
       "joint_ci": [
-        -0.020000000000000018,
-        0.08200000000000007
+        -0.026000000000000023,
+        0.07200000000000006
       ],
-      "joint_evalue": 4.159630792440567,
-      "interaction": 0.02,
+      "joint_evalue": 2.070803493101827,
+      "interaction": 0.015,
       "interaction_ci": [
-        -0.052000000000000046,
-        0.08800000000000008
+        -0.04400000000000004,
+        0.10000000000000009
       ],
-      "interaction_evalue": 1.0,
+      "interaction_evalue": 1.9688786084799708,
       "interaction_ci_bootstrap": [
-        -0.03,
-        0.069
+        -0.033025,
+        0.06602499999999986
       ],
-      "within_w": true,
+      "within_w": false,
       "sign": "none",
       "confounded_by_fixed_1F": false,
       "joint_fdr_significant": false,
@@ -268,32 +268,32 @@
     },
     "mikiri|juso": {
       "cohort": {
-        "cleared": 229,
-        "rate": 0.229,
-        "avg_floor": 4.723,
+        "cleared": 270,
+        "rate": 0.27,
+        "avg_floor": 4.748,
         "death_floor": {
-          "3": 49,
-          "4": 179,
-          "5": 543
+          "3": 46,
+          "4": 160,
+          "5": 524
         }
       },
-      "joint_contribution": 0.082,
+      "joint_contribution": 0.074,
       "joint_ci": [
-        0.03600000000000003,
-        0.12400000000000011
+        0.028000000000000025,
+        0.1260000000000001
       ],
-      "joint_evalue": 3619.144389123615,
-      "interaction": 0.011,
+      "joint_evalue": 1046.2069055126858,
+      "interaction": 0.021,
       "interaction_ci": [
-        -0.052000000000000046,
-        0.07600000000000007
+        -0.01200000000000001,
+        0.1080000000000001
       ],
-      "interaction_evalue": 1.01513671875,
+      "interaction_evalue": 14.695951260344922,
       "interaction_ci_bootstrap": [
-        -0.032,
-        0.055
+        -0.023,
+        0.067
       ],
-      "within_w": true,
+      "within_w": false,
       "sign": "none",
       "confounded_by_fixed_1F": false,
       "joint_fdr_significant": true,
@@ -301,30 +301,30 @@
     },
     "mikiri|hansha": {
       "cohort": {
-        "cleared": 427,
-        "rate": 0.427,
-        "avg_floor": 4.799,
+        "cleared": 488,
+        "rate": 0.488,
+        "avg_floor": 4.811,
         "death_floor": {
-          "3": 39,
-          "4": 123,
-          "5": 411
+          "3": 40,
+          "4": 109,
+          "5": 363
         }
       },
-      "joint_contribution": -0.116,
+      "joint_contribution": -0.144,
       "joint_ci": [
-        -0.16600000000000004,
-        -0.06999999999999995
+        -0.18799999999999994,
+        -0.08999999999999997
       ],
-      "joint_evalue": 284310.08766620693,
-      "interaction": -0.031,
+      "joint_evalue": 2772016.357155902,
+      "interaction": -0.044,
       "interaction_ci": [
-        -0.10799999999999987,
-        0.03200000000000003
+        -0.10399999999999987,
+        0.03600000000000003
       ],
-      "interaction_evalue": 3.306458512288106,
+      "interaction_evalue": 1.42192347923389,
       "interaction_ci_bootstrap": [
-        -0.081,
-        0.018
+        -0.092,
+        0.004
       ],
       "within_w": false,
       "sign": "none",
@@ -343,21 +343,21 @@
           "5": 417
         }
       },
-      "joint_contribution": -0.122,
+      "joint_contribution": -0.089,
       "joint_ci": [
-        -0.14200000000000002,
-        -0.05599999999999994
+        -0.13,
+        -0.026000000000000023
       ],
-      "joint_evalue": 43770.57014751369,
-      "interaction": -0.026,
+      "joint_evalue": 468.1627629725112,
+      "interaction": -0.022,
       "interaction_ci": [
-        -0.08399999999999985,
-        0.052000000000000046
+        -0.06800000000000006,
+        0.06400000000000006
       ],
-      "interaction_evalue": 1.03125,
+      "interaction_evalue": 3.9748144948991357,
       "interaction_ci_bootstrap": [
-        -0.076,
-        0.021
+        -0.07,
+        0.02302499999999986
       ],
       "within_w": true,
       "sign": "none",
@@ -367,30 +367,30 @@
     },
     "mikiri|kouki": {
       "cohort": {
-        "cleared": 178,
-        "rate": 0.178,
-        "avg_floor": 4.631,
+        "cleared": 194,
+        "rate": 0.194,
+        "avg_floor": 4.656,
         "death_floor": {
-          "3": 55,
-          "4": 259,
-          "5": 508
+          "3": 50,
+          "4": 244,
+          "5": 512
         }
       },
-      "joint_contribution": 0.133,
+      "joint_contribution": 0.15,
       "joint_ci": [
-        0.08800000000000008,
-        0.17399999999999993
+        0.10400000000000009,
+        0.18999999999999995
       ],
-      "joint_evalue": 11816908.873981101,
-      "interaction": 0.006,
+      "joint_evalue": 184344172.8025058,
+      "interaction": 0.017,
       "interaction_ci": [
-        -0.06000000000000005,
-        0.052000000000000046
+        -0.040000000000000036,
+        0.07600000000000007
       ],
-      "interaction_evalue": 1.4901688376735662,
+      "interaction_evalue": 3.290661228609556,
       "interaction_ci_bootstrap": [
-        -0.033025,
-        0.046
+        -0.021,
+        0.056
       ],
       "within_w": true,
       "sign": "none",
@@ -400,30 +400,30 @@
     },
     "kasoku_dome|juso": {
       "cohort": {
-        "cleared": 80,
-        "rate": 0.08,
-        "avg_floor": 4.691,
+        "cleared": 140,
+        "rate": 0.14,
+        "avg_floor": 4.731,
         "death_floor": {
-          "3": 49,
-          "4": 211,
-          "5": 660
+          "3": 44,
+          "4": 181,
+          "5": 635
         }
       },
-      "joint_contribution": 0.231,
+      "joint_contribution": 0.204,
       "joint_ci": [
-        0.17999999999999994,
-        0.266
+        0.14400000000000013,
+        0.236
       ],
-      "joint_evalue": 2972407910985252.0,
-      "interaction": 0.047,
+      "joint_evalue": 57490312082.528595,
+      "interaction": 0.028,
       "interaction_ci": [
-        -0.016000000000000014,
+        -0.03200000000000003,
         0.10400000000000009
       ],
-      "interaction_evalue": 4.059126876088936,
+      "interaction_evalue": 2.567301396679158,
       "interaction_ci_bootstrap": [
-        0.002,
-        0.089
+        -0.018024999999999996,
+        0.074
       ],
       "within_w": false,
       "sign": "none",
@@ -433,63 +433,63 @@
     },
     "kasoku_dome|hansha": {
       "cohort": {
-        "cleared": 270,
-        "rate": 0.27,
-        "avg_floor": 4.77,
+        "cleared": 302,
+        "rate": 0.302,
+        "avg_floor": 4.793,
         "death_floor": {
-          "3": 39,
-          "4": 152,
-          "5": 539
+          "3": 40,
+          "4": 127,
+          "5": 531
         }
       },
-      "joint_contribution": 0.041,
+      "joint_contribution": 0.042,
       "joint_ci": [
-        0.0040000000000000036,
-        0.1080000000000001
+        -0.010000000000000009,
+        0.09800000000000009
       ],
-      "joint_evalue": 25.887892994522087,
-      "interaction": 0.013,
+      "joint_evalue": 7.72234859138289,
+      "interaction": 0.019,
       "interaction_ci": [
-        -0.052000000000000046,
-        0.08400000000000007
+        -0.04800000000000004,
+        0.09200000000000008
       ],
-      "interaction_evalue": 1.4206947078764198,
+      "interaction_evalue": 1.093994140625,
       "interaction_ci_bootstrap": [
-        -0.039,
-        0.06
+        -0.031,
+        0.06502499999999986
       ],
       "within_w": true,
       "sign": "none",
       "confounded_by_fixed_1F": true,
-      "joint_fdr_significant": true,
+      "joint_fdr_significant": false,
       "interaction_fdr_significant": false
     },
     "kasoku_dome|yomi": {
       "cohort": {
-        "cleared": 282,
-        "rate": 0.282,
-        "avg_floor": 4.785,
+        "cleared": 297,
+        "rate": 0.297,
+        "avg_floor": 4.79,
         "death_floor": {
-          "3": 38,
-          "4": 139,
-          "5": 541
+          "3": 40,
+          "4": 130,
+          "5": 533
         }
       },
-      "joint_contribution": 0.029,
+      "joint_contribution": 0.047,
       "joint_ci": [
-        -0.020000000000000018,
-        0.08400000000000007
+        -0.0020000000000000018,
+        0.09800000000000009
       ],
-      "joint_evalue": 1.695217759136586,
-      "interaction": 0.012,
+      "joint_evalue": 16.127998176979265,
+      "interaction": -0.009,
       "interaction_ci": [
-        -0.05600000000000005,
-        0.08400000000000007
+        -0.06400000000000006,
+        0.06800000000000006
       ],
-      "interaction_evalue": 1.283546243616911,
+      "interaction_evalue": 1.157470703125,
       "interaction_ci_bootstrap": [
-        -0.037,
-        0.056
+        -0.056025,
+        0.037024999999999864
       ],
       "within_w": true,
       "sign": "none",
@@ -499,30 +499,30 @@
     },
     "kasoku_dome|kouki": {
       "cohort": {
-        "cleared": 93,
-        "rate": 0.093,
-        "avg_floor": 4.606,
+        "cleared": 101,
+        "rate": 0.101,
+        "avg_floor": 4.651,
         "death_floor": {
-          "3": 54,
-          "4": 286,
-          "5": 567
+          "3": 49,
+          "4": 251,
+          "5": 599
         }
       },
-      "joint_contribution": 0.218,
+      "joint_contribution": 0.243,
       "joint_ci": [
-        0.17199999999999993,
-        0.26
+        0.19399999999999995,
+        0.28400000000000003
       ],
-      "joint_evalue": 3.0355474561167308e+16,
-      "interaction": -0.022,
+      "joint_evalue": 3.5440477563230534e+17,
+      "interaction": -0.013,
       "interaction_ci": [
-        -0.08799999999999986,
-        0.02400000000000002
+        -0.07200000000000006,
+        0.04400000000000004
       ],
-      "interaction_evalue": 3.624291209947639,
+      "interaction_evalue": 1.078125,
       "interaction_ci_bootstrap": [
-        -0.062,
-        0.016024999999999862
+        -0.053,
+        0.028
       ],
       "within_w": true,
       "sign": "none",
@@ -532,30 +532,30 @@
     },
     "juso|hansha": {
       "cohort": {
-        "cleared": 139,
-        "rate": 0.139,
-        "avg_floor": 4.674,
+        "cleared": 186,
+        "rate": 0.186,
+        "avg_floor": 4.712,
         "death_floor": {
-          "3": 53,
-          "4": 220,
-          "5": 588
+          "3": 49,
+          "4": 190,
+          "5": 575
         }
       },
-      "joint_contribution": 0.172,
+      "joint_contribution": 0.158,
       "joint_ci": [
-        0.12200000000000011,
-        0.21799999999999997
+        0.10000000000000009,
+        0.19399999999999995
       ],
-      "joint_evalue": 964029083.517492,
-      "interaction": 0.076,
+      "joint_evalue": 67823784.39688835,
+      "interaction": 0.081,
       "interaction_ci": [
-        0.01200000000000001,
-        0.14400000000000013
+        0.020000000000000018,
+        0.16000000000000014
       ],
-      "interaction_evalue": 44.37529569254504,
+      "interaction_evalue": 61.27396504289403,
       "interaction_ci_bootstrap": [
-        0.028,
-        0.121
+        0.031975,
+        0.128
       ],
       "within_w": false,
       "sign": "substitute",
@@ -565,30 +565,30 @@
     },
     "juso|yomi": {
       "cohort": {
-        "cleared": 171,
-        "rate": 0.171,
-        "avg_floor": 4.696,
+        "cleared": 187,
+        "rate": 0.187,
+        "avg_floor": 4.699,
         "death_floor": {
-          "3": 50,
-          "4": 204,
-          "5": 575
+          "3": 51,
+          "4": 199,
+          "5": 563
         }
       },
-      "joint_contribution": 0.14,
+      "joint_contribution": 0.157,
       "joint_ci": [
-        0.09800000000000009,
-        0.19399999999999995
+        0.10400000000000009,
+        0.19999999999999996
       ],
-      "joint_evalue": 20976843.67880182,
-      "interaction": 0.055,
+      "joint_evalue": 71890454.93204743,
+      "interaction": 0.047,
       "interaction_ci": [
-        0.008000000000000007,
-        0.13200000000000012
+        0.01200000000000001,
+        0.1280000000000001
       ],
-      "interaction_evalue": 33.83336522143753,
+      "interaction_evalue": 37.837228421658324,
       "interaction_ci_bootstrap": [
-        0.009,
-        0.098
+        0.001,
+        0.09
       ],
       "within_w": false,
       "sign": "substitute",
@@ -598,30 +598,30 @@
     },
     "juso|kouki": {
       "cohort": {
-        "cleared": 40,
-        "rate": 0.04,
-        "avg_floor": 4.465,
+        "cleared": 61,
+        "rate": 0.061,
+        "avg_floor": 4.535,
         "death_floor": {
-          "3": 70,
-          "4": 395,
-          "5": 495
+          "3": 60,
+          "4": 345,
+          "5": 534
         }
       },
-      "joint_contribution": 0.271,
+      "joint_contribution": 0.283,
       "joint_ci": [
-        0.22399999999999998,
-        0.31400000000000006
+        0.23199999999999998,
+        0.31600000000000006
       ],
-      "joint_evalue": 1.3214620826530203e+23,
-      "interaction": -0.037,
+      "joint_evalue": 8.69690332516972e+24,
+      "interaction": -0.027,
       "interaction_ci": [
-        -0.09599999999999986,
-        0.016000000000000014
+        -0.07600000000000007,
+        0.040000000000000036
       ],
-      "interaction_evalue": 4.047919632607443,
+      "interaction_evalue": 1.923928861766461,
       "interaction_ci_bootstrap": [
-        -0.077,
-        0.0
+        -0.067,
+        0.013
       ],
       "within_w": true,
       "sign": "none",
@@ -631,30 +631,30 @@
     },
     "hansha|yomi": {
       "cohort": {
-        "cleared": 394,
-        "rate": 0.394,
-        "avg_floor": 4.77,
+        "cleared": 403,
+        "rate": 0.403,
+        "avg_floor": 4.778,
         "death_floor": {
           "3": 43,
-          "4": 144,
-          "5": 419
+          "4": 136,
+          "5": 418
         }
       },
-      "joint_contribution": -0.083,
+      "joint_contribution": -0.059,
       "joint_ci": [
-        -0.128,
-        -0.02400000000000002
+        -0.10999999999999999,
+        -0.010000000000000009
       ],
-      "joint_evalue": 553.7287922704679,
-      "interaction": -0.012,
+      "joint_evalue": 71.22012490733354,
+      "interaction": -0.016,
       "interaction_ci": [
         -0.08799999999999986,
-        0.07200000000000006
+        0.06400000000000006
       ],
-      "interaction_evalue": 1.3119466621375955,
+      "interaction_evalue": 1.0935054071389376,
       "interaction_ci_bootstrap": [
-        -0.067,
-        0.04102499999999987
+        -0.07,
+        0.034
       ],
       "within_w": true,
       "sign": "none",
@@ -664,30 +664,30 @@
     },
     "hansha|kouki": {
       "cohort": {
-        "cleared": 119,
-        "rate": 0.119,
-        "avg_floor": 4.575,
+        "cleared": 151,
+        "rate": 0.151,
+        "avg_floor": 4.638,
         "death_floor": {
-          "3": 58,
-          "4": 309,
-          "5": 514
+          "3": 52,
+          "4": 258,
+          "5": 539
         }
       },
-      "joint_contribution": 0.192,
+      "joint_contribution": 0.193,
       "joint_ci": [
-        0.14200000000000013,
-        0.23199999999999998
+        0.13800000000000012,
+        0.22599999999999998
       ],
-      "joint_evalue": 725414880891.4469,
-      "interaction": 0.04,
+      "joint_evalue": 373406386991.54364,
+      "interaction": 0.036,
       "interaction_ci": [
         -0.03200000000000003,
         0.09200000000000008
       ],
-      "interaction_evalue": 1.5567960632539697,
+      "interaction_evalue": 1.8497096520668275,
       "interaction_ci_bootstrap": [
-        -0.004,
-        0.081
+        -0.008,
+        0.078
       ],
       "within_w": true,
       "sign": "none",
@@ -697,30 +697,30 @@
     },
     "yomi|kouki": {
       "cohort": {
-        "cleared": 132,
-        "rate": 0.132,
-        "avg_floor": 4.612,
+        "cleared": 147,
+        "rate": 0.147,
+        "avg_floor": 4.626,
         "death_floor": {
-          "3": 54,
-          "4": 280,
-          "5": 534
+          "3": 53,
+          "4": 268,
+          "5": 532
         }
       },
-      "joint_contribution": 0.179,
+      "joint_contribution": 0.197,
       "joint_ci": [
-        0.1280000000000001,
-        0.21599999999999997
+        0.14600000000000013,
+        0.236
       ],
-      "joint_evalue": 89350567066.18056,
-      "interaction": 0.038,
+      "joint_evalue": 660932187196.2959,
+      "interaction": 0.007,
       "interaction_ci": [
-        -0.03200000000000003,
-        0.09600000000000009
+        -0.04800000000000004,
+        0.07200000000000006
       ],
-      "interaction_evalue": 1.665875873503823,
+      "interaction_evalue": 1.307907270713279,
       "interaction_ci_bootstrap": [
-        -0.004,
-        0.077
+        -0.036024999999999995,
+        0.048
       ],
       "within_w": true,
       "sign": "none",
@@ -740,7 +740,6 @@
       "mikiri|yomi",
       "mikiri|kouki",
       "kasoku_dome|juso",
-      "kasoku_dome|hansha",
       "kasoku_dome|kouki",
       "juso|hansha",
       "juso|yomi",
