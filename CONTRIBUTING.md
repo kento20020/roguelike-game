@@ -50,7 +50,7 @@
 
 - **changelog**（[docs/changelog.md](docs/changelog.md)）: S クラスは必須。B・影響の大きい F は任意。
 - **ADR**（[docs/adr/](docs/adr/)）: 技術選定・アーキテクチャ絶対原則の追加/変更時に `000N-題名.md` を追加（Status / Context / Decision / Consequences 形式）。
-- **版 bump**: まとまった仕様改訂時のみ。[docs/architecture.md](docs/architecture.md) §0.1 の「5箇所一括更新・部分更新禁止」ルールに従う。ファイル名はバージョンレス固定のまま変えない。
+- **版 bump**: まとまった仕様改訂時のみ。[docs/architecture.md](docs/architecture.md) §0.1 の版管理ルール（版の正本は changelog.md 先頭エントリ・インデックス冒頭バナーと同一コミットで更新・doc-CI が一致を機械検査）に従う。ファイル名はバージョンレス固定のまま変えない。
 
 ## 6. AI対話（Claude Code / Codex）で設計・実装する際の作法
 
