@@ -146,7 +146,9 @@ RunRecord:
 - `POST /run/new` が `profile_levels()` を読み初期 GameState へ反映（`new_run(upgrades=…)`）。`POST /upgrade` が `allocate_upgrade` で Profile を更新。`RunRecord.permanent_upgrades_state` は**ラン開始時スナップショット（統計用）**で可変正本ではない。
 - マルチユーザ化する場合は `owner`/`client_id` 列を足す（現状は単一プロファイル前提・OPEN-026）。
 
-### 20.6b その他の永続テーブル（v1.4 時点の全体像）
+### 20.6b その他の永続テーブル（全体像）
+
+> 本表と `backend/app/db/models.py` の `__tablename__` の一致は doc-CI（`scripts/check_docs.py`）が機械検査する（テーブル追加時は同一PRで本表へ追記）。
 
 | テーブル | 内容 | 由来 |
 |---------|------|------|
@@ -155,7 +157,9 @@ RunRecord:
 | `postmortems` | 検死レポート（turn_history＋致命ターンの反実仮想。戦闘死のみ・§15.2） | 検死機能 |
 | `observations` | ディーラー調書の観測カウント（enemy_id×behavior×data_version・真のweightは持たない・§15.3） | 調書機能 |
 | `run_actions` | 全ラン共通の操作履歴（terminal時に turn_history を一括保存） | v1.4（improvement_ideas アイディア1 基盤） |
+| `active_sessions` | 進行中ラン再構築用の最小入力（seed＋初期upgrades＋適用アクション列＋run_id）。キャッシュミス時に `app.engine.replay.rebuild_engine` がアクションログ再生で GameEngine を復元（§25.1）。TTL 掃除は `delete_stale_active_sessions`（runbook.md §1） | v1.5（`0003_active_sessions`・OPEN-007解消） |
 
+- **session_store ⇄ active_sessions の関係**：`session_store` は LRU 上限つきの**揮発ホットキャッシュ**（プロセス内メモリ）、`active_sessions` が**真の永続**（SQLite）。追い出し・再起動後も `rebuild_engine` で透過復元される（§19.1 補足の run_id 説明も参照）。
 - スキーマ進化は **Alembic**（`backend/migrations/`・SQLite は batch mode）。手順は runbook.md。`main.py` の `create_all` は開発/テスト用フォールバック（既存テーブルへの列追加はしない）。
 
 ### 20.7 値集合（enum の正準源）

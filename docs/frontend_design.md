@@ -58,9 +58,14 @@
 
 | コンポーネント | props | 説明 |
 |------------|-------|------|
-| `CombatPanel` | `enemy, player, onAttack` | 敵HP・プレイヤー情報・攻撃ボタン |
+| `CombatPanel` | `enemy, player, onAttack` | 戦闘画面の中核（下記サブコンポーネントを統括）・攻撃/受けボタン |
 | `CombatLog` | `log` | 全ログ保持・スクロール（デフォルト8行表示） |
-| `RampIndicator` | `value, max` | ramp蓄積値。高いほど警告色・点滅 |
+| `RampIndicator` | `value, max` | ramp蓄積値。高いほど警告色・点滅（実装では CombatPanel に内包） |
+| `EnemyStage` | `enemy` | 敵の立ち絵・名前・HP表示（CombatPanel から分割・実装追随） |
+| `PlayerStatusBar` | `player` | プレイヤーHP・チップ・mod の戦闘中ステータス（同上） |
+| `GuardEfficacy` | `battle` | **受けの効き％表示**（`guard_next_scale`/`guard_uses` の可視化・§8.4 ジャストガード。api_contract.md が契約として公開） |
+| `NextActionPreview` | `battle` | 次行動プレビュー（yomi の先読み §10.1／テル気配 §15.5） |
+| `SideBetPanel` | `battle, onBet` | サイドベット『読み宣言』のベットスポット（§15.4・常時5種固定表示） |
 
 ### 24.4 宝箱（components/treasure/）
 
@@ -81,14 +86,14 @@
 | Page | 対応phase | 主な子コンポーネント |
 |------|----------|------------------|
 | `StartPage` | （phase外・session未生成） | 新規ラン開始（`POST /run/new`）。GameState/phase 不在の初期画面＋[調書を見る]（DossierPage へ） |
-| `DossierPage` | （phase外・ラン中は不可） | ディーラー調書（§15.3）。`/profile/dossier`＋`/catalog/enemies` を store 経由で取得し、観測頻度＋Wilson CI をカード表示。「テーブルへのメモ持ち込み禁止」の世界観でラン中は閲覧不可 |
+| `DossierPage` | （phase外・ラン中は不可） | ディーラー調書（§15.3）。`/profile/dossier`＋`/catalog/enemies` を store 経由で取得し、観測頻度＋Wilson CI をカード表示（`EnemyCard`/`BehaviorRow`。ロード中は `DossierSkeleton`・観測ゼロは `EmptyDossier`）。「テーブルへのメモ持ち込み禁止」の世界観でラン中は閲覧不可 |
 | `ExploringPage` | exploring | TreeCanvas, NodeCard, SinkMenu, ModInventory |
 | `BattlePage` | battle | CombatPanel（攻撃/受け/サイドベット『読み宣言』ベットスポット・§15.4／テル気配表示・§15.5）, CombatLog, RampIndicator, SinkMenu |
 | `TreasurePage` | treasure_preview / treasure_opened | TreasurePreview, ModReveal |
 | `HealPage` | heal | HpBar（回復演出）＋[確認]（`/continue`） |
 | `NextFloorPage` | next_floor | 次フロア演出＋[次の階層へ]（`/continue`） |
 | `GatePage` | gate_preview | ゲート保証sink（**gate_resolve は瞬間phaseで滞在しない**・§6.1。結果は `pending.gate_outcome` を NextFloorPage / ClearedPage / DeadPage 側で表示・§20.8） |
-| `DeadPage` | dead | ResultSummary＋**検死レポート（PostmortemCard）＋リプレイ（ReplayDisclosure/TurnRow）**（§15.2・`GET /run/{sid}/postmortem`。関門死は404=非表示。データ取得は gameStore に集約） |
+| `DeadPage` | dead | ResultSummary＋**検死レポート（PostmortemCard）＋リプレイ（ReplayDisclosure/TurnRow/ReplayHpBar）**（§15.2・`GET /run/{sid}/postmortem`。関門死は404=`EmptyState` で「検死レポートがない」表示。データ取得は gameStore に集約） |
 | `ClearedPage` | cleared | ResultSummary, UpgradeAllocator（`/profile/upgrades`・`/upgrade`） |
 
 > **App.tsx の描画分岐**：通常は `phase` で Page を切り替えるが、**session 未生成時は phase 不在**のため `StartPage` を phase 外の前段ルートとして扱う（session 生成後は phase 駆動。`dossierOpen` 時は DossierPage）。`next_floor` の演出 Page（NextFloorPage）は §6.1 の現役 phase で、[次の階層へ]=`/continue`。

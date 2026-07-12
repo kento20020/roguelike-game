@@ -9,6 +9,9 @@
 6. index 構成表の OPEN 範囲上限 == operations.md の最大 OPEN-nnn
 7. docs 内の OPEN-nnn 参照が operations.md §21.2 の表に実在する（宙吊り参照の検知）
 8. 版の正本2箇所以外に現行版を直書きしない（architecture.md §0.1 の版管理ルール）
+9. data_model.md §20.6b の永続テーブル一覧が models.py の __tablename__ と一致する（drift 検知）
+10. frontend の実コンポーネント/ページ（*.tsx）が frontend_design.md に記載されている（実装先行の検知）
+11. game_design.md §11.3 敵表の id/hp/attack が enemies.json と一致する（クラスB PR の数表放置検知）
 
 外部URL・アンカー(#)・mailto はスキップ。失敗があれば非ゼロ終了。
 標準ライブラリのみ（追加依存なし）。FastAPI アプリの import はしない
@@ -173,6 +176,58 @@ for f in NO_INLINE_VERSION:
             f"[VERSION] {f.relative_to(ROOT)}: 現行版の直書き『{m.group(0)}』は禁止"
             "（changelog.md 先頭エントリへの参照で示す＝architecture.md §0.1）"
         )
+
+# 9) data_model.md §20.6b の永続テーブル一覧 ⟷ models.py の __tablename__
+MODELS_PY = ROOT / "backend" / "app" / "db" / "models.py"
+code_tables = set(re.findall(r'__tablename__\s*=\s*"([a-z_]+)"', MODELS_PY.read_text(encoding="utf-8")))
+dm_text = (DOCS / "data_model.md").read_text(encoding="utf-8")
+m_sec = re.search(r"### 20\.6b.*?(?=\n### )", dm_text, re.DOTALL)
+if not code_tables:
+    errors.append(f"[TABLE] {MODELS_PY.relative_to(ROOT)} から __tablename__ を抽出できない（構造変更?）")
+if not m_sec:
+    errors.append("[TABLE] data_model.md から §20.6b セクションを抽出できない（見出し変更?）")
+if code_tables and m_sec:
+    doc_tables = set(re.findall(r"^\| `([a-z_]+)` \|", m_sec.group(0), re.MULTILINE))
+    for t in sorted(code_tables - doc_tables):
+        errors.append(f"[TABLE] models.py にあるが data_model.md §20.6b の表に無い: {t}")
+    for t in sorted(doc_tables - code_tables):
+        errors.append(f"[TABLE] data_model.md §20.6b の表にあるが models.py に無い: {t}")
+
+# 10) frontend の実コンポーネント/ページ ⟷ frontend_design.md の記載
+#    方向は「実装 → doc」のみ（実装先行の検知）。doc 側の設計名（GoldDisplay 等）は
+#    実装統合済みの経緯が §24 実装メモに記録されるため、逆方向は検査しない
+fe_text = (DOCS / "frontend_design.md").read_text(encoding="utf-8")
+fe_dirs = (ROOT / "frontend" / "src" / "components", ROOT / "frontend" / "src" / "pages")
+tsx_files = [p for d in fe_dirs for p in sorted(d.rglob("*.tsx"))]
+if not tsx_files:
+    errors.append("[COMPONENT] frontend/src/components・pages から *.tsx を発見できない（構造変更?）")
+for tsx in tsx_files:
+    if tsx.stem not in fe_text:
+        errors.append(f"[COMPONENT] 実装にあるが frontend_design.md に記載が無い: {tsx.relative_to(ROOT)}")
+
+# 11) game_design.md §11.3 敵表の id/hp/attack ⟷ enemies.json
+#    表の hp は base_hp（tier スケーリング前）＝ enemies.json の hp と同じ基準（§11.3 注記）
+gd_text = (DOCS / "game_design.md").read_text(encoding="utf-8")
+m_enemy_sec = re.search(r"### 11\.3.*?(?=\n## )", gd_text, re.DOTALL)
+enemies_doc = json.loads((DATA_DIR / "enemies.json").read_text(encoding="utf-8"))["enemies"]
+json_enemies = {e["id"]: (e["hp"], e["attack"]) for e in enemies_doc}
+if not m_enemy_sec:
+    errors.append("[ENEMY] game_design.md から §11.3 セクションを抽出できない（見出し変更?）")
+else:
+    rows = re.findall(r"^\| `([a-z0-9_]+)` \| [^|]+ \| (\d+) \| (\d+) \|", m_enemy_sec.group(0), re.MULTILINE)
+    doc_enemies = {i: (int(h), int(a)) for i, h, a in rows}
+    if not doc_enemies:
+        errors.append("[ENEMY] game_design.md §11.3 の敵表から行を抽出できない（表形式変更?）")
+    for eid in sorted(set(json_enemies) - set(doc_enemies)):
+        errors.append(f"[ENEMY] enemies.json にあるが §11.3 の表に無い: {eid}")
+    for eid in sorted(set(doc_enemies) - set(json_enemies)):
+        errors.append(f"[ENEMY] §11.3 の表にあるが enemies.json に無い: {eid}")
+    for eid in sorted(set(json_enemies) & set(doc_enemies)):
+        if json_enemies[eid] != doc_enemies[eid]:
+            errors.append(
+                f"[ENEMY] {eid} の hp/attack が不一致: enemies.json={json_enemies[eid]} §11.3={doc_enemies[eid]}"
+                "（正本は JSON。表を追随させること＝§11.3 注記）"
+            )
 
 if errors:
     print("docs check FAILED:")

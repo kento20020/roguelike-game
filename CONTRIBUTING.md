@@ -65,9 +65,9 @@
 |---|---|---|---|
 | `balance.yml` | `balance` | backend pytest 全件（カバレッジ計測）＋バランス回帰ゲート | `backend/**` 変更時 |
 | `balance.yml` | `lint` | backend 静的解析 ruff＋mypy（`balance` と並列） | `backend/**` 変更時 |
-| `docs-ci.yml` | `check-docs` | `scripts/check_docs.py`（schemas JSON 妥当性・相対リンク切れ検知） | `docs/**` 変更時 |
+| `docs-ci.yml` | `check-docs` | `scripts/check_docs.py`（schemas JSON 妥当性・相対リンク切れ・版/OPEN 整合・doc⇄コード drift 検知の11検査） | `docs/**` ＋ 突合対象のコード側正本（data JSON・routes.py・models.py・frontend components/pages・ルート md）変更時 |
 | `frontend-ci.yml` | `frontend` | eslint（`npm run lint`）＋ build（`tsc --noEmit` 内包） | `frontend/**` 変更時 |
 
 - main は上記4チェック（`balance` / `lint` / `check-docs` / `frontend`）を必須とするブランチ保護（管理者にも適用・force push 禁止）。
-- 3ワークフローとも push / PR を **path フィルタで発火**させる（`balance.yml`＝`backend/**`、`docs-ci.yml`＝`docs/**`、`frontend-ci.yml`＝`frontend/**`）。ジョブ内で変更有無を判定する skip は行わない。
+- 3ワークフローとも push / PR を **path フィルタで発火**させる（`balance.yml`＝`backend/**`、`docs-ci.yml`＝`docs/**`＋突合対象コード、`frontend-ci.yml`＝`frontend/**`）。ジョブ内で変更有無を判定する skip は行わない。docs-ci の paths に突合対象コードを含める理由: コード側だけの PR で drift 検査が走らないと不一致が黙ってマージされるため（docs-ci.yml 冒頭コメント）。
 - 緊急時（CI 自体の障害等）のみ、ブランチ保護の「管理者にも適用」を一時無効化して対処し、復旧後すぐ戻す。
