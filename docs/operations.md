@@ -125,40 +125,41 @@
 
 > **クラスB↔S の境界**：数値を変えるだけでなく「新しい判定方式を導入する」「フックの挿入点を増やす」等の挙動変更を伴う場合はクラスSへ昇格し、docs PR を先行させる（CONTRIBUTING §3「迷ったらS」）。
 
-### 18.8 QAチェックリスト（手動・v1.9 追加）
+### 18.8 QAチェックリスト（v1.9 追加）
 
-> 自動テスト（`pytest` / typecheck / balance 回帰）で担保できない**手動確認**の一覧。リリース前（runbook.md §7 の公開前チェックリスト実行前）、または API/phase 遷移に関わるクラスS PR のマージ前に実施する。§18.5（受け入れ基準）の人手での再確認であり、§18.5 を代替しない。
+> リリース前（runbook.md §7 の公開前チェックリスト実行前）、または API/phase 遷移に関わるクラスS PR のマージ前に確認する一覧。§18.5（受け入れ基準）の再確認であり、§18.5 を代替しない。
+> **API/エンジン層の確認は pytest へ自動化済み**（「自動化」列。ギャップ分は `tests/test_qa_checklist.py` に集約）。**手動で行うのは「UI表示」列挙分のみ**＝画面に正しく描画されるかの目視（Smoke 1 の1Fレイアウト表示・Regression 2 の「賭博者」フォールバック表示・死亡/クリア画面の見た目）。
 
 **Smoke（一連の流れが通ること）**
 
-| # | 項目 | 確認方法 |
-|:-:|---|---|
-| 1 | 新規ラン開始 | `POST /run/new` → `exploring` phase の GameState が返り、1F固定レイアウトが表示される |
-| 2 | 戦闘勝利 | 敵ノードを選択して攻撃を繰り返し、敵HP 0 で `exploring`（ドロップ無）または `treasure_preview`（撃破ドロップ有）へ遷移する（§6.1） |
-| 3 | 戦闘死亡 | HP0 まで被弾させ `dead` phase へ遷移し、`run_record`（cleared:false）が返る |
-| 4 | 宝箱開封/リロール | `treasure_preview` で開封→mod確定。リロール（30G消費・phase不変）で再抽選される |
-| 5 | 回復ノード | `heal` phase で大/小回復が反映され `chips` は変動しない（§7.3 無料） |
-| 6 | ゲート通過 | `gate_preview` → `gate/resolve` で被ダメ反映・`next_floor`/`cleared`/`dead` のいずれかへ遷移 |
-| 7 | 5Fクリア | 5Fゲート通過で `cleared`・恒久強化ポイント +1（§18.5） |
-| 8 | 恒久強化割り振り | `POST /upgrade` で該当 Lv が +1 され、次回 `POST /run/new` の初期値に反映される |
-| 9 | 死亡後の検死/調書 | 戦闘死後に検死レポート（3分類のいずれか）が表示され、ゲート死では「検死レポートがない」旨が出る（§15.2） |
-| 10 | サーバ再起動後のセッション復元 | 進行中ラン作成後にサーバを再起動し、`GET /run/{id}` が中断前と同一状態を返す（runbook.md §1・`rebuild_engine`） |
+| # | 項目 | 確認方法 | 自動化（pytest） |
+|:-:|---|---|---|
+| 1 | 新規ラン開始 | `POST /run/new` → `exploring` phase の GameState が返り、1F固定レイアウトが表示される | `test_api.py::test_new_run_and_get`（**UI表示のみ手動**） |
+| 2 | 戦闘勝利 | 敵ノードを選択して攻撃を繰り返し、敵HP 0 で `exploring`（ドロップ無）または `treasure_preview`（撃破ドロップ有）へ遷移する（§6.1） | `test_api.py::test_select_battle_then_attack`・`test_engine_run.py::test_enemy_drop_routes_to_treasure` |
+| 3 | 戦闘死亡 | HP0 まで被弾させ `dead` phase へ遷移し、`run_record`（cleared:false）が返る | `test_qa_checklist.py::test_battle_death_dead_phase_and_uncleared_record` |
+| 4 | 宝箱開封/リロール | `treasure_preview` で開封→mod確定。リロール（30G消費・phase不変）で再抽選される | 開封 `test_engine_run.py::test_floor1_treasure_gives_hansha`・リロール `test_qa_checklist.py::test_reroll_costs_chips_and_keeps_phase` |
+| 5 | 回復ノード | `heal` phase で大/小回復が反映され `chips` は変動しない（§7.3 無料） | `test_engine_run.py::test_heal_amounts_are_fixed_not_percent` |
+| 6 | ゲート通過 | `gate_preview` → `gate/resolve` で被ダメ反映・`next_floor`/`cleared`/`dead` のいずれかへ遷移 | `test_engine_run.py::test_gate_special_bonus_and_next_floor_phase`・`test_gate.py` |
+| 7 | 5Fクリア | 5Fゲート通過で `cleared`・恒久強化ポイント +1（§18.5） | `test_api.py::test_clear_awards_point` |
+| 8 | 恒久強化割り振り | `POST /upgrade` で該当 Lv が +1 され、次回 `POST /run/new` の初期値に反映される | `test_api.py::test_profile_upgrades_get`・`test_meta_levels_feed_new_run` |
+| 9 | 死亡後の検死/調書 | 戦闘死後に検死レポート（3分類のいずれか）が表示され、ゲート死では「検死レポートがない」旨が出る（§15.2） | 3分類 `test_postmortem.py`・戦闘死200/ゲート死404 `test_qa_checklist.py::test_gate_death_has_no_postmortem_404` ほか |
+| 10 | サーバ再起動後のセッション復元 | 進行中ラン作成後にサーバを再起動し、`GET /run/{id}` が中断前と同一状態を返す（runbook.md §1・`rebuild_engine`） | `test_session_persistence.py::test_resume_after_cache_loss_matches_uninterrupted_run` |
 
 **Regression（壊れやすい異常系）**
 
-| # | 項目 | 確認方法 |
-|:-:|---|---|
-| 1 | seed非露出 | 進行中 GameState の `run_record` が null・レスポンスに `seed` が含まれない（§17.3・§25.1） |
-| 2 | L3情報マスク | 未インタラクト敵に `name`/`max_hp` が返らず、UIが「賭博者」フォールバックになる（§5・OPEN-015） |
-| 3 | guard減衰リセット | 同一戦闘内で複数回 guard を使うと軽減率が `stack_decay` 倍で減衰し、次戦闘で `guard_uses` が0に戻る（§8.4） |
-| 4 | 宝箱リロール異常系 | 1F確定宝箱で `treasure/reroll` → 400 かつ `available_actions` 非提示（OPEN-017 一部解消分） |
-| 5 | sinkコスト下限 | `sink_cost` Lv最大でもコストが 0G にならず `max(1,…)` でクランプ（OPEN-019） |
-| 6 | ゲート保証0%後の拒否 | 大ダメ率0%到達後の `gate_guarantee` → 400 かつ非提示（OPEN-016） |
-| 7 | 攻撃ブースト異常系 | evade 巻戻し時に `attack_boost_pending` が持ち越され、pending 中の再購入は 400（OPEN-021） |
-| 8 | §25.4 の409マトリクス | battle中select-node／exploring中attack／treasure_opened中reroll／dead・cleared中attack がすべて 409 |
-| 9 | 満タン回復拒否 | HP満タンで回復sink → 400（回復ノードは満タンでも自動解決＝拒否しないことも併せて確認・§7.3） |
-| 10 | チップ不足エラー | チップ不足で任意sink → 400（`InvalidMove`。409ではない点に注意・§25.4） |
-| 11 | 不明session/異常node_id | 存在しない session_id → 404、現フロアに無い stale node_id の select-node → 400 |
+| # | 項目 | 確認方法 | 自動化（pytest） |
+|:-:|---|---|---|
+| 1 | seed非露出 | 進行中 GameState の `run_record` が null・レスポンスに `seed` が含まれない（§17.3・§25.1） | `test_invariants.py::test_seed_not_exposed_while_running` |
+| 2 | L3情報マスク | 未インタラクト敵に `name`/`max_hp` が返らず、UIが「賭博者」フォールバックになる（§5・OPEN-015） | `test_engine_run.py::test_snapshot_exposes_enemy_preview`（**UIフォールバック表示のみ手動**） |
+| 3 | guard減衰リセット | 同一戦闘内で複数回 guard を使うと軽減率が `stack_decay` 倍で減衰し、次戦闘で `guard_uses` が0に戻る（§8.4） | `test_guard.py::test_stack_decay_second_use_halves_mitigation`・`test_decay_resets_between_battles` |
+| 4 | 宝箱リロール異常系 | 1F確定宝箱で `treasure/reroll` → 400 かつ `available_actions` 非提示（OPEN-017 一部解消分） | `test_open_guards.py::test_fixed_mod_treasure_cannot_reroll` |
+| 5 | sinkコスト下限 | `sink_cost` Lv最大でもコストが 0G にならず `max(1,…)` でクランプ（OPEN-019） | `test_open_guards.py::test_sink_cost_never_zero` |
+| 6 | ゲート保証0%後の拒否 | 大ダメ率0%到達後の `gate_guarantee` → 400 かつ非提示（OPEN-016） | `test_open_guards.py::test_gate_guarantee_blocked_when_major_zero` |
+| 7 | 攻撃ブースト異常系 | evade 巻戻し時に `attack_boost_pending` が持ち越され、pending 中の再購入は 400（OPEN-021） | `test_open_guards.py::test_attack_boost_carries_over_on_evade`・`test_attack_boost_double_purchase_rejected` |
+| 8 | §25.4 の409マトリクス | battle中select-node／exploring中attack／treasure_opened中reroll／dead・cleared中attack がすべて 409 | `test_api.py::test_attack_in_exploring_409`・`test_qa_checklist.py::test_select_node_in_battle_409`・`test_reroll_in_treasure_opened_409`・`test_attack_after_cleared_409`（dead は Smoke 3 内で検証） |
+| 9 | 満タン回復拒否 | HP満タンで回復sink → 400（回復ノードは満タンでも自動解決＝拒否しないことも併せて確認・§7.3） | `test_qa_checklist.py::test_full_hp_heal_sink_400_but_heal_node_auto_resolves` |
+| 10 | チップ不足エラー | チップ不足で任意sink → 400（`InvalidMove`。409ではない点に注意・§25.4） | `test_qa_checklist.py::test_insufficient_chips_sink_400` |
+| 11 | 不明session/異常node_id | 存在しない session_id → 404、現フロアに無い stale node_id の select-node → 400 | `test_api.py::test_unknown_session_404`・`test_select_locked_node_400` |
 
 > 判定順は 404（session不在）→ 409（phase不整合）→ 400（InvalidMove）（§25.4）。QA 実施時にこの優先順位を混同しないこと。combat_log と RunRecord は同期しない仕様（§10.5）のため、ログと統計の不一致自体は不具合ではない。
 
