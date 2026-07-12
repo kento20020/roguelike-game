@@ -1,35 +1,16 @@
 name: docs-ci
 
-# paths には docs/** に加え、check_docs.py が突合で読む「コード側の正本」も含める。
-# 含めないと、コード側だけを変える PR（例: モデル追加・コンポーネント追加・バランス JSON 変更）で
-# drift 検査が走らず、不一致が黙ってマージされる（検査3=ミラー・4=API契約・9=テーブル・10=コンポーネント・11=敵表）。
+# path フィルタを使わず常時実行する（意図的な例外・CONTRIBUTING §7）。
+# 理由: check_docs.py は docs とコード側正本の「二辺比較」のため、どちらの辺の変更でも
+# 走る必要がある。paths で表現するとスクリプトが読むファイル一覧との二重管理になり、
+# 追随漏れで「コード側だけの PR では検査が走らず drift が黙ってマージされる」穴が再発する
+# （実例: PR #37 は check-docs 未実行でマージされていた）。標準ライブラリのみ・実行約1秒の
+# 軽量検査なので、常時実行のコストより二重管理をなくす利益が大きい。
+# 常時実行＝全 PR でステータス報告されるため、check-docs をブランチ保護の必須チェックにできる。
 on:
   push:
-    paths:
-      - "docs/**"
-      - "scripts/check_docs.py"
-      - ".github/workflows/docs-ci.yml"
-      - "backend/app/data/**"
-      - "backend/app/api/routes.py"
-      - "backend/app/db/models.py"
-      - "frontend/src/components/**"
-      - "frontend/src/pages/**"
-      - "CLAUDE.md"
-      - "AGENTS.md"
-      - "README.md"
+    branches: [main]
   pull_request:
-    paths:
-      - "docs/**"
-      - "scripts/check_docs.py"
-      - ".github/workflows/docs-ci.yml"
-      - "backend/app/data/**"
-      - "backend/app/api/routes.py"
-      - "backend/app/db/models.py"
-      - "frontend/src/components/**"
-      - "frontend/src/pages/**"
-      - "CLAUDE.md"
-      - "AGENTS.md"
-      - "README.md"
 
 jobs:
   check-docs:
