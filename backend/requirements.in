@@ -1,7 +1,7 @@
 # カジノタワー ローグライト — backend
 # エンジン本体は標準ライブラリのみで動く（決定論RNG・数値計算は自前）。
 # 以下は API 段で使用するランタイム依存（テスト専用の依存は requirements-dev.in）。
-fastapi>=0.110
+fastapi>=0.139.2
 # 既知の注意点: requirements.txt はこのプロジェクトの開発環境(Windows)でpip-compileして
 # いる。uvicorn[standard]が持つuvloop依存（uvicorn自身のメタデータでは
 # `sys_platform != "win32"` マーカー付き）はWindows上では解決対象外のため、
