@@ -16,7 +16,7 @@ anyio==4.14.1
     #   watchfiles
 click==8.4.2
     # via uvicorn
-fastapi==0.139.0
+fastapi==0.141.1
     # via -r requirements.in
 greenlet==3.5.3
     # via sqlalchemy
@@ -62,7 +62,7 @@ typing-inspection==0.4.2
     # via
     #   fastapi
     #   pydantic
-uvicorn[standard]==0.51.0
+uvicorn[standard]==0.52.0
     # via -r requirements.in
 uvloop==0.22.1
     # via uvicorn
